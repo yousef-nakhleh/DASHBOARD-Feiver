@@ -11,6 +11,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { Resizable } from 'react-resizable';
+import 'react-resizable/css/styles.css';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -29,30 +31,46 @@ const generateTimeSlots = () => {
 
 const timeSlots = generateTimeSlots();
 
-const DraggableAppointment = ({ app, onDrop }) => {
+const DraggableAppointment = ({ app, onDrop, onResize }) => {
   const [, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
   });
 
+  const handleResizeStop = (e, { size }) => {
+    const newDuration = Math.round(size.height / 2.5) * 15; // Convert height back to minutes
+    if (newDuration !== app.duration_min) {
+      onResize(app.id, newDuration);
+    }
+  };
+
   return (
-    <div
-      ref={drag}
-      className="absolute top-1 left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm"
-      style={{ height: `${(app.duration_min / 15) * 2.5}rem`, zIndex: 10 }}
+    <Resizable
+      height={(app.duration_min / 15) * 2.5 * 1}
+      width={0}
+      axis="y"
+      minConstraints={[0, 2.5]}
+      onResizeStop={handleResizeStop}
+      draggableOpts={{ enableUserSelectHack: false }}
     >
-      <div className="flex justify-between">
-        <span className="font-medium text-sm">
-          {app.appointment_time?.slice(0, 5)}
-        </span>
-        <span className="text-xs text-gray-600">{app.duration_min} min</span>
+      <div
+        ref={drag}
+        className="absolute top-1 left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm"
+        style={{ height: `${(app.duration_min / 15) * 2.5}rem`, zIndex: 10 }}
+      >
+        <div className="flex justify-between">
+          <span className="font-medium text-sm">
+            {app.appointment_time?.slice(0, 5)}
+          </span>
+          <span className="text-xs text-gray-600">{app.duration_min} min</span>
+        </div>
+        <div className="flex items-center mt-1">
+          <User size={14} className="text-gray-500 mr-1" />
+          <span>{app.customer_name}</span>
+        </div>
+        <div className="mt-1 text-xs text-gray-600 truncate">{app.service_id}</div>
       </div>
-      <div className="flex items-center mt-1">
-        <User size={14} className="text-gray-500 mr-1" />
-        <span>{app.customer_name}</span>
-      </div>
-      <div className="mt-1 text-xs text-gray-600 truncate">{app.service_id}</div>
-    </div>
+    </Resizable>
   );
 };
 
@@ -102,6 +120,11 @@ const Agenda: React.FC = () => {
 
   const updateAppointmentTime = async (id: string, newTime: string) => {
     await supabase.from('appointments').update({ appointment_time: newTime }).eq('id', id);
+    fetchAppointments();
+  };
+
+  const updateAppointmentDuration = async (id: string, newDuration: number) => {
+    await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', id);
     fetchAppointments();
   };
 
@@ -220,6 +243,7 @@ const Agenda: React.FC = () => {
                         key={app.id}
                         app={app}
                         onDrop={updateAppointmentTime}
+                        onResize={updateAppointmentDuration}
                       />
                     ))}
                   </div>
