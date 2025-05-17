@@ -9,8 +9,6 @@ import {
   Search
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Resizable } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 
