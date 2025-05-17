@@ -6,7 +6,7 @@ const Dashboard: React.FC = () => {
   const todayAppointments = [
     { time: '09:30', clientName: 'Giovanni Rossi', service: 'Taglio e barba', duration: 45, stylist: 'Marco' },
     { time: '11:00', clientName: 'Luca Bianchi', service: 'Taglio classico', duration: 30, stylist: 'Paolo' },
-    { time: '14:30', clientName: 'Andrea Verdi', service: 'Rasatura completa', duration: 25, stylist: 'Marco' },
+    // Removed the "Rasatura completa" entry
   ];
 
   return (
