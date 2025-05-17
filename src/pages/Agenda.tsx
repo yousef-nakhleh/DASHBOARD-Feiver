@@ -8,7 +8,7 @@ import {
   Search,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import Calendar from '../components/Calendar';
+import Calendar from '../components/agenda/Calendar';
 
 const Agenda: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
