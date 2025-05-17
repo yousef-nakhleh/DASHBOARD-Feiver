@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, Pencil } from 'lucide-react';
 
 interface AppointmentCardProps {
   time: string;
@@ -7,6 +7,7 @@ interface AppointmentCardProps {
   service: string;
   duration: number; // duration in minutes
   stylist: string;
+  onEdit?: () => void; // optional handler for edit action
 }
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
@@ -15,9 +16,10 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   service,
   duration,
   stylist,
+  onEdit,
 }) => {
-  // Each 15m block is 2.5rem (40px) — consistent with Agenda.tsx
-  const slotHeight = 40; // px per 15m
+  // Each 15m block is 2.5rem (40px)
+  const slotHeight = 40;
   const height = (duration / 15) * slotHeight;
 
   return (
@@ -27,9 +29,17 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         top: '0',
         left: '4px',
         right: '4px',
-        height: `${height}px`
+        height: `${height}px`,
       }}
     >
+      {/* Edit button in top-right */}
+      <button
+        onClick={onEdit}
+        className="absolute top-1 right-1 text-gray-400 hover:text-blue-600"
+      >
+        <Pencil size={14} />
+      </button>
+
       <div className="flex justify-between">
         <span className="font-medium">{time}</span>
         <span className="text-gray-600 text-xs">{duration} min</span>
