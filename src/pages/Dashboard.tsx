@@ -1,6 +1,5 @@
 import React from 'react';
 import { Calendar, DollarSign, Users, Scissors, Clock } from 'lucide-react';
-import StatCard from '../components/agenda/StatCard';
 import AppointmentCard from '../components/agenda/AppointmentCard';
 
 const Dashboard: React.FC = () => {
