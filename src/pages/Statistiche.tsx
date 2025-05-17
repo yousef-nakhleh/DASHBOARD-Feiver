@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { BarChart2, TrendingUp, Users, DollarSign, Calendar, ChevronDown } from 'lucide-react';
-import StatCard from '../components/agenda/StatCard';
 
 // Sample chart component
 const SimpleBarChart = () => {
@@ -116,34 +115,38 @@ const Statistiche: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard 
-          title="Appuntamenti" 
-          value="32" 
-          icon={<Calendar className="text-blue-600" />}
-          change="15% rispetto a prima" 
-          changeType="increase" 
-        />
-        <StatCard 
-          title="Fatturato" 
-          value="€2,850" 
-          icon={<DollarSign className="text-green-600" />}
-          change="8% rispetto a prima" 
-          changeType="increase" 
-        />
-        <StatCard 
-          title="Nuovi Clienti" 
-          value="12" 
-          icon={<Users className="text-purple-600" />}
-          change="5% rispetto a prima" 
-          changeType="increase" 
-        />
-        <StatCard 
-          title="Tasso di Occupazione" 
-          value="85%" 
-          icon={<TrendingUp className="text-amber-600" />}
-          change="3% rispetto a prima" 
-          changeType="increase" 
-        />
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <Calendar className="text-blue-600 mr-2" size={20} />
+            <h3 className="text-gray-600">Appuntamenti</h3>
+          </div>
+          <p className="text-2xl font-semibold">32</p>
+          <p className="text-sm text-green-600 mt-1">+15% rispetto a prima</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <DollarSign className="text-green-600 mr-2" size={20} />
+            <h3 className="text-gray-600">Fatturato</h3>
+          </div>
+          <p className="text-2xl font-semibold">€2,850</p>
+          <p className="text-sm text-green-600 mt-1">+8% rispetto a prima</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <Users className="text-purple-600 mr-2" size={20} />
+            <h3 className="text-gray-600">Nuovi Clienti</h3>
+          </div>
+          <p className="text-2xl font-semibold">12</p>
+          <p className="text-sm text-green-600 mt-1">+5% rispetto a prima</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <TrendingUp className="text-amber-600 mr-2" size={20} />
+            <h3 className="text-gray-600">Tasso di Occupazione</h3>
+          </div>
+          <p className="text-2xl font-semibold">85%</p>
+          <p className="text-sm text-green-600 mt-1">+3% rispetto a prima</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
