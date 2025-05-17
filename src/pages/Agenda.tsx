@@ -1,49 +1,48 @@
 // src/pages/Agenda.tsx
-import React, { useEffect, useState } from 'react';
-import {
-  Calendar as CalendarIcon,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-} from 'lucide-react';
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import Calendar from '../components/agenda/Calendar';
+import { Calendar } from '../components/agenda/Calendar';
 
-const Agenda: React.FC = () => {
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let h = 6; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      if (h === 21 && m > 0) break;
+      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
+      slots.push({ time, type });
+    }
+  }
+  return slots;
+};
+
+const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStaff, setSelectedStaff] = useState('Tutti');
+  const timeSlots = generateTimeSlots();
 
-  const staffOptions = ['Tutti', 'Staff 1', 'Staff 2'];
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('it-IT', {
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('it-IT', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
-  };
 
-  const navigateDay = (direction: 'prev' | 'next') => {
+  const navigateDay = (dir: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
-    direction === 'prev'
-      ? newDate.setDate(newDate.getDate() - 1)
-      : newDate.setDate(newDate.getDate() + 1);
+    dir === 'prev' ? newDate.setDate(newDate.getDate() - 1) : newDate.setDate(newDate.getDate() + 1);
     setSelectedDate(newDate);
   };
 
   const fetchAppointments = async () => {
-    const formattedDate = selectedDate.toISOString().split('T')[0];
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('appointments')
       .select('*')
-      .eq('appointment_date', formattedDate);
-
-    if (!error && data) setAppointments(data);
-    else console.error('Errore nel fetch:', error);
+      .eq('appointment_date', selectedDate.toISOString().split('T')[0]);
+    setAppointments(data || []);
   };
 
   useEffect(() => {
@@ -55,12 +54,7 @@ const Agenda: React.FC = () => {
     fetchAppointments();
   };
 
-  const updateAppointmentDuration = async (id: string, newDuration: number) => {
-    await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', id);
-    fetchAppointments();
-  };
-
-  const filteredAppointments = appointments.filter(
+  const filtered = appointments.filter(
     (app) =>
       app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase())
@@ -72,61 +66,43 @@ const Agenda: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
-          <div className="flex mt-3 gap-2">
-            {staffOptions.map((staff) => (
-              <button
-                key={staff}
-                onClick={() => setSelectedStaff(staff)}
-                className={`px-4 py-1 rounded-lg text-sm border ${
-                  selectedStaff === staff
-                    ? 'bg-[#5D4037] text-white border-[#5D4037]'
-                    : 'bg-white text-gray-600 border-gray-300'
-                } hover:shadow transition`}
-              >
-                {staff}
-              </button>
-            ))}
-          </div>
         </div>
-
-        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors">
-          <Plus size={18} className="mr-1" />
-          Nuovo Appuntamento
+        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center">
+          <Plus size={18} className="mr-1" /> Nuovo Appuntamento
         </button>
       </div>
 
       <div className="bg-white rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <button onClick={() => navigateDay('prev')} className="p-2 rounded-full hover:bg-gray-100">
-                <ChevronLeft size={20} />
-              </button>
-              <div className="mx-4 flex items-center">
-                <CalendarIcon size={20} className="text-gray-500 mr-2" />
-                <span className="font-medium capitalize">{formatDate(selectedDate)}</span>
-              </div>
-              <button onClick={() => navigateDay('next')} className="p-2 rounded-full hover:bg-gray-100">
-                <ChevronRight size={20} />
-              </button>
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <div className="flex items-center">
+            <button onClick={() => navigateDay('prev')} className="p-2 rounded-full hover:bg-gray-100">
+              <ChevronLeft size={20} />
+            </button>
+            <div className="mx-4 flex items-center">
+              <CalendarIcon size={20} className="text-gray-500 mr-2" />
+              <span className="font-medium capitalize">{formatDate(selectedDate)}</span>
             </div>
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cerca cliente o servizio"
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5D4037]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <button onClick={() => navigateDay('next')} className="p-2 rounded-full hover:bg-gray-100">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cerca cliente o servizio"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
 
+        {/* ⬇️ Calendar with Drag support */}
         <Calendar
-          appointments={filteredAppointments}
+          timeSlots={timeSlots}
+          appointments={filtered}
           onDrop={updateAppointmentTime}
-          onResize={updateAppointmentDuration}
         />
       </div>
     </div>
