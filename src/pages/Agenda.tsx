@@ -133,7 +133,6 @@ const Agenda: React.FC = () => {
   );
 
   return (
-    <DndProvider backend={HTML5Backend}>
       <div className="h-full">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -251,7 +250,6 @@ const Agenda: React.FC = () => {
           </div>
         </div>
       </div>
-    </DndProvider>
   );
 };
 
