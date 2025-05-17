@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/pages/Agenda.tsx
+import React, { useEffect, useState } from 'react';
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -7,19 +8,8 @@ import {
   User,
   Search
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-const appointments = [
-  { id: 1, time: '09:00', client: 'Riccardo Bianchi', service: 'Taglio capelli', duration: 30 },
-  { id: 2, time: '09:30', client: 'Giovanni Rossi', service: 'Taglio e barba', duration: 45 },
-  { id: 3, time: '10:30', client: 'Alberto Neri', service: 'Shampoo e taglio', duration: 40 },
-  { id: 4, time: '11:00', client: 'Luca Bianchi', service: 'Taglio classico', duration: 30 },
-  { id: 5, time: '12:00', client: 'Marco Verdi', service: 'Tinta capelli', duration: 60 },
-  { id: 6, time: '14:00', client: 'Simone Gialli', service: 'Rasatura', duration: 20 },
-  { id: 7, time: '14:30', client: 'Andrea Verdi', service: 'Rasatura completa', duration: 25 },
-  { id: 8, time: '15:00', client: 'Fabio Rossi', service: 'Taglio e piega', duration: 45 },
-];
-
-// Generate 15-minute slots from 06:00 to 21:00
 const generateTimeSlots = () => {
   const slots = [];
   for (let h = 6; h <= 21; h++) {
@@ -37,6 +27,7 @@ const timeSlots = generateTimeSlots();
 
 const Agenda: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaff, setSelectedStaff] = useState('Tutti');
 
@@ -59,14 +50,33 @@ const Agenda: React.FC = () => {
     setSelectedDate(newDate);
   };
 
+  const fetchAppointments = async () => {
+    const formattedDate = selectedDate.toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('appointment_date', formattedDate);
+
+    if (!error && data) {
+      setAppointments(data);
+    } else {
+      console.error('Errore nel fetch:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [selectedDate]);
+
   const filteredAppointments = appointments.filter(
     (app) =>
-      app.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.service.toLowerCase().includes(searchQuery.toLowerCase())
+      app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase()) // fallback
   );
 
   const getAppointmentsForTime = (time: string) => {
-    return filteredAppointments.filter((app) => app.time === time);
+    return filteredAppointments.filter((app) => app.appointment_time?.slice(0, 5) === time);
   };
 
   return (
@@ -75,8 +85,6 @@ const Agenda: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
-
-          {/* Staff Selector */}
           <div className="flex mt-3 gap-2">
             {staffOptions.map((staff) => (
               <button
@@ -140,7 +148,6 @@ const Agenda: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto">
-          {/* Time Column */}
           <div className="bg-white border-r">
             {timeSlots.map((slot, i) => (
               <div
@@ -158,7 +165,6 @@ const Agenda: React.FC = () => {
             ))}
           </div>
 
-          {/* Appointments */}
           <div className="relative">
             {timeSlots.map((slot, i) => {
               const apps = getAppointmentsForTime(slot.time);
@@ -169,22 +175,24 @@ const Agenda: React.FC = () => {
                       key={app.id}
                       className="absolute top-1 left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm"
                       style={{
-                        height: `${(app.duration / 15) * 2.5}rem`,
+                        height: `${(app.duration_min / 15) * 2.5}rem`,
                         zIndex: 10
                       }}
                     >
                       <div className="flex justify-between">
-                        <span className="font-medium text-sm">{app.time}</span>
+                        <span className="font-medium text-sm">
+                          {app.appointment_time?.slice(0, 5)}
+                        </span>
                         <span className="text-xs text-gray-600">
-                          {app.duration} min
+                          {app.duration_min} min
                         </span>
                       </div>
                       <div className="flex items-center mt-1">
                         <User size={14} className="text-gray-500 mr-1" />
-                        <span>{app.client}</span>
+                        <span>{app.customer_name}</span>
                       </div>
                       <div className="mt-1 text-xs text-gray-600 truncate">
-                        {app.service}
+                        {app.service_id}
                       </div>
                     </div>
                   ))}
