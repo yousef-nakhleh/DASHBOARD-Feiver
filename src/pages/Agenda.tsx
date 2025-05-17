@@ -18,7 +18,9 @@ const generateTimeSlots = () => {
   for (let h = 6; h <= 21; h++) {
     for (let m = 0; m < 60; m += 15) {
       if (h === 21 && m > 0) break;
-      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const time = `${h.toString().padStart(2, '0')}:${m
+        .toString()
+        .padStart(2, '0')}`;
       const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
       slots.push({ time, type });
     }
@@ -35,7 +37,7 @@ const DraggableAppointment = ({ app, onDrop, onResize }) => {
   });
 
   const handleResizeStop = (e, { size }) => {
-    const newDuration = Math.round(size.height / 40) * 15; // 40px = 1 hour = 60min, so 40px = 15min
+    const newDuration = Math.round(size.height / 40) * 15;
     if (newDuration !== app.duration_min) {
       onResize(app.id, newDuration);
     }
@@ -52,23 +54,26 @@ const DraggableAppointment = ({ app, onDrop, onResize }) => {
     >
       <div
         ref={drag}
-        className="absolute top-1 left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm"
+        className="absolute top-1 left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm flex flex-col justify-between"
         style={{
           height: `${(app.duration_min / 15) * 40}px`,
           zIndex: 10,
         }}
       >
-        <div className="flex justify-between">
-          <span className="font-medium text-sm">
-            {app.appointment_time?.slice(0, 5)}
-          </span>
-          <span className="text-xs text-gray-600">{app.duration_min} min</span>
+        <div>
+          <div className="flex justify-between">
+            <span className="font-medium text-sm">{app.appointment_time?.slice(0, 5)}</span>
+            <span className="text-xs text-gray-600">{app.duration_min} min</span>
+          </div>
+          <div className="flex items-center mt-1">
+            <User size={14} className="text-gray-500 mr-1" />
+            <span>{app.customer_name}</span>
+          </div>
+          <div className="mt-1 text-xs text-gray-600 truncate">{app.service_id}</div>
         </div>
-        <div className="flex items-center mt-1">
-          <User size={14} className="text-gray-500 mr-1" />
-          <span>{app.customer_name}</span>
-        </div>
-        <div className="mt-1 text-xs text-gray-600 truncate">{app.service_id}</div>
+
+        {/* Resize handle at the bottom */}
+        <div className="h-2 bg-blue-400 rounded-b cursor-s-resize" />
       </div>
     </Resizable>
   );
@@ -119,12 +124,18 @@ const Agenda: React.FC = () => {
   }, [selectedDate]);
 
   const updateAppointmentTime = async (id: string, newTime: string) => {
-    await supabase.from('appointments').update({ appointment_time: newTime }).eq('id', id);
+    await supabase
+      .from('appointments')
+      .update({ appointment_time: newTime })
+      .eq('id', id);
     fetchAppointments();
   };
 
   const updateAppointmentDuration = async (id: string, newDuration: number) => {
-    await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', id);
+    await supabase
+      .from('appointments')
+      .update({ duration_min: newDuration })
+      .eq('id', id);
     fetchAppointments();
   };
 
