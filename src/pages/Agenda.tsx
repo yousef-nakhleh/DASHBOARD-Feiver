@@ -17,15 +17,13 @@ const generateTimeSlots = () => {
   return slots;
 };
 
-const stylists = ['Tutti', 'Staff 1', 'Staff 2', 'Staff 3'];
-
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [selectedStylist, setSelectedStylist] = useState('Tutti');
-
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -52,9 +50,18 @@ const Agenda = () => {
     setAppointments(data || []);
   };
 
+  const fetchBarbers = async () => {
+    const { data } = await supabase.from('barbers').select('*');
+    setBarbers(data || []);
+  };
+
   useEffect(() => {
     fetchAppointments();
   }, [selectedDate]);
+
+  useEffect(() => {
+    fetchBarbers();
+  }, []);
 
   const updateAppointmentTime = async (id: string, newTime: string) => {
     await supabase
@@ -68,10 +75,11 @@ const Agenda = () => {
     const matchesQuery =
       app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase());
-    const matchesStylist =
-      selectedStylist === 'Tutti' || app.stylist === selectedStylist;
 
-    return matchesQuery && matchesStylist;
+    const matchesBarber =
+      selectedBarber === 'Tutti' || app.barber_id === selectedBarber;
+
+    return matchesQuery && matchesBarber;
   });
 
   return (
@@ -112,24 +120,34 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* Stylist Filter Bar */}
+        {/* Barber Filter */}
         <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
-          {stylists.map((name) => (
+          <button
+            onClick={() => setSelectedBarber('Tutti')}
+            className={`px-4 py-2 rounded-full text-sm border ${
+              selectedBarber === 'Tutti'
+                ? 'bg-[#5D4037] text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Tutti
+          </button>
+          {barbers.map((barber) => (
             <button
-              key={name}
-              onClick={() => setSelectedStylist(name)}
+              key={barber.id}
+              onClick={() => setSelectedBarber(barber.id)}
               className={`px-4 py-2 rounded-full text-sm border ${
-                selectedStylist === name
+                selectedBarber === barber.id
                   ? 'bg-[#5D4037] text-white'
                   : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {name}
+              {barber.name}
             </button>
           ))}
         </div>
 
-        {/* Calendar with drag and modal support */}
+        {/* Calendar */}
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
