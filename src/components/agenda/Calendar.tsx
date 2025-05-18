@@ -10,8 +10,9 @@ export const Calendar = ({
   onDrop,
   onClickAppointment,
   barbers,
+  selectedBarber, // <- new prop from Agenda to detect single staff vs Tutti
 }) => {
-  const isTutti = barbers.length > 1;
+  const isTutti = selectedBarber === 'Tutti';
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -33,7 +34,7 @@ export const Calendar = ({
         ))}
       </div>
 
-      {/* Appointment Grid */}
+      {/* Appointments Canvas */}
       <div className="relative bg-white border-l">
         {timeSlots.map((slot) => {
           const [, drop] = useDrop({
@@ -52,7 +53,7 @@ export const Calendar = ({
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
-                // Case: Tutti - show divided layout per barber
+                // If "Tutti" is selected: divide space per barber
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
@@ -73,17 +74,16 @@ export const Calendar = ({
                   );
                 })
               ) : (
-                // Case: single staff - full width layout
+                // If a single barber is selected: full width
                 appointments
                   .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
                   .map((app) => (
-                    <div key={app.id} className="flex-1 h-full flex space-x-1">
-                      <DraggableAppointment
-                        app={app}
-                        onClick={() => onClickAppointment?.(app)}
-                        flexBasis={100}
-                      />
-                    </div>
+                    <DraggableAppointment
+                      key={app.id}
+                      app={app}
+                      onClick={() => onClickAppointment?.(app)}
+                      flexBasis={100}
+                    />
                   ))
               )}
             </div>
