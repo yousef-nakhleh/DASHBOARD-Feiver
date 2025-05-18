@@ -30,10 +30,14 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: name === 'duration_min' ? parseInt(value) : value });
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === 'duration_min' ? parseInt(value, 10) : value,
+    }));
   };
 
   const handleSave = () => {
+    // This passes the updated values back to the parent for database update
     onSave({ ...appointment, ...form });
     onClose();
   };
