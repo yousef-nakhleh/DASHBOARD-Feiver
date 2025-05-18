@@ -46,11 +46,12 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
+                // Multi-barber columns
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
                       a.barber_id === barber.id &&
-                      a.appointment_time.slice(0, 5) === slot.time
+                      a.appointment_time?.slice(0, 5) === slot.time
                   );
                   return (
                     <div key={barber.id} className="flex-1 h-full flex space-x-1">
@@ -66,9 +67,10 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
                   );
                 })
               ) : (
+                // Single barber column
                 <div className="flex-1 h-full flex space-x-1">
                   {appointments
-                    .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
+                    .filter((a) => a.appointment_time?.slice(0, 5) === slot.time)
                     .map((app) => (
                       <DraggableAppointment
                         key={app.id}
