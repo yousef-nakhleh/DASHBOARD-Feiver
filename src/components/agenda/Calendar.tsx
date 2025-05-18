@@ -5,11 +5,14 @@ import { User } from 'lucide-react';
 const slotHeight = 40;
 
 export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, barbers, selectedBarber }) => {
-  const displayedBarbers = selectedBarber === 'Tutti' ? barbers : barbers.filter(b => b.id === selectedBarber);
-  const groupedAppointments = groupAppointmentsByTimeAndBarber(appointments);
+  const groupedAppointments = groupAppointmentsByBarberAndTime(appointments, selectedBarber, barbers);
+
+  // Determine how many columns we need (1 per barber in 'Tutti', or 1 total)
+  const activeBarbers = selectedBarber === 'Tutti' ? (barbers ?? []) : barbers?.filter(b => b.id === selectedBarber) ?? [];
+  const barberIds = activeBarbers.map(b => b.id);
 
   return (
-    <div className={`grid`} style={{ gridTemplateColumns: `80px repeat(${displayedBarbers.length}, 1fr)` }}>
+    <div className={`grid grid-cols-[80px_repeat(${barberIds.length},1fr)] max-h-[700px] overflow-y-auto relative`}>
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -28,23 +31,21 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
         ))}
       </div>
 
-      {/* One column per barber */}
-      {displayedBarbers.map((barber) => (
-        <div key={barber.id} className="relative bg-white border-l">
+      {/* Appointment Columns per Barber */}
+      {barberIds.map((barberId) => (
+        <div key={barberId} className="relative bg-white border-l">
           {timeSlots.map((slot, i) => {
-            const slotAppointments = groupedAppointments[`${slot.time}_${barber.id}`] || [];
+            const slotAppointments = groupedAppointments[barberId]?.[slot.time] ?? [];
 
             const [, drop] = useDrop({
               accept: 'APPOINTMENT',
-              drop: (draggedItem: any) => {
+              drop: (draggedItem) => {
                 if (
-                  draggedItem.appointment_time.slice(0, 5) !== slot.time ||
-                  draggedItem.barber_id !== barber.id
+                  draggedItem.barber_id === barberId &&
+                  draggedItem.appointment_time.slice(0, 5) !== slot.time
                 ) {
-                  // Disallow cross-barber drag
-                  return;
+                  onDrop(draggedItem.id, `${slot.time}:00`);
                 }
-                onDrop(draggedItem.id, `${slot.time}:00`);
               },
             });
 
@@ -71,13 +72,20 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
   );
 };
 
-const groupAppointmentsByTimeAndBarber = (appointments) => {
+const groupAppointmentsByBarberAndTime = (appointments, selectedBarber, barbers) => {
   const grouped = {};
-  for (const app of appointments) {
-    const time = app.appointment_time?.slice(0, 5);
-    const key = `${time}_${app.barber_id}`;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(app);
+  const relevantBarbers = selectedBarber === 'Tutti' ? barbers ?? [] : barbers?.filter(b => b.id === selectedBarber) ?? [];
+
+  for (const barber of relevantBarbers) {
+    grouped[barber.id] = {};
+  }
+
+  for (const app of appointments ?? []) {
+    if (grouped[app.barber_id]) {
+      const time = app.appointment_time?.slice(0, 5);
+      if (!grouped[app.barber_id][time]) grouped[app.barber_id][time] = [];
+      grouped[app.barber_id][time].push(app);
+    }
   }
   return grouped;
 };
