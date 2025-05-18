@@ -4,11 +4,12 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
-  const groupedAppointments = groupAppointmentsByStartTime(appointments);
+export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, barbers, selectedBarber }) => {
+  const displayedBarbers = selectedBarber === 'Tutti' ? barbers : barbers.filter(b => b.id === selectedBarber);
+  const groupedAppointments = groupAppointmentsByTimeAndBarber(appointments);
 
   return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
+    <div className={`grid`} style={{ gridTemplateColumns: `80px repeat(${displayedBarbers.length}, 1fr)` }}>
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -27,49 +28,56 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }
         ))}
       </div>
 
-      {/* Appointment Canvas */}
-      <div className="relative bg-white border-l">
-        {timeSlots.map((slot, i) => {
-          const slotAppointments = groupedAppointments[slot.time] || [];
+      {/* One column per barber */}
+      {displayedBarbers.map((barber) => (
+        <div key={barber.id} className="relative bg-white border-l">
+          {timeSlots.map((slot, i) => {
+            const slotAppointments = groupedAppointments[`${slot.time}_${barber.id}`] || [];
 
-          const [, drop] = useDrop({
-            accept: 'APPOINTMENT',
-            drop: (draggedItem: any) => {
-              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
+            const [, drop] = useDrop({
+              accept: 'APPOINTMENT',
+              drop: (draggedItem: any) => {
+                if (
+                  draggedItem.appointment_time.slice(0, 5) !== slot.time ||
+                  draggedItem.barber_id !== barber.id
+                ) {
+                  // Disallow cross-barber drag
+                  return;
+                }
                 onDrop(draggedItem.id, `${slot.time}:00`);
-              }
-            },
-          });
+              },
+            });
 
-          return (
-            <div
-              key={slot.time}
-              ref={drop}
-              className="h-10 border-t border-gray-200 relative flex space-x-1 px-1"
-            >
-              {slotAppointments.map((app, index) => (
-                <DraggableAppointment
-                  key={app.id}
-                  app={app}
-                  onClick={() => onClickAppointment?.(app)}
-                  flexBasis={100 / slotAppointments.length}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div
+                key={slot.time}
+                ref={drop}
+                className="h-10 border-t border-gray-200 relative flex space-x-1 px-1"
+              >
+                {slotAppointments.map((app, index) => (
+                  <DraggableAppointment
+                    key={app.id}
+                    app={app}
+                    onClick={() => onClickAppointment?.(app)}
+                    flexBasis={100 / slotAppointments.length}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 };
 
-// Group appointments by exact appointment_time (HH:mm)
-const groupAppointmentsByStartTime = (appointments) => {
+const groupAppointmentsByTimeAndBarber = (appointments) => {
   const grouped = {};
   for (const app of appointments) {
     const time = app.appointment_time?.slice(0, 5);
-    if (!grouped[time]) grouped[time] = [];
-    grouped[time].push(app);
+    const key = `${time}_${app.barber_id}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(app);
   }
   return grouped;
 };
@@ -82,9 +90,6 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
       isDragging: monitor.isDragging(),
     }),
   });
-
-  const [hour, minute] = app.appointment_time?.split(':').map(Number);
-  const topOffset = 0; // Now handled inside the correct slot
 
   return (
     <div
