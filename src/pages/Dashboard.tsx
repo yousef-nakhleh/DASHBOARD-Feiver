@@ -1,13 +1,7 @@
 import React from 'react';
 import { Clock, DollarSign, Users, Scissors, Calendar, TrendingUp, Package, Tag } from 'lucide-react';
-import AppointmentCard from '../components/agenda/AppointmentCard';
 
 const Dashboard: React.FC = () => {
-  const todayAppointments = [
-    { time: '09:30', clientName: 'Giovanni Rossi', service: 'Taglio e barba', duration: 45, stylist: 'Marco' },
-    { time: '11:00', clientName: 'Luca Bianchi', service: 'Taglio classico', duration: 30, stylist: 'Paolo' }
-  ];
-
   const todayStats = {
     appointments: 8,
     revenue: 280,
@@ -88,18 +82,7 @@ const Dashboard: React.FC = () => {
                 Vedi Agenda
               </button>
             </div>
-            <div className="space-y-4">
-              {todayAppointments.map((appointment, index) => (
-                <AppointmentCard
-                  key={index}
-                  time={appointment.time}
-                  clientName={appointment.clientName}
-                  service={appointment.service}
-                  duration={appointment.duration}
-                  stylist={appointment.stylist}
-                />
-              ))}
-            </div>
+            <p className="text-gray-500 text-sm">Visualizza i dettagli nella sezione Agenda</p>
           </div>
 
           <div className="bg-white rounded-lg shadow p-5">
@@ -123,7 +106,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">€{staff.revenue}</p>
-                    <p className={`text-sm ${staff.available ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-sm ${staff.available ? 'text-green-600' : 'text-red-600'}`}> 
                       {staff.available ? 'Disponibile' : 'Non disponibile'}
                     </p>
                   </div>
