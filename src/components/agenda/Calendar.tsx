@@ -1,4 +1,3 @@
-// Calendar.tsx
 import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
@@ -6,10 +5,10 @@ import { User } from 'lucide-react';
 const slotHeight = 40;
 
 export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, barbers }) => {
-  const isTutti = barbers.length > 1;
+  const isTutti = Array.isArray(barbers) && barbers.length > 1;
 
   return (
-    <div className={`grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative`}>
+    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -28,7 +27,7 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
         ))}
       </div>
 
-      {/* Appointment Canvas */}
+      {/* Appointment Grid */}
       <div className="relative bg-white border-l">
         {timeSlots.map((slot, i) => {
           const [, drop] = useDrop({
@@ -46,9 +45,9 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
               ref={drop}
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
-              {barbers.map((barber, index) => {
+              {barbers.map((barber) => {
                 const apps = appointments.filter(
-                  (app) => app.barber_id === barber.id && app.appointment_time.slice(0, 5) === slot.time
+                  (a) => a.barber_id === barber.id && a.appointment_time.slice(0, 5) === slot.time
                 );
                 return (
                   <div key={barber.id} className="flex-1 h-full flex space-x-1">
