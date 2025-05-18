@@ -46,7 +46,6 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
-                // Multiple barber columns (Tutti)
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
@@ -67,7 +66,6 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
                   );
                 })
               ) : (
-                // Single barber view
                 <div className="flex-1 h-full flex space-x-1">
                   {appointments
                     .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
