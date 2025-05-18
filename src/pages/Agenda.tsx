@@ -17,7 +17,7 @@ const generateTimeSlots = () => {
   return slots;
 };
 
-const stylists = ['Tutti', 'Alket', 'Gino', 'Qualsiasi Staff'];
+const stylists = ['Tutti', 'Staff 1', 'Staff 2', 'Staff 3'];
 
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
