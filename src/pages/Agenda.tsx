@@ -152,6 +152,7 @@ const Agenda = () => {
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
+          barbers={barbers || []} // ✅ SAFE default to avoid undefined
           onDrop={updateAppointmentTime}
           onClickAppointment={(app) => setSelectedAppointment(app)}
         />
