@@ -4,11 +4,20 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, selectedBarber }) => {
-  const isTutti = selectedBarber === 'Tutti';
+export const Calendar = ({
+  timeSlots,
+  appointments,
+  onDrop,
+  onClickAppointment,
+  selectedBarber,
+  barbers = [],
+}) => {
+  const visibleBarbers = selectedBarber === 'Tutti'
+    ? barbers
+    : barbers.filter(b => b.id === selectedBarber);
 
   return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
+    <div className={`grid grid-cols-[80px_repeat(${visibleBarbers.length},1fr)] max-h-[700px] overflow-y-auto relative`}>
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -27,64 +36,54 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
         ))}
       </div>
 
-      {/* Appointment Canvas */}
-      <div className="relative bg-white border-l">
-        {timeSlots.map((slot, i) => {
-          const [, drop] = useDrop({
-            accept: 'APPOINTMENT',
-            drop: (draggedItem: any) => {
-              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
-                onDrop(draggedItem.id, `${slot.time}:00`);
-              }
-            },
-          });
+      {/* Appointment Canvases per Barber */}
+      {visibleBarbers.map((barber) => {
+        const apps = appointments.filter((a) => a.barber_id === barber.id);
+        const grouped = groupAppointmentsByStartTime(apps);
 
-          return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
-        })}
+        return (
+          <div key={barber.id} className="relative bg-white border-l">
+            {timeSlots.map((slot, i) => {
+              const [, drop] = useDrop({
+                accept: 'APPOINTMENT',
+                drop: (draggedItem: any) => {
+                  if (draggedItem.barber_id !== barber.id) return; // Prevent drop in wrong column
+                  if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
+                    onDrop(draggedItem.id, `${slot.time}:00`);
+                  }
+                },
+              });
 
-        {isTutti
-          ? renderTuttiAppointments(appointments, onClickAppointment)
-          : renderNormalAppointments(appointments, onClickAppointment)}
-      </div>
+              return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
+            })}
+
+            {/* Appointments in Column */}
+            {grouped.map((group) =>
+              group.map((app, index) => (
+                <DraggableAppointment
+                  key={app.id}
+                  app={app}
+                  index={index}
+                  total={group.length}
+                  onClick={() => onClickAppointment?.(app)}
+                />
+              ))
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
 
-const renderNormalAppointments = (appointments, onClickAppointment) => {
-  return appointments.map((app) => (
-    <DraggableAppointment
-      key={app.id}
-      app={app}
-      index={0}
-      total={1}
-      onClick={() => onClickAppointment?.(app)}
-    />
-  ));
-};
-
-const renderTuttiAppointments = (appointments, onClickAppointment) => {
-  const grouped = groupAppointmentsByTimeAndBarber(appointments);
-  return grouped.map((group) =>
-    group.map((app, i) => (
-      <DraggableAppointment
-        key={app.id}
-        app={app}
-        index={i}
-        total={group.length}
-        onClick={() => onClickAppointment?.(app)}
-      />
-    ))
-  );
-};
-
-const groupAppointmentsByTimeAndBarber = (appointments) => {
-  const map = {};
+const groupAppointmentsByStartTime = (appointments) => {
+  const grouped = {};
   for (const app of appointments) {
-    const key = `${app.appointment_time}-${app.barber_id}`;
-    if (!map[key]) map[key] = [];
-    map[key].push(app);
+    const time = app.appointment_time;
+    if (!grouped[time]) grouped[time] = [];
+    grouped[time].push(app);
   }
-  return Object.values(map);
+  return Object.values(grouped);
 };
 
 const DraggableAppointment = ({ app, index, total, onClick }) => {
