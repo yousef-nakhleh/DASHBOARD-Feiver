@@ -17,11 +17,15 @@ const generateTimeSlots = () => {
   return slots;
 };
 
+const stylists = ['Tutti', 'Alket', 'Gino', 'Qualsiasi Staff'];
+
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedStylist, setSelectedStylist] = useState('Tutti');
+
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -60,11 +64,15 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  const filtered = appointments.filter(
-    (app) =>
+  const filtered = appointments.filter((app) => {
+    const matchesQuery =
       app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase())
-  );
+      app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase());
+    const matchesStylist =
+      selectedStylist === 'Tutti' || app.stylist === selectedStylist;
+
+    return matchesQuery && matchesStylist;
+  });
 
   return (
     <div className="h-full relative">
@@ -102,6 +110,23 @@ const Agenda = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* Stylist Filter Bar */}
+        <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
+          {stylists.map((name) => (
+            <button
+              key={name}
+              onClick={() => setSelectedStylist(name)}
+              className={`px-4 py-2 rounded-full text-sm border ${
+                selectedStylist === name
+                  ? 'bg-[#5D4037] text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {name}
+            </button>
+          ))}
         </div>
 
         {/* Calendar with drag and modal support */}
