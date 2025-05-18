@@ -4,22 +4,6 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
-  const groupedAppointments = groupAppointmentsByStartTime(appointments);
-
-  return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
-      {/* Time Labels */}
-      <div className="bg-white border-r">
-        {timeSlots.map((slot, i) => (
-          <div
-            key={i}
-import React from 'react';
-import { useDrop, useDrag } from 'react-dnd';
-import { User } from 'lucide-react';
-
-const slotHeight = 40;
-
 export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, selectedBarber }) => {
   const isTutti = selectedBarber === 'Tutti';
 
