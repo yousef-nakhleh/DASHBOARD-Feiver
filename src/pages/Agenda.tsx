@@ -148,11 +148,12 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* Calendar */}
+        {/* Calendar with selectedBarber passed in */}
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
-          barbers={barbers || []} // ✅ SAFE default to avoid undefined
+          barbers={barbers || []}
+          selectedBarber={selectedBarber} {/* ✅ Required to switch layout */}
           onDrop={updateAppointmentTime}
           onClickAppointment={(app) => setSelectedAppointment(app)}
         />
