@@ -18,7 +18,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   duration,
   stylist,
 }) => {
-  const [, drag] = useDrag({
+  const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: {
       appointment_time: time,
@@ -26,6 +26,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       service_id: service,
       duration_min: duration,
     },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
   });
 
   const slotHeight = 40; // px per 15m
@@ -34,22 +37,24 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   return (
     <div
       ref={drag}
-      className="absolute bg-blue-100 border-l-4 border-blue-500 p-2 rounded-r-sm text-sm shadow-sm hover:shadow transition-shadow cursor-pointer"
+      className={`bg-blue-100 border-l-4 border-blue-500 rounded-sm cursor-move shadow-sm transition-opacity ${
+        isDragging ? 'opacity-40' : ''
+      }`}
       style={{
-        top: '0',
-        left: '4px',
-        right: '4px',
         height: `${height}px`,
-        zIndex: 10,
+        padding: '4px 8px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
     >
-      <div className="flex justify-between">
-        <span className="font-medium">{time}</span>
-        <span className="text-gray-600 text-xs">{duration} min</span>
+      <div className="text-xs font-medium text-gray-800 flex justify-between">
+        <span>{time}</span>
+        <span>{duration} min</span>
       </div>
-      <div className="flex items-center mt-1">
-        <User size={14} className="text-gray-500 mr-1" />
-        <span>{clientName}</span>
+      <div className="flex items-center text-sm font-medium text-gray-700 truncate mt-1">
+        <User size={14} className="mr-1 text-gray-500" />
+        <span className="truncate">{clientName}</span>
       </div>
       <div className="mt-1 text-gray-600 text-xs truncate">{service}</div>
     </div>
