@@ -4,7 +4,13 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, barbers }) => {
+export const Calendar = ({
+  timeSlots,
+  appointments,
+  onDrop,
+  onClickAppointment,
+  barbers,
+}) => {
   const isTutti = barbers.length > 1;
 
   return (
@@ -46,6 +52,7 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
+                // Multiple staff: divide by barber
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
@@ -66,18 +73,17 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
                   );
                 })
               ) : (
-                <div className="flex-1 h-full flex space-x-1">
-                  {appointments
-                    .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
-                    .map((app) => (
-                      <DraggableAppointment
-                        key={app.id}
-                        app={app}
-                        onClick={() => onClickAppointment?.(app)}
-                        flexBasis={100}
-                      />
-                    ))}
-                </div>
+                // Single staff: render as one full-width column
+                appointments
+                  .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
+                  .map((app) => (
+                    <DraggableAppointment
+                      key={app.id}
+                      app={app}
+                      onClick={() => onClickAppointment?.(app)}
+                      flexBasis={100}
+                    />
+                  ))
               )}
             </div>
           );
