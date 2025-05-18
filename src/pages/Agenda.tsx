@@ -34,7 +34,9 @@ const Agenda = () => {
 
   const navigateDay = (dir: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
-    dir === 'prev' ? newDate.setDate(newDate.getDate() - 1) : newDate.setDate(newDate.getDate() + 1);
+    dir === 'prev'
+      ? newDate.setDate(newDate.getDate() - 1)
+      : newDate.setDate(newDate.getDate() + 1);
     setSelectedDate(newDate);
   };
 
@@ -51,7 +53,10 @@ const Agenda = () => {
   }, [selectedDate]);
 
   const updateAppointmentTime = async (id: string, newTime: string) => {
-    await supabase.from('appointments').update({ appointment_time: newTime }).eq('id', id);
+    await supabase
+      .from('appointments')
+      .update({ appointment_time: newTime })
+      .eq('id', id);
     fetchAppointments();
   };
 
@@ -99,7 +104,7 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* Calendar with drag + click support */}
+        {/* Calendar with drag and modal support */}
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
