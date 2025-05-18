@@ -29,7 +29,7 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
 
       {/* Appointment Grid */}
       <div className="relative bg-white border-l">
-        {timeSlots.map((slot, i) => {
+        {timeSlots.map((slot) => {
           const [, drop] = useDrop({
             accept: 'APPOINTMENT',
             drop: (draggedItem: any) => {
@@ -45,23 +45,42 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
               ref={drop}
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
-              {barbers.map((barber) => {
-                const apps = appointments.filter(
-                  (a) => a.barber_id === barber.id && a.appointment_time.slice(0, 5) === slot.time
-                );
-                return (
-                  <div key={barber.id} className="flex-1 h-full flex space-x-1">
-                    {apps.map((app, i) => (
+              {isTutti ? (
+                // Multi-barber columns
+                barbers.map((barber) => {
+                  const apps = appointments.filter(
+                    (a) =>
+                      a.barber_id === barber.id &&
+                      a.appointment_time?.slice(0, 5) === slot.time
+                  );
+                  return (
+                    <div key={barber.id} className="flex-1 h-full flex space-x-1">
+                      {apps.map((app) => (
+                        <DraggableAppointment
+                          key={app.id}
+                          app={app}
+                          onClick={() => onClickAppointment?.(app)}
+                          flexBasis={100 / apps.length}
+                        />
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                // Single barber column
+                <div className="flex-1 h-full flex space-x-1">
+                  {appointments
+                    .filter((a) => a.appointment_time?.slice(0, 5) === slot.time)
+                    .map((app) => (
                       <DraggableAppointment
                         key={app.id}
                         app={app}
                         onClick={() => onClickAppointment?.(app)}
-                        flexBasis={100 / apps.length}
+                        flexBasis={100}
                       />
                     ))}
-                  </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           );
         })}
