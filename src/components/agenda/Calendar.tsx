@@ -5,7 +5,7 @@ import { User } from 'lucide-react';
 const slotHeight = 40;
 
 export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, barbers }) => {
-  const isTutti = Array.isArray(barbers) && barbers.length > 1;
+  const isTutti = barbers.length > 1;
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
