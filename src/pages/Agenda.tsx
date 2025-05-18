@@ -1,8 +1,8 @@
-// src/pages/Agenda.tsx
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
+import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -21,6 +21,7 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -61,7 +62,7 @@ const Agenda = () => {
   );
 
   return (
-    <div className="h-full">
+    <div className="h-full relative">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
@@ -98,13 +99,22 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* ⬇️ Calendar with Drag support */}
+        {/* Calendar with drag + click support */}
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
           onDrop={updateAppointmentTime}
+          onClickAppointment={(app) => setSelectedAppointment(app)}
         />
       </div>
+
+      {selectedAppointment && (
+        <EditAppointmentModal
+          appointment={selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
+          onUpdated={fetchAppointments}
+        />
+      )}
     </div>
   );
 };
