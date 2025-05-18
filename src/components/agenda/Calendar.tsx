@@ -4,12 +4,11 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments = [], onDrop, onClickAppointment, barbers = [], selectedBarber }) => {
+export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, selectedBarber }) => {
   const isTutti = selectedBarber === 'Tutti';
-  const visibleBarbers = isTutti ? barbers : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className={`grid grid-cols-[80px_repeat(${visibleBarbers.length},1fr)] max-h-[700px] overflow-y-auto relative`}>
+    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -28,39 +27,67 @@ export const Calendar = ({ timeSlots, appointments = [], onDrop, onClickAppointm
         ))}
       </div>
 
-      {/* Columns per Barber */}
-      {visibleBarbers.map((barber) => (
-        <div key={barber.id} className="relative bg-white border-l">
-          {/* Drop zones */}
-          {timeSlots.map((slot, i) => {
-            const [, drop] = useDrop({
-              accept: 'APPOINTMENT',
-              drop: (draggedItem: any) => {
-                if (draggedItem.barber_id === barber.id && draggedItem.appointment_time.slice(0, 5) !== slot.time) {
-                  onDrop(draggedItem.id, `${slot.time}:00`);
-                }
-              },
-            });
-            return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
-          })}
+      {/* Appointment Canvas */}
+      <div className="relative bg-white border-l">
+        {timeSlots.map((slot, i) => {
+          const [, drop] = useDrop({
+            accept: 'APPOINTMENT',
+            drop: (draggedItem: any) => {
+              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
+                onDrop(draggedItem.id, `${slot.time}:00`);
+              }
+            },
+          });
 
-          {/* Appointments */}
-          {appointments
-            .filter((app) => app.barber_id === barber.id)
-            .map((app) => (
-              <DraggableAppointment
-                key={app.id}
-                app={app}
-                onClick={() => onClickAppointment?.(app)}
-              />
-            ))}
-        </div>
-      ))}
+          return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
+        })}
+
+        {isTutti
+          ? renderTuttiAppointments(appointments, onClickAppointment)
+          : renderNormalAppointments(appointments, onClickAppointment)}
+      </div>
     </div>
   );
 };
 
-const DraggableAppointment = ({ app, onClick }) => {
+const renderNormalAppointments = (appointments, onClickAppointment) => {
+  return appointments.map((app) => (
+    <DraggableAppointment
+      key={app.id}
+      app={app}
+      index={0}
+      total={1}
+      onClick={() => onClickAppointment?.(app)}
+    />
+  ));
+};
+
+const renderTuttiAppointments = (appointments, onClickAppointment) => {
+  const grouped = groupAppointmentsByTimeAndBarber(appointments);
+  return grouped.map((group) =>
+    group.map((app, i) => (
+      <DraggableAppointment
+        key={app.id}
+        app={app}
+        index={i}
+        total={group.length}
+        onClick={() => onClickAppointment?.(app)}
+      />
+    ))
+  );
+};
+
+const groupAppointmentsByTimeAndBarber = (appointments) => {
+  const map = {};
+  for (const app of appointments) {
+    const key = `${app.appointment_time}-${app.barber_id}`;
+    if (!map[key]) map[key] = [];
+    map[key].push(app);
+  }
+  return Object.values(map);
+};
+
+const DraggableAppointment = ({ app, index, total, onClick }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -71,6 +98,8 @@ const DraggableAppointment = ({ app, onClick }) => {
 
   const [hour, minute] = app.appointment_time?.split(':').map(Number);
   const topOffset = ((hour - 6) * 60 + minute) / 15 * slotHeight;
+  const widthPercent = 100 / total;
+  const leftPercent = widthPercent * index;
 
   return (
     <div
@@ -82,8 +111,8 @@ const DraggableAppointment = ({ app, onClick }) => {
       style={{
         top: `${topOffset}px`,
         height: `${(app.duration_min / 15) * slotHeight}px`,
-        left: '0',
-        right: '0',
+        left: `${leftPercent}%`,
+        width: `${widthPercent}%`,
         zIndex: 10,
       }}
     >
