@@ -1,62 +1,4 @@
-import React from 'react';
-import { useDrop, useDrag } from 'react-dnd';
-import { User } from 'lucide-react';
-
-const slotHeight = 40;
-
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
-  return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
-      {/* Time Labels */}
-      <div className="bg-white border-r">
-        {timeSlots.map((slot, i) => (
-          <div
-            key={i}
-            className={`h-10 px-2 flex items-center justify-end text-xs ${
-              slot.type === 'hour'
-                ? 'font-bold text-gray-800'
-                : slot.type === 'half'
-                ? 'text-gray-500'
-                : 'text-gray-300'
-            }`}
-          >
-            {slot.time}
-          </div>
-        ))}
-      </div>
-
-      {/* Appointment Canvas */}
-      <div className="relative bg-white border-l">
-        {/* Drop zones */}
-        {timeSlots.map((slot, i) => {
-          const [, drop] = useDrop({
-            accept: 'APPOINTMENT',
-            drop: (draggedItem: any) => {
-              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
-                onDrop(draggedItem.id, `${slot.time}:00`);
-              }
-            },
-          });
-
-          return (
-            <div
-              ref={drop}
-              key={i}
-              className="h-10 border-t border-gray-200"
-            />
-          );
-        })}
-
-        {/* Appointments */}
-        {appointments.map((app) => (
-          <DraggableAppointment key={app.id} app={app} onClick={onClickAppointment} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const DraggableAppointment = ({ app, onClick }) => {
+const DraggableAppointment = ({ app }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -72,8 +14,7 @@ const DraggableAppointment = ({ app, onClick }) => {
   return (
     <div
       ref={drag}
-      onClick={() => onClick?.(app)}
-      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm cursor-pointer ${
+      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
@@ -82,15 +23,18 @@ const DraggableAppointment = ({ app, onClick }) => {
         zIndex: 10,
       }}
     >
-      <div className="flex justify-between">
-        <span className="font-medium text-sm">{app.appointment_time?.slice(0, 5)}</span>
-        <span className="text-xs text-gray-600">{app.duration_min} min</span>
+      <div className="flex justify-between text-xs font-medium text-gray-800">
+        <span>{app.appointment_time?.slice(0, 5)}</span>
+        <span>{app.duration_min} min</span>
       </div>
-      <div className="flex items-center mt-1">
-        <User size={14} className="text-gray-500 mr-1" />
-        <span>{app.customer_name}</span>
+
+      <div className="flex items-center mt-1 text-sm font-medium text-gray-700 truncate">
+        <User size={14} className="mr-1 text-gray-500" />
+        <span className="truncate">{app.customer_name}</span>
       </div>
-      <div className="mt-1 text-xs text-gray-600 truncate">{app.service_id}</div>
+
+      {/* If you want to show a label instead of raw ID: */}
+      {/* <div className="text-xs text-gray-500 truncate mt-1">{getServiceName(app.service_id)}</div> */}
     </div>
   );
 };
