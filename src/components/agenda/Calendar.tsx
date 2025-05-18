@@ -4,7 +4,7 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop }) => {
+export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
@@ -49,14 +49,14 @@ export const Calendar = ({ timeSlots, appointments, onDrop }) => {
 
         {/* Appointments */}
         {appointments.map((app) => (
-          <DraggableAppointment key={app.id} app={app} />
+          <DraggableAppointment key={app.id} app={app} onClick={onClickAppointment} />
         ))}
       </div>
     </div>
   );
 };
 
-const DraggableAppointment = ({ app }) => {
+const DraggableAppointment = ({ app, onClick }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -72,7 +72,8 @@ const DraggableAppointment = ({ app }) => {
   return (
     <div
       ref={drag}
-      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm ${
+      onClick={() => onClick?.(app)}
+      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 p-2 rounded-sm text-sm shadow-sm cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
