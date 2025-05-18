@@ -4,8 +4,8 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, selectedBarber }) => {
-  const isTutti = selectedBarber === 'Tutti';
+export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
+  const groupedAppointments = groupAppointmentsByStartTime(appointments);
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -30,6 +30,8 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
       {/* Appointment Canvas */}
       <div className="relative bg-white border-l">
         {timeSlots.map((slot, i) => {
+          const slotAppointments = groupedAppointments[slot.time] || [];
+
           const [, drop] = useDrop({
             accept: 'APPOINTMENT',
             drop: (draggedItem: any) => {
@@ -39,55 +41,40 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
             },
           });
 
-          return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
+          return (
+            <div
+              key={slot.time}
+              ref={drop}
+              className="h-10 border-t border-gray-200 relative flex space-x-1 px-1"
+            >
+              {slotAppointments.map((app, index) => (
+                <DraggableAppointment
+                  key={app.id}
+                  app={app}
+                  onClick={() => onClickAppointment?.(app)}
+                  flexBasis={100 / slotAppointments.length}
+                />
+              ))}
+            </div>
+          );
         })}
-
-        {isTutti
-          ? renderTuttiAppointments(appointments, onClickAppointment)
-          : renderNormalAppointments(appointments, onClickAppointment)}
       </div>
     </div>
   );
 };
 
-const renderNormalAppointments = (appointments, onClickAppointment) => {
-  return appointments.map((app) => (
-    <DraggableAppointment
-      key={app.id}
-      app={app}
-      index={0}
-      total={1}
-      onClick={() => onClickAppointment?.(app)}
-    />
-  ));
-};
-
-const renderTuttiAppointments = (appointments, onClickAppointment) => {
-  const grouped = groupAppointmentsByTimeAndBarber(appointments);
-  return grouped.map((group) =>
-    group.map((app, i) => (
-      <DraggableAppointment
-        key={app.id}
-        app={app}
-        index={i}
-        total={group.length}
-        onClick={() => onClickAppointment?.(app)}
-      />
-    ))
-  );
-};
-
-const groupAppointmentsByTimeAndBarber = (appointments) => {
-  const map = {};
+// Group appointments by exact appointment_time (HH:mm)
+const groupAppointmentsByStartTime = (appointments) => {
+  const grouped = {};
   for (const app of appointments) {
-    const key = `${app.appointment_time}-${app.barber_id}`;
-    if (!map[key]) map[key] = [];
-    map[key].push(app);
+    const time = app.appointment_time?.slice(0, 5);
+    if (!grouped[time]) grouped[time] = [];
+    grouped[time].push(app);
   }
-  return Object.values(map);
+  return grouped;
 };
 
-const DraggableAppointment = ({ app, index, total, onClick }) => {
+const DraggableAppointment = ({ app, onClick, flexBasis }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -97,23 +84,20 @@ const DraggableAppointment = ({ app, index, total, onClick }) => {
   });
 
   const [hour, minute] = app.appointment_time?.split(':').map(Number);
-  const topOffset = ((hour - 6) * 60 + minute) / 15 * slotHeight;
-  const widthPercent = 100 / total;
-  const leftPercent = widthPercent * index;
+  const topOffset = 0; // Now handled inside the correct slot
 
   return (
     <div
       ref={drag}
       onClick={onClick}
-      className={`absolute bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
-        top: `${topOffset}px`,
         height: `${(app.duration_min / 15) * slotHeight}px`,
-        left: `${leftPercent}%`,
-        width: `${widthPercent}%`,
-        zIndex: 10,
+        flexBasis: `${flexBasis}%`,
+        flexGrow: 1,
+        flexShrink: 0,
       }}
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
