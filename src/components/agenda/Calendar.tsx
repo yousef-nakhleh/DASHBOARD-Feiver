@@ -1,8 +1,64 @@
- import React from 'react';
-import { useDrag } from 'react-dnd';
+import React from 'react';
+import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
 const slotHeight = 40;
+
+export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment }) => {
+  return (
+    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
+      {/* Time Labels */}
+      <div className="bg-white border-r">
+        {timeSlots.map((slot, i) => (
+          <div
+            key={i}
+            className={`h-10 px-2 flex items-center justify-end text-xs ${
+              slot.type === 'hour'
+                ? 'font-bold text-gray-800'
+                : slot.type === 'half'
+                ? 'text-gray-500'
+                : 'text-gray-300'
+            }`}
+          >
+            {slot.time}
+          </div>
+        ))}
+      </div>
+
+      {/* Appointment Canvas */}
+      <div className="relative bg-white border-l">
+        {/* Drop zones */}
+        {timeSlots.map((slot, i) => {
+          const [, drop] = useDrop({
+            accept: 'APPOINTMENT',
+            drop: (draggedItem: any) => {
+              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
+                onDrop(draggedItem.id, `${slot.time}:00`);
+              }
+            },
+          });
+
+          return (
+            <div
+              ref={drop}
+              key={i}
+              className="h-10 border-t border-gray-200"
+            />
+          );
+        })}
+
+        {/* Appointments */}
+        {appointments.map((app) => (
+          <DraggableAppointment
+            key={app.id}
+            app={app}
+            onClick={() => onClickAppointment?.(app)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const DraggableAppointment = ({ app, onClick }) => {
   const [{ isDragging }, drag] = useDrag({
@@ -13,14 +69,13 @@ const DraggableAppointment = ({ app, onClick }) => {
     }),
   });
 
-  // Calculate vertical position
   const [hour, minute] = app.appointment_time?.split(':').map(Number);
   const topOffset = ((hour - 6) * 60 + minute) / 15 * slotHeight;
 
   return (
     <div
       ref={drag}
-      onClick={() => onClick?.(app)}
+      onClick={onClick}
       className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
@@ -40,10 +95,7 @@ const DraggableAppointment = ({ app, onClick }) => {
         <span className="truncate">{app.customer_name}</span>
       </div>
 
-      {/* Example placeholder for future label */}
-      {/* <div className="text-xs text-gray-500 truncate mt-1">{getServiceName(app.service_id)}</div> */}
+      {/* No appointment ID shown */}
     </div>
   );
 };
-
-export default DraggableAppointment;
