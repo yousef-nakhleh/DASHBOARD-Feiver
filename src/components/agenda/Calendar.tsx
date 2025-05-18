@@ -52,7 +52,7 @@ export const Calendar = ({
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
-                // Multiple staff: divide by barber
+                // Case: Tutti - show divided layout per barber
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
@@ -73,16 +73,17 @@ export const Calendar = ({
                   );
                 })
               ) : (
-                // Single staff: render as one full-width column
+                // Case: single staff - full width layout
                 appointments
                   .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
                   .map((app) => (
-                    <DraggableAppointment
-                      key={app.id}
-                      app={app}
-                      onClick={() => onClickAppointment?.(app)}
-                      flexBasis={100}
-                    />
+                    <div key={app.id} className="flex-1 h-full flex space-x-1">
+                      <DraggableAppointment
+                        app={app}
+                        onClick={() => onClickAppointment?.(app)}
+                        flexBasis={100}
+                      />
+                    </div>
                   ))
               )}
             </div>
