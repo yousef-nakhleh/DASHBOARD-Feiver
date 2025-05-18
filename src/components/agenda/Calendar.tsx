@@ -4,20 +4,12 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, viewMode, barbers }) => {
-  const groupedByBarber = barbers.reduce((acc, barber) => {
-    acc[barber.id] = appointments.filter((app) => app.barber_id === barber.id);
-    return acc;
-  }, {});
+export const Calendar = ({ timeSlots, appointments = [], onDrop, onClickAppointment, barbers = [], selectedBarber }) => {
+  const isTutti = selectedBarber === 'Tutti';
+  const visibleBarbers = isTutti ? barbers : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div
-      className={`grid max-h-[700px] overflow-y-auto relative ${
-        viewMode === 'Tutti'
-          ? `grid-cols-[80px_repeat(${barbers.length},1fr)]`
-          : 'grid-cols-[80px_1fr]'
-      }`}
-    >
+    <div className={`grid grid-cols-[80px_repeat(${visibleBarbers.length},1fr)] max-h-[700px] overflow-y-auto relative`}>
       {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
@@ -36,42 +28,34 @@ export const Calendar = ({ timeSlots, appointments, onDrop, onClickAppointment, 
         ))}
       </div>
 
-      {/* Appointment Canvases */}
-      {(viewMode === 'Tutti' ? barbers : [null]).map((barber, index) => {
-        const barberAppointments = viewMode === 'Tutti' ? groupedByBarber[barber.id] || [] : appointments;
+      {/* Columns per Barber */}
+      {visibleBarbers.map((barber) => (
+        <div key={barber.id} className="relative bg-white border-l">
+          {/* Drop zones */}
+          {timeSlots.map((slot, i) => {
+            const [, drop] = useDrop({
+              accept: 'APPOINTMENT',
+              drop: (draggedItem: any) => {
+                if (draggedItem.barber_id === barber.id && draggedItem.appointment_time.slice(0, 5) !== slot.time) {
+                  onDrop(draggedItem.id, `${slot.time}:00`);
+                }
+              },
+            });
+            return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
+          })}
 
-        return (
-          <div key={barber?.id || 'solo'} className="relative bg-white border-l">
-            {timeSlots.map((slot, i) => {
-              const [, drop] = useDrop({
-                accept: 'APPOINTMENT',
-                drop: (draggedItem) => {
-                  if (
-                    viewMode === 'Tutti' &&
-                    draggedItem.barber_id !== barber.id
-                  ) {
-                    return;
-                  }
-
-                  if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
-                    onDrop(draggedItem.id, `${slot.time}:00`);
-                  }
-                },
-              });
-
-              return <div ref={drop} key={i} className="h-10 border-t border-gray-200" />;
-            })}
-
-            {barberAppointments.map((app) => (
+          {/* Appointments */}
+          {appointments
+            .filter((app) => app.barber_id === barber.id)
+            .map((app) => (
               <DraggableAppointment
                 key={app.id}
                 app={app}
                 onClick={() => onClickAppointment?.(app)}
               />
             ))}
-          </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 };
@@ -92,12 +76,14 @@ const DraggableAppointment = ({ app, onClick }) => {
     <div
       ref={drag}
       onClick={onClick}
-      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`absolute bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
         top: `${topOffset}px`,
         height: `${(app.duration_min / 15) * slotHeight}px`,
+        left: '0',
+        right: '0',
         zIndex: 10,
       }}
     >
