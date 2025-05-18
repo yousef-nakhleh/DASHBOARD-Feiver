@@ -1,4 +1,10 @@
-const DraggableAppointment = ({ app }) => {
+ import React from 'react';
+import { useDrag } from 'react-dnd';
+import { User } from 'lucide-react';
+
+const slotHeight = 40;
+
+const DraggableAppointment = ({ app, onClick }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -14,7 +20,8 @@ const DraggableAppointment = ({ app }) => {
   return (
     <div
       ref={drag}
-      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
+      onClick={() => onClick?.(app)}
+      className={`absolute left-1 right-1 bg-blue-100 border-l-4 border-blue-500 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
@@ -33,8 +40,10 @@ const DraggableAppointment = ({ app }) => {
         <span className="truncate">{app.customer_name}</span>
       </div>
 
-      {/* If you want to show a label instead of raw ID: */}
+      {/* Example placeholder for future label */}
       {/* <div className="text-xs text-gray-500 truncate mt-1">{getServiceName(app.service_id)}</div> */}
     </div>
   );
 };
+
+export default DraggableAppointment;
