@@ -71,16 +71,17 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  const filtered = appointments.filter((app) => {
-    const matchesQuery =
-      app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase());
-
-    const matchesBarber =
-      selectedBarber === 'Tutti' || app.barber_id === selectedBarber;
-
-    return matchesQuery && matchesBarber;
-  });
+  const filtered = selectedBarber === 'Tutti'
+    ? appointments.filter((app) =>
+        app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase())
+      )
+    : appointments.filter(
+        (app) =>
+          (app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            app.service_id?.toLowerCase?.()?.includes(searchQuery.toLowerCase())) &&
+          app.barber_id === selectedBarber
+      );
 
   return (
     <div className="h-full relative">
