@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Users, Search, Plus, Phone, Mail, Calendar, Clock, Edit, Trash2, Check, X
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 const weekdays = [
   'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
