@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
-import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal'; // ✅ NEW
+import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -25,7 +25,7 @@ const Agenda = () => {
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false); // ✅ NEW
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -93,7 +93,7 @@ const Agenda = () => {
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)} // ✅ TRIGGER MODAL
+          onClick={() => setShowCreateModal(true)}
           className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
         >
           <Plus size={18} className="mr-1" /> Nuovo Appuntamento
@@ -163,7 +163,6 @@ const Agenda = () => {
         />
       </div>
 
-      {/* Edit Modal */}
       {selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -172,7 +171,6 @@ const Agenda = () => {
         />
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
