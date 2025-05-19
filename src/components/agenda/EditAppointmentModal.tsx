@@ -14,17 +14,20 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
 
   useEffect(() => {
-    // Fetch service name by ID
-    const fetchServiceName = async () => {
+    const fetchServiceDetails = async () => {
       const { data } = await supabase
         .from('services')
-        .select('name')
+        .select('name, duration_min')
         .eq('id', appointment.service_id)
         .single();
-      setServiceName(data?.name || '');
+
+      if (data) {
+        setServiceName(data.name);
+        setDuration(data.duration_min);
+      }
     };
 
-    fetchServiceName();
+    fetchServiceDetails();
   }, [appointment.service_id]);
 
   const handleSave = async () => {
