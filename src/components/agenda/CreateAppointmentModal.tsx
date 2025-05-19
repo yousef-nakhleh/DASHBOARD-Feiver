@@ -1,55 +1,49 @@
-import React, { useEffect, useState } from 'react';
+// CreateAppointmentModal.tsx
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
 const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
   const [customerName, setCustomerName] = useState('');
-  const [serviceId, setServiceId] = useState('');
-  const [barberId, setBarberId] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('07:00');
+  const [services, setServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [barbers, setBarbers] = useState([]);
+  const [selectedBarberId, setSelectedBarberId] = useState('');
+  const [selectedTime, setSelectedTime] = useState('07:00');
   const [duration, setDuration] = useState(30);
 
-  const [services, setServices] = useState([]);
-  const [barbers, setBarbers] = useState([]);
-
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: servicesData } = await supabase.from('services').select('*');
-      const { data: barbersData } = await supabase.from('barbers').select('*');
-      setServices(servicesData || []);
-      setBarbers(barbersData || []);
+    const fetchInitialData = async () => {
+      const { data: serviceData } = await supabase.from('services').select('*');
+      const { data: barberData } = await supabase.from('barbers').select('*');
+      setServices(serviceData || []);
+      setBarbers(barberData || []);
     };
-    fetchData();
+    fetchInitialData();
   }, []);
 
-  const handleServiceChange = (id) => {
-    setServiceId(id);
-    const selected = services.find((s) => s.id === id);
-    if (selected) setDuration(selected.duration_min || 30);
-  };
+  useEffect(() => {
+    const service = services.find(s => s.id === selectedServiceId);
+    if (service) setDuration(service.duration_min);
+  }, [selectedServiceId, services]);
 
-  const handleCreate = async () => {
-    await supabase.from('appointments').insert({
+  const handleSubmit = async () => {
+    if (!defaultDate) return alert("Missing selected date");
+
+    const { error } = await supabase.from('appointments').insert({
       customer_name: customerName,
-      service_id: serviceId,
-      barber_id: barberId,
+      service_id: selectedServiceId,
+      barber_id: selectedBarberId,
       appointment_date: defaultDate.toISOString().split('T')[0],
-      appointment_time: appointmentTime + ':00',
+      appointment_time: selectedTime,
       duration_min: duration,
     });
 
-    onCreated();
-    onClose();
-  };
-
-  const generateTimes = () => {
-    const slots = [];
-    for (let h = 6; h <= 21; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        if (h === 21 && m > 0) break;
-        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-      }
+    if (!error) {
+      onCreated();
+      onClose();
+    } else {
+      console.error(error);
     }
-    return slots;
   };
 
   return (
@@ -58,20 +52,21 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
         <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Nome Cliente</label>
+            <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
             <input
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium">Servizio</label>
+            <label className="block text-sm font-medium text-gray-700">Servizio</label>
             <select
+              value={selectedServiceId}
+              onChange={(e) => setSelectedServiceId(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              value={serviceId}
-              onChange={(e) => handleServiceChange(e.target.value)}
             >
               <option value="">Seleziona servizio</option>
               {services.map((s) => (
@@ -81,11 +76,11 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Barbiere</label>
+            <label className="block text-sm font-medium text-gray-700">Barbiere</label>
             <select
+              value={selectedBarberId}
+              onChange={(e) => setSelectedBarberId(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              value={barberId}
-              onChange={(e) => setBarberId(e.target.value)}
             >
               <option value="">Seleziona barbiere</option>
               {barbers.map((b) => (
@@ -95,25 +90,29 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Orario</label>
+            <label className="block text-sm font-medium text-gray-700">Orario</label>
             <select
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              value={appointmentTime}
-              onChange={(e) => setAppointmentTime(e.target.value)}
             >
-              {generateTimes().map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
+              {[...Array(16)].map((_, i) => {
+                const hour = String(7 + Math.floor(i / 4)).padStart(2, '0');
+                const minutes = String((i % 4) * 15).padStart(2, '0');
+                return (
+                  <option key={i} value={`${hour}:${minutes}`}>{`${hour}:${minutes}`}</option>
+                );
+              })}
             </select>
           </div>
 
           <div>
-            <label className="text-sm font-medium">Durata (minuti)</label>
+            <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
             <input
               type="number"
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               value={duration}
               onChange={(e) => setDuration(parseInt(e.target.value))}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             />
           </div>
         </div>
@@ -122,7 +121,7 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700">
             Annulla
           </button>
-          <button onClick={handleCreate} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
+          <button onClick={handleSubmit} className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">
             Crea
           </button>
         </div>
