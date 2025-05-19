@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
+import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal'; // ✅ NEW
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -24,6 +25,7 @@ const Agenda = () => {
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false); // ✅ NEW
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -90,7 +92,10 @@ const Agenda = () => {
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
         </div>
-        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center">
+        <button
+          onClick={() => setShowCreateModal(true)} // ✅ TRIGGER MODAL
+          className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
+        >
           <Plus size={18} className="mr-1" /> Nuovo Appuntamento
         </button>
       </div>
@@ -148,7 +153,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* ✅ Required to switch layout */}
         <Calendar
           timeSlots={timeSlots}
           appointments={filtered}
@@ -159,11 +163,20 @@ const Agenda = () => {
         />
       </div>
 
+      {/* Edit Modal */}
       {selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
           onUpdated={fetchAppointments}
+        />
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <CreateAppointmentModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchAppointments}
         />
       )}
     </div>
