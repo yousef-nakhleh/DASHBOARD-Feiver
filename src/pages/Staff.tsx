@@ -1,66 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Plus, Phone, Mail, Calendar, Clock, Edit, Trash2 } from 'lucide-react';
+import { Users, Search, Plus, Edit as EditIcon, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const Staff: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [staffList, setStaffList] = useState<any[]>([]);
-  const [selectedStaff, setSelectedStaff] = useState<any>(null);
-  const [availability, setAvailability] = useState<any[]>([]);
-  const [editingSlot, setEditingSlot] = useState<string | null>(null);
-  const [editedTimes, setEditedTimes] = useState<{ [key: string]: { start_time: string; end_time: string } }>({});
+const weekdays = [
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+];
 
-  const weekdays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-  const labels = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+const Staff = () => {
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingDay, setEditingDay] = useState(null);
+  const [editedTimes, setEditedTimes] = useState({});
+
+  const fetchStaff = async () => {
+    const { data } = await supabase.from('barbers').select('*');
+    setStaffMembers(data || []);
+  };
+
+  const fetchSchedule = async (barberId) => {
+    const { data } = await supabase
+      .from('barber_availability')
+      .select('*')
+      .eq('barber_id', barberId);
+
+    const scheduleMap = {};
+    data?.forEach(slot => {
+      if (!scheduleMap[slot.weekday]) scheduleMap[slot.weekday] = [];
+      scheduleMap[slot.weekday].push(slot);
+    });
+
+    setSelectedStaff(prev => ({ ...prev, schedule: scheduleMap }));
+  };
 
   useEffect(() => {
     fetchStaff();
   }, []);
 
-  useEffect(() => {
-    if (selectedStaff) fetchAvailability(selectedStaff.id);
-  }, [selectedStaff]);
-
-  const fetchStaff = async () => {
-    const { data } = await supabase.from('barbers').select('*');
-    setStaffList(data || []);
+  const handleSelectStaff = async (staff) => {
+    setSelectedStaff({ ...staff, schedule: {} });
+    await fetchSchedule(staff.id);
   };
 
-  const fetchAvailability = async (barberId: string) => {
-    const { data } = await supabase.from('barber_availability').select('*').eq('barber_id', barberId);
-    setAvailability(data || []);
+  const handleTimeChange = (field, value) => {
+    setEditedTimes(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleEdit = (day: string, start: string, end: string) => {
-    setEditingSlot(day);
-    setEditedTimes({ [day]: { start_time: start, end_time: end } });
+  const saveSchedule = async (day, slotId) => {
+    await supabase.from('barber_availability').update({
+      start_time: editedTimes.start_time,
+      end_time: editedTimes.end_time,
+    }).eq('id', slotId);
+
+    setEditingDay(null);
+    fetchSchedule(selectedStaff.id);
   };
 
-  const handleSave = async (day: string) => {
-    const existing = availability.find((a) => a.weekday === day);
-    const values = editedTimes[day];
-
-    if (existing) {
-      await supabase.from('barber_availability').update(values).eq('id', existing.id);
-    } else {
-      await supabase.from('barber_availability').insert({
-        barber_id: selectedStaff.id,
-        weekday: day,
-        ...values
-      });
-    }
-
-    setEditingSlot(null);
-    fetchAvailability(selectedStaff.id);
-  };
-
-  const getTimeLabel = (day: string) => {
-    const slot = availability.find((a) => a.weekday === day);
-    if (!slot) return 'Chiuso';
-    return `${slot.start_time?.slice(0, 5)} - ${slot.end_time?.slice(0, 5)}`;
-  };
-
-  const filteredStaff = staffList.filter((staff) => staff.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredStaff = staffMembers.filter((staff) =>
+    staff.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="h-full">
@@ -75,10 +73,10 @@ const Staff: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1 bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow md:col-span-1">
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Cerca staff"
@@ -88,18 +86,17 @@ const Staff: React.FC = () => {
               />
             </div>
           </div>
-
-          <div className="divide-y divide-gray-200 max-h-[700px] overflow-y-auto">
+          <div className="divide-y max-h-[700px] overflow-y-auto">
             {filteredStaff.map((staff) => (
               <div
                 key={staff.id}
-                onClick={() => setSelectedStaff(staff)}
-                className={`p-4 cursor-pointer hover:bg-gray-50 ${selectedStaff?.id === staff.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
+                className={`p-4 cursor-pointer hover:bg-gray-50 ${
+                  selectedStaff?.id === staff.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                }`}
+                onClick={() => handleSelectStaff(staff)}
               >
                 <div className="flex items-center">
-                  <div className="h-12 w-12 rounded-full overflow-hidden">
-                    <img src={staff.image_url} alt={staff.name} className="h-full w-full object-cover" />
-                  </div>
+                  <img src={staff.avatar_url || 'https://via.placeholder.com/40'} className="h-12 w-12 rounded-full" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium">{staff.name}</h3>
                     <p className="text-xs text-gray-500">{staff.role}</p>
@@ -110,70 +107,67 @@ const Staff: React.FC = () => {
           </div>
         </div>
 
-        <div className="md:col-span-2 bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow md:col-span-2">
           {selectedStaff ? (
             <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center">
-                  <div className="h-20 w-20 rounded-full overflow-hidden">
-                    <img src={selectedStaff.image_url} alt={selectedStaff.name} className="h-full w-full object-cover" />
-                  </div>
-                  <div className="ml-4">
-                    <h2 className="text-xl font-bold">{selectedStaff.name}</h2>
-                    <p className="text-gray-600 mt-1">{selectedStaff.role}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Orario di Lavoro</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {weekdays.map((day, idx) => (
-                    <div key={day} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium">{labels[idx]}</p>
-                      {editingSlot === day ? (
-                        <div className="flex items-center space-x-2 mt-1">
-                          <input
-                            type="time"
-                            value={editedTimes[day]?.start_time || ''}
-                            onChange={(e) =>
-                              setEditedTimes({
-                                ...editedTimes,
-                                [day]: { ...editedTimes[day], start_time: e.target.value },
-                              })
-                            }
-                            className="text-sm border px-2 py-1 rounded"
-                          />
-                          <span>-</span>
-                          <input
-                            type="time"
-                            value={editedTimes[day]?.end_time || ''}
-                            onChange={(e) =>
-                              setEditedTimes({
-                                ...editedTimes,
-                                [day]: { ...editedTimes[day], end_time: e.target.value },
-                              })
-                            }
-                            className="text-sm border px-2 py-1 rounded"
-                          />
-                          <button onClick={() => handleSave(day)} className="text-blue-600 text-xs font-semibold">Salva</button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-between items-center mt-1">
-                          <p className={`text-sm ${getTimeLabel(day) === 'Chiuso' ? 'text-red-500' : 'text-gray-700'}`}>{getTimeLabel(day)}</p>
-                          <button onClick={() => handleEdit(day, availability.find((a) => a.weekday === day)?.start_time || '', availability.find((a) => a.weekday === day)?.end_time || '')}>
-                            <Edit size={14} className="text-gray-500 hover:text-gray-800" />
-                          </button>
-                        </div>
+              <h2 className="text-xl font-bold mb-4">{selectedStaff.name}</h2>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Orario di Lavoro</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {weekdays.map((day) => (
+                  <div key={day} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-medium capitalize">
+                        {new Intl.DateTimeFormat('it-IT', { weekday: 'long' }).format(new Date(`2025-05-19T00:00:00`).setDate(new Date().getDay() + weekdays.indexOf(day) - new Date().getDay()))}
+                      </p>
+                      {selectedStaff.schedule[day]?.[0] && editingDay !== day && (
+                        <button onClick={() => {
+                          setEditingDay(day);
+                          setEditedTimes({
+                            start_time: selectedStaff.schedule[day][0].start_time,
+                            end_time: selectedStaff.schedule[day][0].end_time,
+                          });
+                        }}>
+                          <EditIcon size={16} className="text-gray-500" />
+                        </button>
                       )}
                     </div>
-                  ))}
-                </div>
+                    {selectedStaff.schedule[day]?.length ? (
+                      editingDay === day ? (
+                        <div className="space-y-1 mt-2">
+                          <input
+                            type="time"
+                            value={editedTimes.start_time}
+                            onChange={(e) => handleTimeChange('start_time', e.target.value)}
+                            className="w-full border rounded px-2 py-1"
+                          />
+                          <input
+                            type="time"
+                            value={editedTimes.end_time}
+                            onChange={(e) => handleTimeChange('end_time', e.target.value)}
+                            className="w-full border rounded px-2 py-1"
+                          />
+                          <button
+                            onClick={() => saveSchedule(day, selectedStaff.schedule[day][0].id)}
+                            className="w-full mt-1 bg-green-600 text-white rounded px-2 py-1 text-sm flex items-center justify-center"
+                          >
+                            <Check size={16} className="mr-1" /> Salva
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-700 mt-1">
+                          {selectedStaff.schedule[day].map(slot => `${slot.start_time} - ${slot.end_time}`).join(', ')}
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-sm text-red-500 mt-1">Chiuso</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
-            <div className="p-6 flex flex-col items-center justify-center h-full text-gray-500">
-              <Users size={48} className="mb-2" />
+            <div className="p-6 text-center text-gray-500">
+              <Users size={48} className="mx-auto mb-2" />
               <p>Seleziona un membro dello staff per visualizzare i dettagli</p>
             </div>
           )}
