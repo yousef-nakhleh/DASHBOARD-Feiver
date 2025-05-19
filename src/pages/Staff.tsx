@@ -10,7 +10,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 const Staff = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
