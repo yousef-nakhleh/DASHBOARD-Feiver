@@ -1,54 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
+const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [customerName, setCustomerName] = useState('');
   const [services, setServices] = useState([]);
-  const [serviceId, setServiceId] = useState('');
   const [barbers, setBarbers] = useState([]);
-  const [barberId, setBarberId] = useState('');
-  const [time, setTime] = useState('07:00');
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedBarber, setSelectedBarber] = useState('');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [selectedTime, setSelectedTime] = useState('07:00');
   const [duration, setDuration] = useState(30);
-  const [appointmentDate, setAppointmentDate] = useState(
-    defaultDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
-  );
 
   useEffect(() => {
-    const fetchServices = async () => {
-      const { data } = await supabase.from('services').select('*');
-      setServices(data || []);
+    const fetchData = async () => {
+      const { data: servicesData } = await supabase.from('services').select('*');
+      const { data: barbersData } = await supabase.from('barbers').select('*');
+      setServices(servicesData || []);
+      setBarbers(barbersData || []);
     };
 
-    const fetchBarbers = async () => {
-      const { data } = await supabase.from('barbers').select('*');
-      setBarbers(data || []);
-    };
-
-    fetchServices();
-    fetchBarbers();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    const selected = services.find((s) => s.id === serviceId);
-    if (selected) setDuration(selected.duration_min);
-  }, [serviceId, services]);
+  const handleServiceChange = (e) => {
+    const selectedId = e.target.value;
+    setSelectedService(selectedId);
+    const matchedService = services.find((s) => s.id === selectedId);
+    if (matchedService) {
+      setDuration(matchedService.duration_min);
+    }
+  };
 
   const handleCreate = async () => {
-    if (!customerName || !serviceId || !barberId || !time || !appointmentDate) return;
+    if (!selectedDate || !selectedTime) return;
 
-    await supabase.from('appointments').insert([
+    const isoDate = new Date(selectedDate).toISOString().split('T')[0];
+
+    const { error } = await supabase.from('appointments').insert([
       {
         customer_name: customerName,
-        service_id: serviceId,
-        barber_id: barberId,
-        appointment_time: time,
-        appointment_date: appointmentDate,
+        service_id: selectedService,
+        barber_id: selectedBarber,
+        appointment_date: isoDate,
+        appointment_time: selectedTime,
         duration_min: duration,
       },
     ]);
 
-    onCreated();
-    onClose();
+    if (!error) {
+      onCreated();
+      onClose();
+    } else {
+      console.error('Error creating appointment:', error.message);
+    }
   };
 
   return (
@@ -70,8 +77,8 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700">Servizio</label>
             <select
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
+              value={selectedService}
+              onChange={handleServiceChange}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             >
               <option value="">Seleziona servizio</option>
@@ -86,8 +93,8 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700">Barbiere</label>
             <select
-              value={barberId}
-              onChange={(e) => setBarberId(e.target.value)}
+              value={selectedBarber}
+              onChange={(e) => setSelectedBarber(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             >
               <option value="">Seleziona barbiere</option>
@@ -103,8 +110,8 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
             <label className="block text-sm font-medium text-gray-700">Data</label>
             <input
               type="date"
-              value={appointmentDate}
-              onChange={(e) => setAppointmentDate(e.target.value)}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             />
           </div>
@@ -112,19 +119,19 @@ const CreateAppointmentModal = ({ onClose, onCreated, defaultDate }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700">Orario</label>
             <select
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             >
-              {[...Array(16 * 4)].map((_, i) => {
-                const h = Math.floor(i / 4) + 6;
-                const m = (i % 4) * 15;
-                const formatted = `${h.toString().padStart(2, '0')}:${m
+              {Array.from({ length: 61 }, (_, i) => {
+                const hour = 6 + Math.floor(i / 4);
+                const minute = (i % 4) * 15;
+                const time = `${hour.toString().padStart(2, '0')}:${minute
                   .toString()
                   .padStart(2, '0')}`;
                 return (
-                  <option key={formatted} value={formatted}>
-                    {formatted}
+                  <option key={time} value={time}>
+                    {time}
                   </option>
                 );
               })}
