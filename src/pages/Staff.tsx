@@ -13,7 +13,7 @@ import {
   Check,
   X
 } from "lucide-react";
-import { supabase } from "../../lib/supabase"; // ✅ FIXED PATH
+import { supabase } from "../lib/supabase";
 
 const Staff = () => {
   const [staffList, setStaffList] = useState([]);
