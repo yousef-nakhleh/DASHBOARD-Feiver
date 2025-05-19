@@ -1,160 +1,145 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
-const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
-
-const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
-  const [activeTab, setActiveTab] = useState<'edit' | 'payment'>('payment');
-
-  const [customerName, setCustomerName] = useState(appointment.customer_name);
-  const [serviceName, setServiceName] = useState('');
-  const [duration, setDuration] = useState(appointment.duration_min);
+const CreateAppointmentModal = ({ selectedDate, onClose, onCreated }) => {
+  const [customerName, setCustomerName] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const [barberId, setBarberId] = useState('');
+  const [time, setTime] = useState('07:00');
+  const [duration, setDuration] = useState(30);
   const [appointmentDate, setAppointmentDate] = useState(
-    appointment.appointment_date || new Date().toISOString().split('T')[0]
+    selectedDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0]
   );
 
-  const [paid, setPaid] = useState(appointment.paid || false);
-  const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
+  const [services, setServices] = useState([]);
+  const [barbers, setBarbers] = useState([]);
 
   useEffect(() => {
-    const fetchServiceDetails = async () => {
-      const { data } = await supabase
-        .from('services')
-        .select('name, duration_min')
-        .eq('id', appointment.service_id)
-        .single();
-
-      if (data) {
-        setServiceName(data.name);
-        setDuration(data.duration_min);
-      }
+    const fetchServices = async () => {
+      const { data } = await supabase.from('services').select('*');
+      setServices(data || []);
     };
 
-    fetchServiceDetails();
-  }, [appointment.service_id]);
+    const fetchBarbers = async () => {
+      const { data } = await supabase.from('barbers').select('*');
+      setBarbers(data || []);
+    };
 
-  const handleSave = async () => {
-    await supabase
-      .from('appointments')
-      .update({
+    fetchServices();
+    fetchBarbers();
+  }, []);
+
+  useEffect(() => {
+    const selectedService = services.find((s) => s.id === serviceId);
+    if (selectedService) {
+      setDuration(selectedService.duration_min);
+    }
+  }, [serviceId]);
+
+  const handleCreate = async () => {
+    await supabase.from('appointments').insert([
+      {
         customer_name: customerName,
-        duration_min: duration,
+        service_id: serviceId,
+        barber_id: barberId,
+        appointment_time: time,
         appointment_date: appointmentDate,
-        paid,
-        payment_method: paid ? paymentMethod : null,
-      })
-      .eq('id', appointment.id);
+        duration_min: duration,
+      },
+    ]);
 
-    onUpdated();
+    onCreated();
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
-        {/* Tab Switcher */}
-        <div className="absolute top-4 right-4 flex space-x-2">
-          <button
-            onClick={() => setActiveTab('edit')}
-            className={`px-3 py-1 text-sm rounded-full ${
-              activeTab === 'edit' ? 'bg-[#5D4037] text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Modifica
-          </button>
-          <button
-            onClick={() => setActiveTab('payment')}
-            className={`px-3 py-1 text-sm rounded-full ${
-              activeTab === 'payment' ? 'bg-[#5D4037] text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Pagamento
-          </button>
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
+        <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Servizio</label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="">Seleziona servizio</option>
+              {services.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Barbiere</label>
+            <select
+              value={barberId}
+              onChange={(e) => setBarberId(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            >
+              <option value="">Seleziona barbiere</option>
+              {barbers.map((barber) => (
+                <option key={barber.id} value={barber.id}>
+                  {barber.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Data</label>
+            <input
+              type="date"
+              value={appointmentDate}
+              onChange={(e) => setAppointmentDate(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Orario</label>
+            <select
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            >
+              {Array.from({ length: 60 }, (_, i) => {
+                const h = String(Math.floor(i / 4) + 6).padStart(2, '0');
+                const m = String((i % 4) * 15).padStart(2, '0');
+                return (
+                  <option key={i} value={`${h}:${m}`}>
+                    {h}:{m}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(parseInt(e.target.value))}
+              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
         </div>
 
-        <h2 className="text-lg font-semibold mb-4">
-          {activeTab === 'edit' ? 'Modifica Appuntamento' : 'Gestione Pagamento'}
-        </h2>
-
-        {activeTab === 'edit' && (
-          <div className="space-y-4 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Servizio</label>
-              <input
-                type="text"
-                value={serviceName}
-                disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500 cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Data</label>
-              <input
-                type="date"
-                value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
-              <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'payment' && (
-          <div className="space-y-4 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Pagato</label>
-              <select
-                value={paid ? 'true' : 'false'}
-                onChange={(e) => setPaid(e.target.value === 'true')}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              >
-                <option value="false">No</option>
-                <option value="true">Sì</option>
-              </select>
-            </div>
-
-            {paid && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">Seleziona metodo</option>
-                  {paymentMethods.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Actions */}
         <div className="flex justify-end mt-6 space-x-3">
           <button
             onClick={onClose}
@@ -163,10 +148,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
             Annulla
           </button>
           <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            onClick={handleCreate}
+            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
           >
-            Salva
+            Crea
           </button>
         </div>
       </div>
@@ -174,4 +159,4 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   );
 };
 
-export default EditAppointmentModal;
+export default CreateAppointmentModal;
