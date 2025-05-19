@@ -9,7 +9,7 @@ import {
   Edit,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import NewStaffModal from '@/components/staff/NewStaffModal';
+import NewStaffModal from "../components/staff/NewStaffModal";
 
 const Staff = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
