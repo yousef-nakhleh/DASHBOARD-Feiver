@@ -9,6 +9,9 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [customerName, setCustomerName] = useState(appointment.customer_name);
   const [serviceName, setServiceName] = useState('');
   const [duration, setDuration] = useState(appointment.duration_min);
+  const [appointmentDate, setAppointmentDate] = useState(
+    appointment.appointment_date || new Date().toISOString().split('T')[0]
+  );
 
   const [paid, setPaid] = useState(appointment.paid || false);
   const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
@@ -36,6 +39,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       .update({
         customer_name: customerName,
         duration_min: duration,
+        appointment_date: appointmentDate,
         paid,
         payment_method: paid ? paymentMethod : null,
       })
@@ -68,12 +72,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </button>
         </div>
 
-        {/* Modal Title */}
         <h2 className="text-lg font-semibold mb-4">
           {activeTab === 'edit' ? 'Modifica Appuntamento' : 'Gestione Pagamento'}
         </h2>
 
-        {/* Edit Section */}
         {activeTab === 'edit' && (
           <div className="space-y-4 mt-2">
             <div>
@@ -97,6 +99,16 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700">Data</label>
+              <input
+                type="date"
+                value={appointmentDate}
+                onChange={(e) => setAppointmentDate(e.target.value)}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
               <input
                 type="number"
@@ -108,7 +120,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </div>
         )}
 
-        {/* Payment Section */}
         {activeTab === 'payment' && (
           <div className="space-y-4 mt-2">
             <div>
