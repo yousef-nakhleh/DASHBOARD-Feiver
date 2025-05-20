@@ -9,8 +9,13 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [customerName, setCustomerName] = useState(appointment.customer_name);
   const [serviceName, setServiceName] = useState('');
   const [duration, setDuration] = useState(appointment.duration_min);
+
   const [appointmentDate, setAppointmentDate] = useState(
-    appointment.appointment_date || new Date().toISOString().split('T')[0]
+    appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
+  );
+
+  const [appointmentTime, setAppointmentTime] = useState(
+    appointment.appointment_date?.split('T')[1]?.slice(0, 5) || '08:00'
   );
 
   const [paid, setPaid] = useState(appointment.paid || false);
@@ -34,12 +39,14 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   }, [appointment.service_id]);
 
   const handleSave = async () => {
+    const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
+
     await supabase
       .from('appointments')
       .update({
         customer_name: customerName,
         duration_min: duration,
-        appointment_date: appointmentDate,
+        appointment_date: fullDateTime,
         paid,
         payment_method: paid ? paymentMethod : null,
       })
@@ -104,6 +111,16 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 type="date"
                 value={appointmentDate}
                 onChange={(e) => setAppointmentDate(e.target.value)}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Orario</label>
+              <input
+                type="time"
+                value={appointmentTime}
+                onChange={(e) => setAppointmentTime(e.target.value)}
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
