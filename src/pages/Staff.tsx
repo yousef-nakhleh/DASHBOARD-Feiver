@@ -8,7 +8,8 @@ import {
   Calendar,
   Edit,
 } from 'lucide-react';
-import  supabase  from "../lib/supabase";
+
+import { supabase } from '../lib/supabase';
 import NewStaffModal from '../components/staff/NewStaffModal';
 
 const Staff = () => {
