@@ -134,7 +134,7 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         </div>
         {app.services?.name && (
           <span className="text-xs italic text-gray-500 mt-1 truncate">
-            💇 {app.services.name}
+             {app.services.name}
           </span>
         )}
       </div>
