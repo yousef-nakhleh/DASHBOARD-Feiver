@@ -70,7 +70,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         {
           appointment_id: appointment.id,
           barber_id: appointment.barber_id,
-          customer_name: customerName,
           service_id: appointment.service_id,
           price,
           discount,
