@@ -9,6 +9,9 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [customerName, setCustomerName] = useState(appointment.customer_name);
   const [serviceName, setServiceName] = useState('');
   const [duration, setDuration] = useState(appointment.duration_min);
+  const [price, setPrice] = useState(0); // 🆕
+  const [discount, setDiscount] = useState(0); // 🆕
+
   const [appointmentDate, setAppointmentDate] = useState(
     appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
@@ -22,13 +25,14 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     const fetchServiceDetails = async () => {
       const { data } = await supabase
         .from('services')
-        .select('name, duration_min')
+        .select('name, duration_min, price')
         .eq('id', appointment.service_id)
         .single();
 
       if (data) {
         setServiceName(data.name);
         setDuration(data.duration_min);
+        setPrice(data.price); // 🆕
       }
     };
 
@@ -50,9 +54,9 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     }
 
     if (activeTab === 'payment') {
-      const price = appointment.price || 0;
+      const total = price - discount;
 
-      // 1. Update appointment as paid
+      // 1. Mark appointment as paid
       await supabase
         .from('appointments')
         .update({
@@ -61,15 +65,18 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         })
         .eq('id', appointment.id);
 
-      // 2. Insert into transactions table
+      // 2. Insert into transactions
       await supabase.from('transactions').insert([
         {
           appointment_id: appointment.id,
-          customer_name: appointment.customer_name,
+          barber_id: appointment.barber_id,
+          customer_name: customerName,
           service_id: appointment.service_id,
-          amount: price,
+          price,
+          discount,
+          total,
           payment_method: paymentMethod,
-          paid_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
         },
       ]);
     }
@@ -172,14 +179,31 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700">Importo</label>
+              <label className="block text-sm font-medium text-gray-700">Prezzo</label>
               <input
                 type="text"
-                value={`€ ${appointment.price || 0}`}
+                value={`€ ${price}`}
                 disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500 cursor-not-allowed"
+                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Sconto</label>
+              <input
+                type="number"
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Totale</label>
+              <input
+                type="text"
+                value={`€ ${price - discount}`}
+                disabled
+                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500"
               />
             </div>
           </div>
