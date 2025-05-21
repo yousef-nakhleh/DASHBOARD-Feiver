@@ -127,9 +127,16 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         <span>{app.appointment_time?.slice(0, 5)}</span>
         <span>{app.duration_min} min</span>
       </div>
-      <div className="flex items-center mt-1 text-sm font-medium text-gray-700 truncate">
-        <User size={14} className="mr-1 text-gray-500" />
-        <span className="truncate">{app.customer_name}</span>
+      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
+        <div className="flex items-center">
+          <User size={14} className="mr-1 text-gray-500" />
+          <span className="truncate">{app.customer_name}</span>
+        </div>
+        {app.services?.name && (
+          <span className="text-xs italic text-gray-500 mt-1 truncate">
+            💇 {app.services.name}
+          </span>
+        )}
       </div>
     </div>
   );
