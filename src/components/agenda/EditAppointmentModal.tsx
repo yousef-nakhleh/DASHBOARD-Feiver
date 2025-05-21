@@ -8,12 +8,14 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
 
   const [customerName, setCustomerName] = useState(appointment.customer_name);
   const [serviceName, setServiceName] = useState('');
-  const [duration, setDuration] = useState(appointment.duration_min);
+  const [price, setPrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [total, setTotal] = useState(0);
 
+  const [duration, setDuration] = useState(appointment.duration_min);
   const [appointmentDate, setAppointmentDate] = useState(
     appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
-
   const [appointmentTime, setAppointmentTime] = useState(
     appointment.appointment_date?.split('T')[1]?.slice(0, 5) || '08:00'
   );
@@ -25,18 +27,24 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     const fetchServiceDetails = async () => {
       const { data } = await supabase
         .from('services')
-        .select('name, duration_min')
+        .select('name, duration_min, price')
         .eq('id', appointment.service_id)
         .single();
 
       if (data) {
         setServiceName(data.name);
         setDuration(data.duration_min);
+        setPrice(data.price);
+        setTotal(data.price);
       }
     };
 
     fetchServiceDetails();
   }, [appointment.service_id]);
+
+  useEffect(() => {
+    setTotal(price - discount);
+  }, [price, discount]);
 
   const handleSave = async () => {
     const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
@@ -52,6 +60,19 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
       })
       .eq('id', appointment.id);
 
+    if (paid) {
+      await supabase.from('transactions').insert({
+        appointment_id: appointment.id,
+        barber_id: appointment.barber_id,
+        service_id: appointment.service_id,
+        price,
+        discount,
+        total,
+        payment_method: paymentMethod,
+        completed_at: new Date().toISOString(),
+      });
+    }
+
     onUpdated();
     onClose();
   };
@@ -59,7 +80,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
-        {/* Tab Switcher */}
         <div className="absolute top-4 right-4 flex space-x-2">
           <button
             onClick={() => setActiveTab('edit')}
@@ -94,7 +114,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Servizio</label>
               <input
@@ -104,7 +123,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500 cursor-not-allowed"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Data</label>
               <input
@@ -114,7 +132,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Orario</label>
               <input
@@ -124,7 +141,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
               <input
@@ -150,28 +166,55 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 <option value="true">Sì</option>
               </select>
             </div>
-
             {paid && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="">Seleziona metodo</option>
-                  {paymentMethods.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Prezzo</label>
+                  <input
+                    type="number"
+                    value={price}
+                    disabled
+                    className="w-full mt-1 border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Sconto</label>
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(parseInt(e.target.value))}
+                    className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Totale</label>
+                  <input
+                    type="number"
+                    value={total}
+                    disabled
+                    className="w-full mt-1 border border-gray-300 rounded px-3 py-2 bg-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                  >
+                    <option value="">Seleziona metodo</option>
+                    {paymentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex justify-end mt-6 space-x-3">
           <button
             onClick={onClose}
