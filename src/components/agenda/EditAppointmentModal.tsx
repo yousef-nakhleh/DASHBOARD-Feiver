@@ -9,12 +9,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [customerName, setCustomerName] = useState(appointment.customer_name);
   const [serviceName, setServiceName] = useState('');
   const [duration, setDuration] = useState(appointment.duration_min);
-  const [price, setPrice] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [isPaid, setIsPaid] = useState(false);
-  const [transactionExists, setTransactionExists] = useState(false);
-
   const [appointmentDate, setAppointmentDate] = useState(
     appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
   );
@@ -22,66 +16,63 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     appointment.appointment_date?.split('T')[1]?.slice(0, 5) || '08:00'
   );
 
-  const total = Math.max(0, price - discount);
+  const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
 
   useEffect(() => {
     const fetchServiceDetails = async () => {
       const { data } = await supabase
         .from('services')
-        .select('name, duration_min, price')
+        .select('name, duration_min')
         .eq('id', appointment.service_id)
         .single();
 
       if (data) {
         setServiceName(data.name);
         setDuration(data.duration_min);
-        setPrice(data.price);
-      }
-    };
-
-    const fetchTransactionStatus = async () => {
-      const { data } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('appointment_id', appointment.id)
-        .maybeSingle();
-
-      if (data) {
-        setTransactionExists(true);
-        setIsPaid(true);
-        setPaymentMethod(data.payment_method);
-        setDiscount(data.discount);
       }
     };
 
     fetchServiceDetails();
-    fetchTransactionStatus();
-  }, [appointment.service_id, appointment.id]);
+  }, [appointment.service_id]);
 
   const handleSave = async () => {
     const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
 
-    await supabase
-      .from('appointments')
-      .update({
-        customer_name: customerName,
-        duration_min: duration,
-        appointment_date: fullDateTime,
-        paid: true,
-        payment_method: paymentMethod,
-      })
-      .eq('id', appointment.id);
+    if (activeTab === 'edit') {
+      await supabase
+        .from('appointments')
+        .update({
+          customer_name: customerName,
+          duration_min: duration,
+          appointment_date: fullDateTime,
+        })
+        .eq('id', appointment.id);
+    }
 
-    await supabase.from('transactions').insert({
-      appointment_id: appointment.id,
-      payment_method: paymentMethod,
-      price,
-      discount,
-      total,
-      barber_id: appointment.barber_id,
-      service_id: appointment.service_id,
-      completed_at: new Date().toISOString(),
-    });
+    if (activeTab === 'payment') {
+      const price = appointment.price || 0;
+
+      // 1. Update appointment as paid
+      await supabase
+        .from('appointments')
+        .update({
+          paid: true,
+          payment_method: paymentMethod,
+        })
+        .eq('id', appointment.id);
+
+      // 2. Insert into transactions table
+      await supabase.from('transactions').insert([
+        {
+          appointment_id: appointment.id,
+          customer_name: appointment.customer_name,
+          service_id: appointment.service_id,
+          amount: price,
+          payment_method: paymentMethod,
+          paid_at: new Date().toISOString(),
+        },
+      ]);
+    }
 
     onUpdated();
     onClose();
@@ -167,33 +158,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         {activeTab === 'payment' && (
           <div className="space-y-4 mt-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Prezzo</label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(parseFloat(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Sconto</label>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(parseFloat(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Totale</label>
-              <input
-                type="text"
-                value={`€ ${total}`}
-                disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500"
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
               <select
                 value={paymentMethod}
@@ -208,6 +172,16 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Importo</label>
+              <input
+                type="text"
+                value={`€ ${appointment.price || 0}`}
+                disabled
+                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500 cursor-not-allowed"
+              />
+            </div>
           </div>
         )}
 
@@ -221,11 +195,9 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </button>
           <button
             onClick={handleSave}
-            disabled={transactionExists || !paymentMethod}
+            disabled={appointment.paid}
             className={`px-4 py-2 rounded text-white ${
-              transactionExists || !paymentMethod
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+              appointment.paid ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
             Salva
