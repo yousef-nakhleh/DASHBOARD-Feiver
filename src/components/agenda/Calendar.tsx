@@ -10,7 +10,7 @@ export const Calendar = ({
   onDrop,
   onClickAppointment,
   barbers,
-  selectedBarber, // <- new prop from Agenda to detect single staff vs Tutti
+  selectedBarber,
 }) => {
   const isTutti = selectedBarber === 'Tutti';
 
@@ -53,7 +53,6 @@ export const Calendar = ({
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
               {isTutti ? (
-                // If "Tutti" is selected: divide space per barber
                 barbers.map((barber) => {
                   const apps = appointments.filter(
                     (a) =>
@@ -61,20 +60,23 @@ export const Calendar = ({
                       a.appointment_time.slice(0, 5) === slot.time
                   );
                   return (
-                    <div key={barber.id} className="flex-1 h-full flex space-x-1">
+                    <div
+                      key={barber.id}
+                      className="h-full flex space-x-1"
+                      style={{ width: `${100 / barbers.length}%` }}
+                    >
                       {apps.map((app) => (
                         <DraggableAppointment
                           key={app.id}
                           app={app}
                           onClick={() => onClickAppointment?.(app)}
-                          flexBasis={100 / apps.length}
+                          flexBasis={100}
                         />
                       ))}
                     </div>
                   );
                 })
               ) : (
-                // If a single barber is selected: full width
                 appointments
                   .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
                   .map((app) => (
