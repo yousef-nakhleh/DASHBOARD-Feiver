@@ -7,10 +7,11 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [activeTab, setActiveTab] = useState<'edit' | 'payment'>('payment');
 
   const [customerName, setCustomerName] = useState(appointment.customer_name);
-  const [serviceName, setServiceName] = useState('');
+  const [services, setServices] = useState([]);
+  const [selectedServiceId, setSelectedServiceId] = useState(appointment.service_id);
   const [duration, setDuration] = useState(appointment.duration_min);
-  const [price, setPrice] = useState(0); // 🆕
-  const [discount, setDiscount] = useState(0); // 🆕
+  const [price, setPrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
 
   const [appointmentDate, setAppointmentDate] = useState(
     appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
@@ -22,21 +23,19 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
 
   useEffect(() => {
-    const fetchServiceDetails = async () => {
-      const { data } = await supabase
-        .from('services')
-        .select('name, duration_min, price')
-        .eq('id', appointment.service_id)
-        .single();
-
+    const fetchServices = async () => {
+      const { data } = await supabase.from('services').select('id, name, duration_min, price');
       if (data) {
-        setServiceName(data.name);
-        setDuration(data.duration_min);
-        setPrice(data.price); // 🆕
+        setServices(data);
+        const current = data.find((s) => s.id === appointment.service_id);
+        if (current) {
+          setPrice(current.price);
+          setDuration(current.duration_min);
+        }
       }
     };
 
-    fetchServiceDetails();
+    fetchServices();
   }, [appointment.service_id]);
 
   const handleSave = async () => {
@@ -49,6 +48,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           customer_name: customerName,
           duration_min: duration,
           appointment_date: fullDateTime,
+          service_id: selectedServiceId,
         })
         .eq('id', appointment.id);
     }
@@ -56,7 +56,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     if (activeTab === 'payment') {
       const total = price - discount;
 
-      // 1. Mark appointment as paid
       await supabase
         .from('appointments')
         .update({
@@ -65,12 +64,11 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
         })
         .eq('id', appointment.id);
 
-      // 2. Insert into transactions
       await supabase.from('transactions').insert([
         {
           appointment_id: appointment.id,
           barber_id: appointment.barber_id,
-          service_id: appointment.service_id,
+          service_id: selectedServiceId,
           price,
           discount,
           total,
@@ -87,7 +85,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
-        {/* Tab Switcher */}
         <div className="absolute top-4 right-4 flex space-x-2">
           <button
             onClick={() => setActiveTab('edit')}
@@ -124,12 +121,25 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Servizio</label>
-              <input
-                type="text"
-                value={serviceName}
-                disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500 cursor-not-allowed"
-              />
+              <select
+                value={selectedServiceId}
+                onChange={(e) => {
+                  const selected = services.find((s) => s.id === e.target.value);
+                  setSelectedServiceId(e.target.value);
+                  if (selected) {
+                    setPrice(selected.price);
+                    setDuration(selected.duration_min);
+                  }
+                }}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">Seleziona servizio</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Data</label>
@@ -181,10 +191,10 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700">Prezzo</label>
               <input
-                type="text"
-                value={`€ ${price}`}
-                disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500"
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
             <div>
@@ -208,7 +218,6 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex justify-end mt-6 space-x-3">
           <button
             onClick={onClose}
