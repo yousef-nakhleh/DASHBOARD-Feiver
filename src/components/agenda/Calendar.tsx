@@ -11,8 +11,6 @@ export const Calendar = ({
   onClickAppointment,
   barbers,
   selectedBarber,
-  view,
-  selectedDate,
 }) => {
   const isTutti = selectedBarber === 'Tutti';
 
@@ -64,51 +62,31 @@ export const Calendar = ({
                   return (
                     <div
                       key={barber.id}
-                      className="h-full relative"
+                      className="h-full flex space-x-1"
                       style={{ width: `${100 / barbers.length}%` }}
                     >
                       {apps.map((app) => (
-                        <div
+                        <DraggableAppointment
                           key={app.id}
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            height: `${(app.duration_min / 15) * slotHeight}px`,
-                            width: '100%',
-                          }}
-                        >
-                          <DraggableAppointment
-                            app={app}
-                            onClick={() => onClickAppointment?.(app)}
-                            flexBasis={100}
-                          />
-                        </div>
+                          app={app}
+                          onClick={() => onClickAppointment?.(app)}
+                          flexBasis={100}
+                        />
                       ))}
                     </div>
                   );
                 })
               ) : (
-                <div className="h-full relative w-full">
-                  {appointments
-                    .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
-                    .map((app) => (
-                      <div
-                        key={app.id}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          height: `${(app.duration_min / 15) * slotHeight}px`,
-                          width: '100%',
-                        }}
-                      >
-                        <DraggableAppointment
-                          app={app}
-                          onClick={() => onClickAppointment?.(app)}
-                          flexBasis={100}
-                        />
-                      </div>
-                    ))}
-                </div>
+                appointments
+                  .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
+                  .map((app) => (
+                    <DraggableAppointment
+                      key={app.id}
+                      app={app}
+                      onClick={() => onClickAppointment?.(app)}
+                      flexBasis={100}
+                    />
+                  ))
               )}
             </div>
           );
@@ -139,7 +117,7 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
-        height: '100%',
+        height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
@@ -156,7 +134,7 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         </div>
         {app.services?.name && (
           <span className="text-xs italic text-gray-500 mt-1 truncate">
-            {app.services.name}
+             {app.services.name}
           </span>
         )}
       </div>
