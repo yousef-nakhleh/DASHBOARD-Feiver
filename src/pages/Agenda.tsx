@@ -26,6 +26,7 @@ const Agenda = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'daily' | 'barber'>('barber');
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -94,7 +95,32 @@ const Agenda = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
+
+          {/* View Mode Toggle */}
+          <div className="flex mt-2 space-x-2">
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-4 py-1 rounded-full text-sm border ${
+                viewMode === 'daily'
+                  ? 'bg-[#5D4037] text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Visualizza per Giorno
+            </button>
+            <button
+              onClick={() => setViewMode('barber')}
+              className={`px-4 py-1 rounded-full text-sm border ${
+                viewMode === 'barber'
+                  ? 'bg-[#5D4037] text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Visualizza per Staff
+            </button>
+          </div>
         </div>
+
         <button
           onClick={() => setShowCreateModal(true)}
           className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
@@ -163,6 +189,7 @@ const Agenda = () => {
           selectedBarber={selectedBarber}
           onDrop={updateAppointmentTime}
           onClickAppointment={(app) => setSelectedAppointment(app)}
+          viewMode={viewMode} // 👈 passed to Calendar
         />
       </div>
 
