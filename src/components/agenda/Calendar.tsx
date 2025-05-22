@@ -1,6 +1,6 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase"; // ✅ correct
 import { Calendar } from '../components/agenda/Calendar';
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
