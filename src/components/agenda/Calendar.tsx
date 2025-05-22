@@ -16,19 +16,6 @@ export const Calendar = ({
 }) => {
   const isTutti = selectedBarber === 'Tutti';
 
-  const getDatesInRange = () => {
-    const days = view === '3day' ? 3 : view === 'week' ? 7 : 1;
-    const result = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date(selectedDate);
-      d.setDate(d.getDate() + i);
-      result.push(d.toISOString().split('T')[0]);
-    }
-    return result;
-  };
-
-  const datesInRange = getDatesInRange();
-
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
@@ -67,55 +54,62 @@ export const Calendar = ({
               ref={drop}
               className="h-10 border-t border-gray-200 relative flex px-1"
             >
-              {isTutti
-                ? barbers.map((barber) => (
+              {isTutti ? (
+                barbers.map((barber) => {
+                  const apps = appointments.filter(
+                    (a) =>
+                      a.barber_id === barber.id &&
+                      a.appointment_time.slice(0, 5) === slot.time
+                  );
+                  return (
                     <div
                       key={barber.id}
-                      className="flex flex-grow"
-                      style={{ width: `${100 / (barbers.length * datesInRange.length)}%` }}
+                      className="h-full relative"
+                      style={{ width: `${100 / barbers.length}%` }}
                     >
-                      {datesInRange.map((date) => {
-                        const apps = appointments.filter(
-                          (a) =>
-                            a.barber_id === barber.id &&
-                            a.appointment_time.slice(0, 5) === slot.time &&
-                            a.appointment_date === date
-                        );
-                        return (
-                          <div key={date} className="h-full w-full flex flex-col space-y-1">
-                            {apps.map((app) => (
-                              <DraggableAppointment
-                                key={app.id}
-                                app={app}
-                                onClick={() => onClickAppointment?.(app)}
-                                flexBasis={100}
-                              />
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))
-                : datesInRange.map((date) => {
-                    const apps = appointments.filter(
-                      (a) =>
-                        a.appointment_time.slice(0, 5) === slot.time &&
-                        a.appointment_date === date &&
-                        a.barber_id === selectedBarber
-                    );
-                    return (
-                      <div key={date} className="h-full w-full flex flex-col space-y-1" style={{ width: `${100 / datesInRange.length}%` }}>
-                        {apps.map((app) => (
+                      {apps.map((app) => (
+                        <div
+                          key={app.id}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            height: `${(app.duration_min / 15) * slotHeight}px`,
+                            width: '100%',
+                          }}
+                        >
                           <DraggableAppointment
-                            key={app.id}
                             app={app}
                             onClick={() => onClickAppointment?.(app)}
                             flexBasis={100}
                           />
-                        ))}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="h-full relative w-full">
+                  {appointments
+                    .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
+                    .map((app) => (
+                      <div
+                        key={app.id}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          height: `${(app.duration_min / 15) * slotHeight}px`,
+                          width: '100%',
+                        }}
+                      >
+                        <DraggableAppointment
+                          app={app}
+                          onClick={() => onClickAppointment?.(app)}
+                          flexBasis={100}
+                        />
                       </div>
-                    );
-                  })}
+                    ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -139,13 +133,13 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     <div
       ref={drag}
       onClick={onClick}
-      className={`$ {
+      className={`${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       } border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       }`}
       style={{
-        height: `${(app.duration_min / 15) * slotHeight}px`,
+        height: '100%',
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
