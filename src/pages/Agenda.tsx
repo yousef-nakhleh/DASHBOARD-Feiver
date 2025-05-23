@@ -112,7 +112,8 @@ const Agenda = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6">
+      {/* Constrain the calendar box */}
+      <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center">
             <button onClick={() => navigateDay('prev')} className="p-2 rounded-full hover:bg-gray-100">
@@ -182,15 +183,18 @@ const Agenda = () => {
           ))}
         </div>
 
-        <Calendar
-          timeSlots={timeSlots}
-          appointments={filtered}
-          barbers={barbers || []}
-          selectedBarber={selectedBarber}
-          datesInView={getDatesInView(selectedDate, viewMode)}
-          onDrop={updateAppointmentTime}
-          onClickAppointment={(app) => setSelectedAppointment(app)}
-        />
+        {/* Scrollable calendar */}
+        <div className="flex-1 overflow-hidden">
+          <Calendar
+            timeSlots={timeSlots}
+            appointments={filtered}
+            barbers={barbers || []}
+            selectedBarber={selectedBarber}
+            datesInView={getDatesInView(selectedDate, viewMode)}
+            onDrop={updateAppointmentTime}
+            onClickAppointment={(app) => setSelectedAppointment(app)}
+          />
+        </div>
       </div>
 
       {/* Edit Modal */}
