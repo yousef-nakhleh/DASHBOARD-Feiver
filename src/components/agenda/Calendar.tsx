@@ -13,8 +13,6 @@ export const Calendar = ({
   selectedBarber,
   datesInView = [],
 }) => {
-  const isSingleDay = datesInView.length === 1;
-
   const barbersToRender =
     selectedBarber === 'Tutti'
       ? barbers
@@ -29,7 +27,7 @@ export const Calendar = ({
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[40px] px-2 flex items-center justify-end text-xs ${
+              className={`h-[40px] px-2 flex items-start pt-[1px] justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
