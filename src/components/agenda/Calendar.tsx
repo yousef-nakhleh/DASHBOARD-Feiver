@@ -132,11 +132,11 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     <div
       ref={drag}
       onClick={onClick}
-      className={`$${
+      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+        isDragging ? 'opacity-50' : ''
+      } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-      } border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${{
-        isDragging: 'opacity-50',
-      }}`}
+      }`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
