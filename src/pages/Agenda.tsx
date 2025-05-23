@@ -18,6 +18,15 @@ const generateTimeSlots = () => {
   return slots;
 };
 
+const getDatesInView = (baseDate, mode) => {
+  const count = mode === 'day' ? 1 : mode === '3day' ? 3 : 7;
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+};
+
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -26,6 +35,7 @@ const Agenda = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -45,13 +55,12 @@ const Agenda = () => {
   };
 
   const fetchAppointments = async () => {
+    const dates = getDatesInView(selectedDate, viewMode);
+    const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
     const { data } = await supabase
       .from('appointments')
-      .select(`
-        *,
-        services ( name )
-      `)
-      .eq('appointment_date', selectedDate.toISOString().split('T')[0]);
+      .select(`*, services ( name )`)
+      .in('appointment_date', dateStrings);
     setAppointments(data || []);
   };
 
@@ -62,16 +71,16 @@ const Agenda = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   useEffect(() => {
     fetchBarbers();
   }, []);
 
-  const updateAppointmentTime = async (id: string, newTime: string) => {
+  const updateAppointmentTime = async (id: string, { newTime, newDate, newBarberId }) => {
     await supabase
       .from('appointments')
-      .update({ appointment_time: newTime })
+      .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
       .eq('id', id);
     fetchAppointments();
   };
@@ -129,6 +138,23 @@ const Agenda = () => {
           </div>
         </div>
 
+        {/* View Mode Switcher */}
+        <div className="flex space-x-2 px-4 pt-2">
+          {['day', '3day', 'week'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-3 py-1 rounded-full text-sm border ${
+                viewMode === mode
+                  ? 'bg-[#5D4037] text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {mode === 'day' ? 'Giorno' : mode === '3day' ? '3 Giorni' : 'Settimana'}
+            </button>
+          ))}
+        </div>
+
         {/* Barber Filter */}
         <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
           <button
@@ -161,6 +187,7 @@ const Agenda = () => {
           appointments={filtered}
           barbers={barbers || []}
           selectedBarber={selectedBarber}
+          datesInView={getDatesInView(selectedDate, viewMode)}
           onDrop={updateAppointmentTime}
           onClickAppointment={(app) => setSelectedAppointment(app)}
         />
