@@ -11,6 +11,7 @@ export const Calendar = ({
   onClickAppointment,
   barbers,
   selectedBarber,
+  datesInView = [], // NEW PROP: array of dates (e.g. 3-day view)
 }) => {
   const isTutti = selectedBarber === 'Tutti';
 
@@ -35,63 +36,83 @@ export const Calendar = ({
       </div>
 
       {/* Appointments Canvas */}
-      <div className="relative bg-white border-l">
-        {timeSlots.map((slot) => {
-          const [, drop] = useDrop({
-            accept: 'APPOINTMENT',
-            drop: (draggedItem: any) => {
-              if (draggedItem.appointment_time.slice(0, 5) !== slot.time) {
-                onDrop(draggedItem.id, `${slot.time}:00`);
-              }
-            },
-          });
-
-          return (
-            <div
-              key={slot.time}
-              ref={drop}
-              className="h-10 border-t border-gray-200 relative flex px-1"
-            >
-              {isTutti ? (
-                barbers.map((barber) => {
-                  const apps = appointments.filter(
-                    (a) =>
-                      a.barber_id === barber.id &&
-                      a.appointment_time.slice(0, 5) === slot.time
-                  );
-                  return (
-                    <div
-                      key={barber.id}
-                      className="h-full flex space-x-1"
-                      style={{ width: `${100 / barbers.length}%` }}
-                    >
-                      {apps.map((app) => (
-                        <DraggableAppointment
-                          key={app.id}
-                          app={app}
-                          onClick={() => onClickAppointment?.(app)}
-                          flexBasis={100}
-                        />
-                      ))}
-                    </div>
-                  );
-                })
-              ) : (
-                appointments
-                  .filter((a) => a.appointment_time.slice(0, 5) === slot.time)
-                  .map((app) => (
-                    <DraggableAppointment
-                      key={app.id}
-                      app={app}
-                      onClick={() => onClickAppointment?.(app)}
-                      flexBasis={100}
-                    />
-                  ))
-              )}
-            </div>
-          );
-        })}
+      <div className="relative bg-white border-l w-full overflow-x-auto">
+        <div
+          className="flex"
+          style={{ minWidth: `${datesInView.length * barbers.length * 160}px` }}
+        >
+          {datesInView.map((date) => {
+            const dateStr = date.toISOString().split('T')[0];
+            return barbers.map((barber) => (
+              <DayBarberColumn
+                key={`${dateStr}-${barber.id}`}
+                date={dateStr}
+                barber={barber}
+                timeSlots={timeSlots}
+                appointments={appointments}
+                onDrop={onDrop}
+                onClickAppointment={onClickAppointment}
+              />
+            ));
+          })}
+        </div>
       </div>
+    </div>
+  );
+};
+
+const DayBarberColumn = ({
+  date,
+  barber,
+  timeSlots,
+  appointments,
+  onDrop,
+  onClickAppointment,
+}) => {
+  return (
+    <div className="flex flex-col border-r w-[160px]">
+      {timeSlots.map((slot) => {
+        const [, drop] = useDrop({
+          accept: 'APPOINTMENT',
+          drop: (draggedItem) => {
+            if (
+              draggedItem.appointment_time.slice(0, 5) !== slot.time ||
+              draggedItem.appointment_date !== date ||
+              draggedItem.barber_id !== barber.id
+            ) {
+              onDrop(draggedItem.id, {
+                newTime: `${slot.time}:00`,
+                newDate: date,
+                newBarberId: barber.id,
+              });
+            }
+          },
+        });
+
+        const apps = appointments.filter(
+          (a) =>
+            a.appointment_date === date &&
+            a.barber_id === barber.id &&
+            a.appointment_time.slice(0, 5) === slot.time
+        );
+
+        return (
+          <div
+            key={slot.time}
+            ref={drop}
+            className="h-10 border-t border-gray-200 relative px-1"
+          >
+            {apps.map((app) => (
+              <DraggableAppointment
+                key={app.id}
+                app={app}
+                onClick={() => onClickAppointment?.(app)}
+                flexBasis={100}
+              />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -111,11 +132,11 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     <div
       ref={drag}
       onClick={onClick}
-      className={`${
+      className={`$${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-      } border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
-        isDragging ? 'opacity-50' : ''
-      }`}
+      } border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${{
+        isDragging: 'opacity-50',
+      }}`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
@@ -134,7 +155,7 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         </div>
         {app.services?.name && (
           <span className="text-xs italic text-gray-500 mt-1 truncate">
-             {app.services.name}
+            {app.services.name}
           </span>
         )}
       </div>
