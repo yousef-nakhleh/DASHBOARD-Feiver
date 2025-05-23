@@ -14,6 +14,7 @@ export const Calendar = ({
   datesInView = [],
 }) => {
   const isSingleDay = datesInView.length === 1;
+  const isSingleBarber = selectedBarber !== 'Tutti';
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -40,7 +41,12 @@ export const Calendar = ({
         <div
           className="flex w-full"
           style={{
-            minWidth: isSingleDay ? '100%' : `${datesInView.length * barbers.length * 160}px`,
+            minWidth:
+              isSingleDay && isSingleBarber
+                ? '100%'
+                : isSingleDay
+                ? '100%'
+                : `${datesInView.length * barbers.length * 160}px`,
           }}
         >
           {datesInView.map((date) => {
@@ -54,7 +60,7 @@ export const Calendar = ({
                 appointments={appointments}
                 onDrop={onDrop}
                 onClickAppointment={onClickAppointment}
-                totalBarbers={barbers.length}
+                totalBarbers={isSingleBarber ? 1 : barbers.length}
               />
             ));
           })}
