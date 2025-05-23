@@ -128,33 +128,36 @@ const DayBarberColumn = ({
 };
 
 const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) => {
-  const [{ isDragging }, dragRef] = useDrag({
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+  const isResizing = useRef(false);
+
+  const [{ isDragging }, connectDrag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
+    canDrag: () => !isResizing.current,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
-  const [resizing, setResizing] = useState(false);
-
-  const handleResizeMouseDown = (direction) => (e) => {
+  const handleResizeMouseDown = (e) => {
     e.stopPropagation();
-    setResizing(true);
+    isResizing.current = true;
     const startY = e.clientY;
     const startHeight = app.duration_min;
 
     const onMouseMove = (e) => {
       const deltaY = e.clientY - startY;
       const minutesChange = Math.round(deltaY / (slotHeight / 15)) * 15;
-      const newDuration = Math.max(15, startHeight + (direction === 'down' ? minutesChange : -minutesChange));
+      const newDuration = Math.max(15, startHeight + minutesChange);
       if (onResize) {
         onResize(app.id, newDuration);
       }
     };
 
     const onMouseUp = () => {
-      setResizing(false);
+      isResizing.current = false;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -168,8 +171,7 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
   return (
     <div
       ref={dragRef}
-      onClick={onClick}
-      className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`relative border-l-4 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
@@ -180,26 +182,32 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
         flexGrow: 1,
         flexShrink: 0,
       }}
+      onClick={onClick}
     >
-      <div
-        onMouseDown={handleResizeMouseDown('down')}
-        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
-      />
-      <div className="flex justify-between text-xs font-medium text-gray-800">
-        <span>{app.appointment_time?.slice(0, 5)}</span>
-        <span>{app.duration_min} min</span>
-      </div>
-      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
-        <div className="flex items-center">
-          <User size={14} className="mr-1 text-gray-500" />
-          <span className="truncate">{app.customer_name}</span>
+      {connectDrag(
+        <div className="px-2 py-1 w-full h-full">
+          <div className="flex justify-between text-xs font-medium text-gray-800">
+            <span>{app.appointment_time?.slice(0, 5)}</span>
+            <span>{app.duration_min} min</span>
+          </div>
+          <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
+            <div className="flex items-center">
+              <User size={14} className="mr-1 text-gray-500" />
+              <span className="truncate">{app.customer_name}</span>
+            </div>
+            {app.services?.name && (
+              <span className="text-xs italic text-gray-500 mt-1 truncate">
+                {app.services.name}
+              </span>
+            )}
+          </div>
         </div>
-        {app.services?.name && (
-          <span className="text-xs italic text-gray-500 mt-1 truncate">
-            {app.services.name}
-          </span>
-        )}
-      </div>
+      )}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleResizeMouseDown}
+        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
+      ></div>
     </div>
   );
 };
