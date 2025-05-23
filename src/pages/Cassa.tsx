@@ -24,8 +24,9 @@ const transactions = [
 const CassaPOSMockup = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showManual, setShowManual] = useState(false);
-  const [manualItems, setManualItems] = useState([{ name: '', price: 0 }]);
+  const [manualItems, setManualItems] = useState([{ type: 'Servizio', name: '', price: 0 }]);
   const [manualPaymentMethod, setManualPaymentMethod] = useState('');
+  const [manualClient, setManualClient] = useState('');
 
   const filteredAppointments = pendingAppointments.filter(
     appt =>
@@ -45,7 +46,7 @@ const CassaPOSMockup = () => {
   };
 
   const addManualItem = () => {
-    setManualItems([...manualItems, { name: '', price: 0 }]);
+    setManualItems([...manualItems, { type: 'Servizio', name: '', price: 0 }]);
   };
 
   const removeManualItem = (index) => {
@@ -143,11 +144,29 @@ const CassaPOSMockup = () => {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
             <h2 className="text-xl font-semibold mb-4">Nuova Transazione Manuale</h2>
+
+            <input
+              type="text"
+              placeholder="Nome cliente (facoltativo)"
+              className="border p-2 rounded w-full mb-4"
+              value={manualClient}
+              onChange={(e) => setManualClient(e.target.value)}
+            />
+
             {manualItems.map((item, i) => (
               <div key={i} className="flex items-center mb-2 gap-2">
+                <select
+                  value={item.type}
+                  onChange={(e) => updateManualItem(i, 'type', e.target.value)}
+                  className="border p-2 rounded"
+                >
+                  <option value="Servizio">Servizio</option>
+                  <option value="Prodotto">Prodotto</option>
+                  <option value="Buono">Buono Regalo</option>
+                </select>
                 <input
                   type="text"
-                  placeholder="Servizio/Prodotto"
+                  placeholder="Nome"
                   className="border p-2 rounded w-1/2"
                   value={item.name}
                   onChange={(e) => updateManualItem(i, 'name', e.target.value)}
@@ -155,13 +174,14 @@ const CassaPOSMockup = () => {
                 <input
                   type="number"
                   placeholder="Prezzo"
-                  className="border p-2 rounded w-1/3"
+                  className="border p-2 rounded w-1/4"
                   value={item.price}
                   onChange={(e) => updateManualItem(i, 'price', e.target.value)}
                 />
                 <button onClick={() => removeManualItem(i)} className="text-red-500"><Trash size={16} /></button>
               </div>
             ))}
+
             <button onClick={addManualItem} className="text-sm text-[#5D4037] underline mb-4">+ Aggiungi voce</button>
 
             <div className="mb-4">
@@ -176,6 +196,7 @@ const CassaPOSMockup = () => {
                 <option value="Contanti">Contanti</option>
               </select>
             </div>
+
             <div className="flex justify-between items-center">
               <span className="font-bold">Totale: €{manualTotal.toFixed(2)}</span>
               <div className="flex gap-2">
