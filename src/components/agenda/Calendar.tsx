@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const slotHeight = 40;
 
@@ -21,7 +22,6 @@ export const Calendar = ({
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
-      {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
           <div
@@ -39,13 +39,10 @@ export const Calendar = ({
         ))}
       </div>
 
-      {/* Appointments Canvas */}
       <div className="relative bg-white border-l w-full overflow-x-auto">
         <div
           className="flex w-full"
-          style={{
-            minWidth: '100%',
-          }}
+          style={{ minWidth: '100%' }}
         >
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
@@ -129,6 +126,8 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, onClick, flexBasis }) => {
+  const ref = useRef(null);
+
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -137,17 +136,30 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     }),
   });
 
+  const [, resizeDrag] = useDrag({
+    type: 'APPOINTMENT_RESIZE',
+    item: { id: app.id, originalDuration: app.duration_min },
+    end: async (item, monitor) => {
+      const offset = monitor.getDifferenceFromInitialOffset();
+      if (!offset) return;
+      const deltaY = offset.y;
+      const newDuration = Math.max(15, Math.round((item.originalDuration * slotHeight + deltaY) / slotHeight) * 15);
+
+      if (newDuration !== item.originalDuration) {
+        await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', item.id);
+      }
+    },
+  });
+
   const isPaid = app.paid === true;
 
   return (
     <div
       ref={drag}
       onClick={onClick}
-      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer relative ${
         isDragging ? 'opacity-50' : ''
-      } ${
-        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-      }`}
+      } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
@@ -170,6 +182,11 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
           </span>
         )}
       </div>
+      <div
+        ref={resizeDrag}
+        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize z-10"
+        onClick={(e) => e.stopPropagation()}
+      ></div>
     </div>
   );
 };
