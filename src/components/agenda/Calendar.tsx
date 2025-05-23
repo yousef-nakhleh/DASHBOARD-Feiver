@@ -16,10 +16,9 @@ export const Calendar = ({
 }) => {
   const isSingleDay = datesInView.length === 1;
 
-  const barbersToRender =
-    selectedBarber === 'Tutti'
-      ? barbers
-      : barbers.filter((b) => b.id === selectedBarber);
+  const barbersToRender = selectedBarber === 'Tutti'
+    ? barbers
+    : barbers.filter(b => b.id === selectedBarber);
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -126,7 +125,7 @@ const DayBarberColumn = ({
 };
 
 const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) => {
-  const [{ isDragging }, dragRef] = useDrag({
+  const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
@@ -134,6 +133,7 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
     }),
   });
 
+  const cardRef = useRef();
   const [resizing, setResizing] = useState(false);
 
   const handleResizeMouseDown = (direction) => (e) => {
@@ -163,17 +163,18 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
 
   return (
     <div
-      ref={dragRef}
+      ref={drag}
       onClick={onClick}
-      className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
+      className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
-      } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
+      } ${
+        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+      }`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
-        cursor: resizing ? 'ns-resize' : 'move',
       }}
     >
       <div
