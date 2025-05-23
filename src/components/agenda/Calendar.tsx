@@ -1,135 +1,11 @@
-import React from 'react';
-import { useDrop, useDrag } from 'react-dnd';
+import React, { useRef, useState } from 'react';
+import { useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 const slotHeight = 40;
 
-export const Calendar = ({
-  timeSlots,
-  appointments,
-  onDrop,
-  onClickAppointment,
-  barbers,
-  selectedBarber,
-  datesInView = [],
-}) => {
-  const isSingleDay = datesInView.length === 1;
-
-  const barbersToRender = selectedBarber === 'Tutti'
-    ? barbers
-    : barbers.filter(b => b.id === selectedBarber);
-
-  return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
-      {/* Time Labels */}
-      <div className="bg-white border-r">
-        {timeSlots.map((slot, i) => (
-          <div
-            key={i}
-            className={`h-10 px-2 flex items-center justify-end text-xs ${
-              slot.type === 'hour'
-                ? 'font-bold text-gray-800'
-                : slot.type === 'half'
-                ? 'text-gray-500'
-                : 'text-gray-300'
-            }`}
-          >
-            {slot.time}
-          </div>
-        ))}
-      </div>
-
-      {/* Appointments Canvas */}
-      <div className="relative bg-white border-l w-full overflow-x-auto">
-        <div
-          className="flex w-full"
-          style={{
-            minWidth: '100%',
-          }}
-        >
-          {datesInView.map((date) => {
-            const dateStr = date.toISOString().split('T')[0];
-            return barbersToRender.map((barber) => (
-              <DayBarberColumn
-                key={`${dateStr}-${barber.id}`}
-                date={dateStr}
-                barber={barber}
-                timeSlots={timeSlots}
-                appointments={appointments}
-                onDrop={onDrop}
-                onClickAppointment={onClickAppointment}
-                totalBarbers={barbersToRender.length}
-              />
-            ));
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const DayBarberColumn = ({
-  date,
-  barber,
-  timeSlots,
-  appointments,
-  onDrop,
-  onClickAppointment,
-  totalBarbers,
-}) => {
-  return (
-    <div
-      className="flex flex-col border-r"
-      style={{ width: `${100 / totalBarbers}%` }}
-    >
-      {timeSlots.map((slot) => {
-        const [, drop] = useDrop({
-          accept: 'APPOINTMENT',
-          drop: (draggedItem) => {
-            if (
-              draggedItem.appointment_time.slice(0, 5) !== slot.time ||
-              draggedItem.appointment_date !== date ||
-              draggedItem.barber_id !== barber.id
-            ) {
-              onDrop(draggedItem.id, {
-                newTime: `${slot.time}:00`,
-                newDate: date,
-                newBarberId: barber.id,
-              });
-            }
-          },
-        });
-
-        const apps = appointments.filter(
-          (a) =>
-            a.appointment_date === date &&
-            a.barber_id === barber.id &&
-            a.appointment_time.slice(0, 5) === slot.time
-        );
-
-        return (
-          <div
-            key={slot.time}
-            ref={drop}
-            className="h-10 border-t border-gray-200 relative px-1"
-          >
-            {apps.map((app) => (
-              <DraggableAppointment
-                key={app.id}
-                app={app}
-                onClick={() => onClickAppointment?.(app)}
-              />
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const DraggableAppointment = ({ app, onClick }) => {
-  const [{ isDragging }, drag] = useDrag({
+export const DraggableAppointment = ({ app, onClick, flexBasis, onResize }) => {
+  const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
@@ -137,37 +13,51 @@ const DraggableAppointment = ({ app, onClick }) => {
     }),
   });
 
-  const handleResize = async (e) => {
+  const ref = useRef(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const startY = useRef(0);
+  const startHeight = useRef(0);
+
+  const handleMouseDown = (e) => {
     e.stopPropagation();
-    const startY = e.clientY;
-    const originalHeight = (app.duration_min / 15) * slotHeight;
-    const onMouseMove = (moveEvent) => {
-      const deltaY = moveEvent.clientY - startY;
-      const steps = Math.round(deltaY / slotHeight);
-      const newDuration = Math.max(15, app.duration_min + steps * 15);
-      const newHeight = (newDuration / 15) * slotHeight;
-      document.getElementById(`app-${app.id}`).style.height = `${newHeight}px`;
-    };
-    const onMouseUp = async (upEvent) => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      const deltaY = upEvent.clientY - startY;
-      const steps = Math.round(deltaY / slotHeight);
-      const newDuration = Math.max(15, app.duration_min + steps * 15);
-      if (newDuration !== app.duration_min) {
-        await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', app.id);
-      }
-    };
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    startY.current = e.clientY;
+    startHeight.current = ref.current.getBoundingClientRect().height;
+    setIsResizing(true);
+    document.body.style.cursor = 'ns-resize';
   };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing) return;
+    const diffY = e.clientY - startY.current;
+    const newHeight = startHeight.current + diffY;
+    const newDuration = Math.max(15, Math.round(newHeight / slotHeight) * 15);
+    onResize(app.id, newDuration);
+  };
+
+  const handleMouseUp = () => {
+    if (isResizing) {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+    }
+  };
+
+  React.useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const isPaid = app.paid === true;
 
   return (
     <div
-      id={`app-${app.id}`}
-      ref={drag}
+      ref={(node) => {
+        drag(node);
+        ref.current = node;
+      }}
       onClick={onClick}
       className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer relative ${
         isDragging ? 'opacity-50' : ''
@@ -176,6 +66,9 @@ const DraggableAppointment = ({ app, onClick }) => {
       }`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
+        flexBasis: `${flexBasis}%`,
+        flexGrow: 1,
+        flexShrink: 0,
       }}
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -194,8 +87,8 @@ const DraggableAppointment = ({ app, onClick }) => {
         )}
       </div>
       <div
+        onMouseDown={handleMouseDown}
         className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10"
-        onMouseDown={handleResize}
       />
     </div>
   );
