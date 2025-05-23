@@ -21,43 +21,46 @@ export const Calendar = ({
       : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
-      {/* Time Labels */}
-      <div className="bg-white border-r sticky left-0 z-10">
-        {timeSlots.map((slot, i) => (
-          <div
-            key={i}
-            className={`h-10 px-2 flex items-center justify-end text-xs ${
-              slot.type === 'hour'
-                ? 'font-bold text-gray-800'
-                : slot.type === 'half'
-                ? 'text-gray-500'
-                : 'text-gray-300'
-            }`}
-          >
-            {slot.time}
-          </div>
-        ))}
-      </div>
+    <div className="grid grid-cols-[80px_1fr] h-[700px] relative">
+      {/* Shared Scrollable Container */}
+      <div className="overflow-y-auto h-full col-span-2 flex">
+        {/* Time Labels */}
+        <div className="bg-white border-r shrink-0">
+          {timeSlots.map((slot, i) => (
+            <div
+              key={i}
+              className={`h-[40px] px-2 flex items-center justify-end text-xs ${
+                slot.type === 'hour'
+                  ? 'font-bold text-gray-800'
+                  : slot.type === 'half'
+                  ? 'text-gray-500'
+                  : 'text-gray-300'
+              }`}
+            >
+              {slot.time}
+            </div>
+          ))}
+        </div>
 
-      {/* Appointments Canvas */}
-      <div className="relative bg-white border-l w-full overflow-x-auto">
-        <div className="flex w-full" style={{ minWidth: '100%' }}>
-          {datesInView.map((date) => {
-            const dateStr = date.toISOString().split('T')[0];
-            return barbersToRender.map((barber) => (
-              <DayBarberColumn
-                key={`${dateStr}-${barber.id}`}
-                date={dateStr}
-                barber={barber}
-                timeSlots={timeSlots}
-                appointments={appointments}
-                onDrop={onDrop}
-                onClickAppointment={onClickAppointment}
-                totalBarbers={barbersToRender.length}
-              />
-            ));
-          })}
+        {/* Appointments Canvas */}
+        <div className="bg-white w-full border-l overflow-x-auto">
+          <div className="flex w-full" style={{ minWidth: '100%' }}>
+            {datesInView.map((date) => {
+              const dateStr = date.toISOString().split('T')[0];
+              return barbersToRender.map((barber) => (
+                <DayBarberColumn
+                  key={`${dateStr}-${barber.id}`}
+                  date={dateStr}
+                  barber={barber}
+                  timeSlots={timeSlots}
+                  appointments={appointments}
+                  onDrop={onDrop}
+                  onClickAppointment={onClickAppointment}
+                  totalBarbers={barbersToRender.length}
+                />
+              ));
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -104,7 +107,7 @@ const DayBarberColumn = ({
           <div
             key={slot.time}
             ref={drop}
-            className="h-10 border-t border-gray-200 relative px-1"
+            className="h-[40px] border-t border-gray-200 relative px-1"
           >
             {apps.map((app) => (
               <DraggableAppointment
