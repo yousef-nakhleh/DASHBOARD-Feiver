@@ -92,4 +92,4 @@ export const DraggableAppointment = ({ app, onClick, flexBasis, onResize }) => {
       />
     </div>
   );
-}; 
+};
