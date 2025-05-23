@@ -1,9 +1,9 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Calendar } from '@/components/agenda/Calendar';
-import EditAppointmentModal from '@/components/agenda/EditAppointmentModal';
-import CreateAppointmentModal from '@/components/agenda/CreateAppointmentModal';
+import { supabase } from '../lib/supabase';
+import { Calendar } from '../components/agenda/Calendar';
+import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
+import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -26,7 +26,6 @@ const Agenda = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [calendarView, setCalendarView] = useState<'day' | '3day' | 'week' | 'month'>('day');
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -45,25 +44,14 @@ const Agenda = () => {
     setSelectedDate(newDate);
   };
 
-  const getRangeDates = () => {
-    let days = 1;
-    if (calendarView === '3day') days = 3;
-    else if (calendarView === 'week') days = 7;
-    else if (calendarView === 'month') days = 30;
-
-    return Array.from({ length: days }, (_, i) => {
-      const d = new Date(selectedDate);
-      d.setDate(d.getDate() + i);
-      return d.toISOString().split('T')[0];
-    });
-  };
-
   const fetchAppointments = async () => {
-    const dates = getRangeDates();
     const { data } = await supabase
       .from('appointments')
-      .select(`*, services ( name )`)
-      .in('appointment_date', dates);
+      .select(`
+        *,
+        services ( name )
+      `)
+      .eq('appointment_date', selectedDate.toISOString().split('T')[0]);
     setAppointments(data || []);
   };
 
@@ -74,14 +62,17 @@ const Agenda = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [selectedDate, calendarView]);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchBarbers();
   }, []);
 
   const updateAppointmentTime = async (id: string, newTime: string) => {
-    await supabase.from('appointments').update({ appointment_time: newTime }).eq('id', id);
+    await supabase
+      .from('appointments')
+      .update({ appointment_time: newTime })
+      .eq('id', id);
     fetchAppointments();
   };
 
@@ -103,31 +94,7 @@ const Agenda = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
-
-          {/* Calendar View Switcher */}
-          <div className="flex space-x-2 mt-2">
-            {['day', '3day', 'week', 'month'].map((view) => (
-              <button
-                key={view}
-                onClick={() => setCalendarView(view as any)}
-                className={`px-3 py-1 text-sm rounded-full ${
-                  calendarView === view
-                    ? 'bg-[#5D4037] text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                {view === 'day'
-                  ? 'Giorno'
-                  : view === '3day'
-                  ? '3 Giorni'
-                  : view === 'week'
-                  ? 'Settimana'
-                  : 'Mese'}
-              </button>
-            ))}
-          </div>
         </div>
-
         <button
           onClick={() => setShowCreateModal(true)}
           className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
@@ -194,13 +161,12 @@ const Agenda = () => {
           appointments={filtered}
           barbers={barbers || []}
           selectedBarber={selectedBarber}
-          selectedDate={selectedDate}
-          view={calendarView}
           onDrop={updateAppointmentTime}
           onClickAppointment={(app) => setSelectedAppointment(app)}
         />
       </div>
 
+      {/* Edit Modal */}
       {selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -209,6 +175,7 @@ const Agenda = () => {
         />
       )}
 
+      {/* Create Modal */}
       {showCreateModal && (
         <CreateAppointmentModal
           selectedDate={selectedDate}
