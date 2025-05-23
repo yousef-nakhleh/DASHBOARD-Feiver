@@ -119,7 +119,6 @@ const DayBarberColumn = ({
                 key={app.id}
                 app={app}
                 onClick={() => onClickAppointment?.(app)}
-                flexBasis={100}
               />
             ))}
           </div>
@@ -129,7 +128,7 @@ const DayBarberColumn = ({
   );
 };
 
-const DraggableAppointment = ({ app, onClick, flexBasis }) => {
+const DraggableAppointment = ({ app, onClick }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -138,39 +137,32 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     }),
   });
 
-  const isPaid = app.paid === true;
-
   const handleResize = async (e) => {
     e.stopPropagation();
-    let startY = e.clientY;
-    const startHeight = (app.duration_min / 15) * slotHeight;
-
+    const startY = e.clientY;
+    const originalHeight = (app.duration_min / 15) * slotHeight;
     const onMouseMove = (moveEvent) => {
-      const delta = moveEvent.clientY - startY;
-      const minutes = Math.max(15, Math.round((startHeight + delta) / slotHeight) * 15);
-      const newHeight = (minutes / 15) * slotHeight;
-      const element = document.getElementById(`app-${app.id}`);
-      if (element) {
-        element.style.height = `${newHeight}px`;
-      }
+      const deltaY = moveEvent.clientY - startY;
+      const steps = Math.round(deltaY / slotHeight);
+      const newDuration = Math.max(15, app.duration_min + steps * 15);
+      const newHeight = (newDuration / 15) * slotHeight;
+      document.getElementById(`app-${app.id}`).style.height = `${newHeight}px`;
     };
-
     const onMouseUp = async (upEvent) => {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      const delta = upEvent.clientY - startY;
-      const newDuration = Math.max(15, Math.round((startHeight + delta) / slotHeight) * 15);
+      const deltaY = upEvent.clientY - startY;
+      const steps = Math.round(deltaY / slotHeight);
+      const newDuration = Math.max(15, app.duration_min + steps * 15);
       if (newDuration !== app.duration_min) {
-        await supabase
-          .from('appointments')
-          .update({ duration_min: newDuration })
-          .eq('id', app.id);
+        await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', app.id);
       }
     };
-
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
+
+  const isPaid = app.paid === true;
 
   return (
     <div
@@ -184,9 +176,6 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
       }`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
-        flexBasis: `${flexBasis}%`,
-        flexGrow: 1,
-        flexShrink: 0,
       }}
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -205,9 +194,9 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         )}
       </div>
       <div
+        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10"
         onMouseDown={handleResize}
-        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize"
-      ></div>
+      />
     </div>
   );
 };
