@@ -22,9 +22,9 @@ export const Calendar = ({
       : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
+    <div className="flex max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
-      <div className="bg-white border-r">
+      <div className="flex flex-col border-r bg-white sticky left-0 z-10">
         {timeSlots.map((slot, i) => (
           <div
             key={i}
@@ -42,8 +42,8 @@ export const Calendar = ({
       </div>
 
       {/* Appointments Canvas */}
-      <div className="relative bg-white border-l w-full overflow-x-auto">
-        <div className="flex w-full" style={{ minWidth: '100%' }}>
+      <div className="flex-1 overflow-x-auto bg-white border-l">
+        <div className="flex min-w-full">
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
             return barbersToRender.map((barber) => (
