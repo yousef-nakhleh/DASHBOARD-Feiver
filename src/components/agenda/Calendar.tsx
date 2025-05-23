@@ -15,14 +15,15 @@ export const Calendar = ({
 }) => {
   const isSingleDay = datesInView.length === 1;
 
-  const barbersToRender = selectedBarber === 'Tutti'
-    ? barbers
-    : barbers.filter(b => b.id === selectedBarber);
+  const barbersToRender =
+    selectedBarber === 'Tutti'
+      ? barbers
+      : barbers.filter((b) => b.id === selectedBarber);
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
-      <div className="bg-white border-r">
+      <div className="bg-white border-r sticky left-0 z-10">
         {timeSlots.map((slot, i) => (
           <div
             key={i}
@@ -41,12 +42,7 @@ export const Calendar = ({
 
       {/* Appointments Canvas */}
       <div className="relative bg-white border-l w-full overflow-x-auto">
-        <div
-          className="flex w-full"
-          style={{
-            minWidth: '100%',
-          }}
-        >
+        <div className="flex w-full" style={{ minWidth: '100%' }}>
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
             return barbersToRender.map((barber) => (
@@ -78,10 +74,7 @@ const DayBarberColumn = ({
   totalBarbers,
 }) => {
   return (
-    <div
-      className="flex flex-col border-r"
-      style={{ width: `${100 / totalBarbers}%` }}
-    >
+    <div className="flex flex-col border-r" style={{ width: `${100 / totalBarbers}%` }}>
       {timeSlots.map((slot) => {
         const [, drop] = useDrop({
           accept: 'APPOINTMENT',
@@ -143,7 +136,7 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     <div
       ref={drag}
       onClick={onClick}
-      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move ${
         isDragging ? 'opacity-50' : ''
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
