@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
-const Calendar = ({
+export const Calendar = ({
   timeSlots,
   appointments,
   onDrop,
   onClickAppointment,
+  onResizeAppointment,
   barbers,
   selectedBarber,
   datesInView = [],
@@ -53,6 +54,7 @@ const Calendar = ({
                 appointments={appointments}
                 onDrop={onDrop}
                 onClickAppointment={onClickAppointment}
+                onResizeAppointment={onResizeAppointment}
                 totalBarbers={barbersToRender.length}
               />
             ));
@@ -70,6 +72,7 @@ const DayBarberColumn = ({
   appointments,
   onDrop,
   onClickAppointment,
+  onResizeAppointment,
   totalBarbers,
 }) => {
   return (
@@ -106,10 +109,11 @@ const DayBarberColumn = ({
             className="h-10 border-t border-gray-200 relative px-1"
           >
             {apps.map((app) => (
-              <DraggableAppointment
+              <ResizableDraggableAppointment
                 key={app.id}
                 app={app}
                 onClick={() => onClickAppointment?.(app)}
+                onResize={onResizeAppointment}
                 flexBasis={100}
               />
             ))}
@@ -120,7 +124,7 @@ const DayBarberColumn = ({
   );
 };
 
-const DraggableAppointment = ({ app, onClick, flexBasis }) => {
+const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -129,13 +133,39 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     }),
   });
 
+  const cardRef = useRef();
+  const [resizing, setResizing] = useState(false);
+
+  const handleResizeMouseDown = (direction) => (e) => {
+    e.stopPropagation();
+    setResizing(true);
+    const startY = e.clientY;
+    const startHeight = app.duration_min;
+
+    const onMouseMove = (e) => {
+      const deltaY = e.clientY - startY;
+      const minutesChange = Math.round(deltaY / (slotHeight / 15)) * 15;
+      const newDuration = Math.max(15, startHeight + (direction === 'down' ? minutesChange : -minutesChange));
+      onResize(app.id, newDuration);
+    };
+
+    const onMouseUp = () => {
+      setResizing(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   const isPaid = app.paid === true;
 
   return (
     <div
       ref={drag}
       onClick={onClick}
-      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
@@ -145,9 +175,12 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
-        position: 'relative',
       }}
     >
+      <div
+        onMouseDown={handleResizeMouseDown('up')}
+        className="absolute top-0 left-0 w-full h-2 cursor-n-resize z-10"
+      />
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{app.appointment_time?.slice(0, 5)}</span>
         <span>{app.duration_min} min</span>
@@ -163,9 +196,10 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
           </span>
         )}
       </div>
+      <div
+        onMouseDown={handleResizeMouseDown('down')}
+        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
+      />
     </div>
   );
 };
-
-export default Calendar;
-export { Calendar };
