@@ -11,9 +11,11 @@ export const Calendar = ({
   onClickAppointment,
   barbers,
   selectedBarber,
-  datesInView = [], // NEW PROP: array of dates (e.g. 3-day view)
+  datesInView = [],
 }) => {
   const isTutti = selectedBarber === 'Tutti';
+  const isSingleDay = datesInView.length === 1;
+  const isSingleBarber = selectedBarber !== 'Tutti';
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -38,8 +40,13 @@ export const Calendar = ({
       {/* Appointments Canvas */}
       <div className="relative bg-white border-l w-full overflow-x-auto">
         <div
-          className="flex"
-          style={{ minWidth: `${datesInView.length * barbers.length * 160}px` }}
+          className="flex w-full"
+          style={{
+            minWidth:
+              isSingleDay && isSingleBarber
+                ? '100%'
+                : `${datesInView.length * barbers.length * 160}px`,
+          }}
         >
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
