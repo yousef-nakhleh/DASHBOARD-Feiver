@@ -16,9 +16,10 @@ export const Calendar = ({
 }) => {
   const isSingleDay = datesInView.length === 1;
 
-  const barbersToRender = selectedBarber === 'Tutti'
-    ? barbers
-    : barbers.filter(b => b.id === selectedBarber);
+  const barbersToRender =
+    selectedBarber === 'Tutti'
+      ? barbers
+      : barbers.filter((b) => b.id === selectedBarber);
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -113,7 +114,9 @@ const DayBarberColumn = ({
                 key={app.id}
                 app={app}
                 onClick={() => onClickAppointment?.(app)}
-                onResize={onResizeAppointment}
+                onResize={(id, newDuration) =>
+                  onResizeAppointment?.(id, newDuration)
+                }
                 flexBasis={100}
               />
             ))}
@@ -125,7 +128,7 @@ const DayBarberColumn = ({
 };
 
 const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) => {
-  const [{ isDragging }, drag] = useDrag({
+  const [{ isDragging }, dragRef] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
@@ -133,7 +136,6 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
     }),
   });
 
-  const cardRef = useRef();
   const [resizing, setResizing] = useState(false);
 
   const handleResizeMouseDown = (direction) => (e) => {
@@ -146,7 +148,9 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
       const deltaY = e.clientY - startY;
       const minutesChange = Math.round(deltaY / (slotHeight / 15)) * 15;
       const newDuration = Math.max(15, startHeight + (direction === 'down' ? minutesChange : -minutesChange));
-      onResize(app.id, newDuration);
+      if (onResize) {
+        onResize(app.id, newDuration);
+      }
     };
 
     const onMouseUp = () => {
@@ -163,7 +167,7 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
 
   return (
     <div
-      ref={drag}
+      ref={dragRef}
       onClick={onClick}
       className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
@@ -178,8 +182,8 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
       }}
     >
       <div
-        onMouseDown={handleResizeMouseDown('up')}
-        className="absolute top-0 left-0 w-full h-2 cursor-n-resize z-10"
+        onMouseDown={handleResizeMouseDown('down')}
+        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
       />
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{app.appointment_time?.slice(0, 5)}</span>
@@ -196,10 +200,6 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
           </span>
         )}
       </div>
-      <div
-        onMouseDown={handleResizeMouseDown('down')}
-        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
-      />
     </div>
   );
 };
