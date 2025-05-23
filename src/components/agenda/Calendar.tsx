@@ -13,9 +13,7 @@ export const Calendar = ({
   selectedBarber,
   datesInView = [],
 }) => {
-  const isTutti = selectedBarber === 'Tutti';
   const isSingleDay = datesInView.length === 1;
-  const isSingleBarber = selectedBarber !== 'Tutti';
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
@@ -42,10 +40,7 @@ export const Calendar = ({
         <div
           className="flex w-full"
           style={{
-            minWidth:
-              isSingleDay && isSingleBarber
-                ? '100%'
-                : `${datesInView.length * barbers.length * 160}px`,
+            minWidth: isSingleDay ? '100%' : `${datesInView.length * barbers.length * 160}px`,
           }}
         >
           {datesInView.map((date) => {
@@ -59,6 +54,7 @@ export const Calendar = ({
                 appointments={appointments}
                 onDrop={onDrop}
                 onClickAppointment={onClickAppointment}
+                totalBarbers={barbers.length}
               />
             ));
           })}
@@ -75,9 +71,13 @@ const DayBarberColumn = ({
   appointments,
   onDrop,
   onClickAppointment,
+  totalBarbers,
 }) => {
   return (
-    <div className="flex flex-col border-r w-[160px]">
+    <div
+      className="flex flex-col border-r"
+      style={{ width: `${100 / totalBarbers}%` }}
+    >
       {timeSlots.map((slot) => {
         const [, drop] = useDrop({
           accept: 'APPOINTMENT',
