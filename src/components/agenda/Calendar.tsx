@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,7 @@ export const Calendar = ({
 
   return (
     <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
+      {/* Time Labels */}
       <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
           <div
@@ -39,10 +40,13 @@ export const Calendar = ({
         ))}
       </div>
 
+      {/* Appointments Canvas */}
       <div className="relative bg-white border-l w-full overflow-x-auto">
         <div
           className="flex w-full"
-          style={{ minWidth: '100%' }}
+          style={{
+            minWidth: '100%',
+          }}
         >
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
@@ -126,8 +130,6 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, onClick, flexBasis }) => {
-  const ref = useRef(null);
-
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -136,30 +138,50 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
     }),
   });
 
-  const [, resizeDrag] = useDrag({
-    type: 'APPOINTMENT_RESIZE',
-    item: { id: app.id, originalDuration: app.duration_min },
-    end: async (item, monitor) => {
-      const offset = monitor.getDifferenceFromInitialOffset();
-      if (!offset) return;
-      const deltaY = offset.y;
-      const newDuration = Math.max(15, Math.round((item.originalDuration * slotHeight + deltaY) / slotHeight) * 15);
-
-      if (newDuration !== item.originalDuration) {
-        await supabase.from('appointments').update({ duration_min: newDuration }).eq('id', item.id);
-      }
-    },
-  });
-
   const isPaid = app.paid === true;
+
+  const handleResize = async (e) => {
+    e.stopPropagation();
+    let startY = e.clientY;
+    const startHeight = (app.duration_min / 15) * slotHeight;
+
+    const onMouseMove = (moveEvent) => {
+      const delta = moveEvent.clientY - startY;
+      const minutes = Math.max(15, Math.round((startHeight + delta) / slotHeight) * 15);
+      const newHeight = (minutes / 15) * slotHeight;
+      const element = document.getElementById(`app-${app.id}`);
+      if (element) {
+        element.style.height = `${newHeight}px`;
+      }
+    };
+
+    const onMouseUp = async (upEvent) => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      const delta = upEvent.clientY - startY;
+      const newDuration = Math.max(15, Math.round((startHeight + delta) / slotHeight) * 15);
+      if (newDuration !== app.duration_min) {
+        await supabase
+          .from('appointments')
+          .update({ duration_min: newDuration })
+          .eq('id', app.id);
+      }
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
 
   return (
     <div
+      id={`app-${app.id}`}
       ref={drag}
       onClick={onClick}
       className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer relative ${
         isDragging ? 'opacity-50' : ''
-      } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
+      } ${
+        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+      }`}
       style={{
         height: `${(app.duration_min / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
@@ -183,9 +205,8 @@ const DraggableAppointment = ({ app, onClick, flexBasis }) => {
         )}
       </div>
       <div
-        ref={resizeDrag}
-        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize z-10"
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={handleResize}
+        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize"
       ></div>
     </div>
   );
