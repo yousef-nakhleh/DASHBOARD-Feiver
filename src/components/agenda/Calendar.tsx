@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
@@ -9,22 +9,20 @@ export const Calendar = ({
   appointments,
   onDrop,
   onClickAppointment,
-  onResizeAppointment,
   barbers,
   selectedBarber,
   datesInView = [],
 }) => {
   const isSingleDay = datesInView.length === 1;
 
-  const barbersToRender =
-    selectedBarber === 'Tutti'
-      ? barbers
-      : barbers.filter((b) => b.id === selectedBarber);
+  const barbersToRender = selectedBarber === 'Tutti'
+    ? barbers
+    : barbers.filter(b => b.id === selectedBarber);
 
   return (
-    <div className="flex max-h-[700px] overflow-y-auto relative">
+    <div className="grid grid-cols-[80px_1fr] max-h-[700px] overflow-y-auto relative">
       {/* Time Labels */}
-      <div className="flex flex-col border-r bg-white sticky left-0 z-10">
+      <div className="bg-white border-r">
         {timeSlots.map((slot, i) => (
           <div
             key={i}
@@ -42,8 +40,13 @@ export const Calendar = ({
       </div>
 
       {/* Appointments Canvas */}
-      <div className="flex-1 overflow-x-auto bg-white border-l">
-        <div className="flex min-w-full">
+      <div className="relative bg-white border-l w-full overflow-x-auto">
+        <div
+          className="flex w-full"
+          style={{
+            minWidth: '100%',
+          }}
+        >
           {datesInView.map((date) => {
             const dateStr = date.toISOString().split('T')[0];
             return barbersToRender.map((barber) => (
@@ -55,7 +58,6 @@ export const Calendar = ({
                 appointments={appointments}
                 onDrop={onDrop}
                 onClickAppointment={onClickAppointment}
-                onResizeAppointment={onResizeAppointment}
                 totalBarbers={barbersToRender.length}
               />
             ));
@@ -73,11 +75,13 @@ const DayBarberColumn = ({
   appointments,
   onDrop,
   onClickAppointment,
-  onResizeAppointment,
   totalBarbers,
 }) => {
   return (
-    <div className="flex flex-col border-r" style={{ width: `${100 / totalBarbers}%` }}>
+    <div
+      className="flex flex-col border-r"
+      style={{ width: `${100 / totalBarbers}%` }}
+    >
       {timeSlots.map((slot) => {
         const [, drop] = useDrop({
           accept: 'APPOINTMENT',
@@ -110,13 +114,10 @@ const DayBarberColumn = ({
             className="h-10 border-t border-gray-200 relative px-1"
           >
             {apps.map((app) => (
-              <ResizableDraggableAppointment
+              <DraggableAppointment
                 key={app.id}
                 app={app}
                 onClick={() => onClickAppointment?.(app)}
-                onResize={(id, newDuration) =>
-                  onResizeAppointment?.(id, newDuration)
-                }
                 flexBasis={100}
               />
             ))}
@@ -127,51 +128,22 @@ const DayBarberColumn = ({
   );
 };
 
-const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) => {
-  const dragRef = useRef(null);
-  const resizeRef = useRef(null);
-  const isResizing = useRef(false);
-
-  const [{ isDragging }, connectDrag] = useDrag({
+const DraggableAppointment = ({ app, onClick, flexBasis }) => {
+  const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
-    canDrag: () => !isResizing.current,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
 
-  const handleResizeMouseDown = (e) => {
-    e.stopPropagation();
-    isResizing.current = true;
-    const startY = e.clientY;
-    const startHeight = app.duration_min;
-
-    const onMouseMove = (e) => {
-      const deltaY = e.clientY - startY;
-      const minutesChange = Math.round(deltaY / (slotHeight / 15)) * 15;
-      const newDuration = Math.max(15, startHeight + minutesChange);
-      if (onResize) {
-        onResize(app.id, newDuration);
-      }
-    };
-
-    const onMouseUp = () => {
-      isResizing.current = false;
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  };
-
   const isPaid = app.paid === true;
 
   return (
     <div
-      ref={dragRef}
-      className={`relative border-l-4 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
+      ref={drag}
+      onClick={onClick}
+      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-pointer ${
         isDragging ? 'opacity-50' : ''
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
@@ -182,32 +154,22 @@ const ResizableDraggableAppointment = ({ app, onClick, onResize, flexBasis }) =>
         flexGrow: 1,
         flexShrink: 0,
       }}
-      onClick={onClick}
     >
-      {connectDrag(
-        <div className="px-2 py-1 w-full h-full">
-          <div className="flex justify-between text-xs font-medium text-gray-800">
-            <span>{app.appointment_time?.slice(0, 5)}</span>
-            <span>{app.duration_min} min</span>
-          </div>
-          <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
-            <div className="flex items-center">
-              <User size={14} className="mr-1 text-gray-500" />
-              <span className="truncate">{app.customer_name}</span>
-            </div>
-            {app.services?.name && (
-              <span className="text-xs italic text-gray-500 mt-1 truncate">
-                {app.services.name}
-              </span>
-            )}
-          </div>
+      <div className="flex justify-between text-xs font-medium text-gray-800">
+        <span>{app.appointment_time?.slice(0, 5)}</span>
+        <span>{app.duration_min} min</span>
+      </div>
+      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
+        <div className="flex items-center">
+          <User size={14} className="mr-1 text-gray-500" />
+          <span className="truncate">{app.customer_name}</span>
         </div>
-      )}
-      <div
-        ref={resizeRef}
-        onMouseDown={handleResizeMouseDown}
-        className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize z-10"
-      ></div>
+        {app.services?.name && (
+          <span className="text-xs italic text-gray-500 mt-1 truncate">
+            {app.services.name}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
