@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react'; 
-import { supabase } from '@/lib/supabase';
+import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
-const groupTransactionsByDate = (transactions: any[]) => {
+const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
     const date = transaction.date;
     if (!groups[date]) {
@@ -13,8 +13,8 @@ const groupTransactionsByDate = (transactions: any[]) => {
   }, {});
 };
 
-const Cassa: React.FC = () => {
-  const [transactions, setTransactions] = useState<any[]>([]);
+const Cassa = () => {
+  const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -22,47 +22,47 @@ const Cassa: React.FC = () => {
     const fetchTransactions = async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, total, payment_method, completed_at')
-        .not('payment_method', 'is', null);
+        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`) // assuming services table has 'name'
+        .order('completed_at', { ascending: false });
 
       if (error) {
-        console.error('Errore durante il fetch delle transazioni:', error);
+        console.error('Errore nel fetch delle transazioni:', error);
         return;
       }
 
-      const parsed = data.map((tx: any) => {
-        const dateObj = new Date(tx.completed_at);
-        const date = dateObj.toISOString().split('T')[0];
-        const time = dateObj.toTimeString().substring(0, 5);
+      const formatted = data.map(tx => {
+        const romeTime = new Date(tx.completed_at);
+        const timeString = romeTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+        const dateString = romeTime.toISOString().split('T')[0];
 
         return {
           id: tx.id,
-          date,
-          time,
-          client: '—',
-          service: 'Servizio',
+          time: timeString,
+          date: dateString,
+          client: tx.appointments?.customer_name || '-',
+          service: tx.services?.name || 'Servizio',
           amount: tx.total,
-          method: tx.payment_method || 'Contanti',
+          method: tx.payment_method,
         };
       });
 
-      setTransactions(parsed);
+      setTransactions(formatted);
     };
 
     fetchTransactions();
   }, []);
 
   const filteredTransactions = transactions.filter(
-    (tx) =>
-      (tx.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tx.client.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    tx =>
+      (tx.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tx.service.toLowerCase().includes(searchQuery.toLowerCase())) &&
       (dateFilter ? tx.date === dateFilter : true)
   );
 
   const groupedTransactions = groupTransactionsByDate(filteredTransactions);
   const dailyTotal = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const cardTotal = filteredTransactions.filter((tx) => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
-  const cashTotal = filteredTransactions.filter((tx) => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
+  const cardTotal = filteredTransactions.filter(tx => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
+  const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="h-full">
@@ -148,7 +148,7 @@ const Cassa: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {(txs as any[]).map((transaction) => (
+                      {txs.map((transaction) => (
                         <tr key={transaction.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap text-sm">{transaction.time}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{transaction.client}</td>
