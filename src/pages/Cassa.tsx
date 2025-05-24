@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { supabase } from "../lib/supabase"; // adjust path based on your file structure
+import { supabase } from "../lib/supabase"; // correct path
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
@@ -8,7 +8,7 @@ const groupTransactionsByDate = (transactions) => {
     if (!groups[date]) {
       groups[date] = [];
     }
-    groups[date].push(transaction); 
+    groups[date].push(transaction);
     return groups;
   }, {});
 };
@@ -22,7 +22,7 @@ const Cassa = () => {
     const fetchTransactions = async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`) // assuming services table has 'name'
+        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`)
         .order('completed_at', { ascending: false });
 
       if (error) {
@@ -31,9 +31,18 @@ const Cassa = () => {
       }
 
       const formatted = data.map(tx => {
-        const romeTime = new Date(tx.completed_at);
-        const timeString = romeTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
-        const dateString = romeTime.toISOString().split('T')[0];
+        const utcDate = new Date(tx.completed_at);
+
+        const timeString = new Intl.DateTimeFormat('it-IT', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Europe/Rome',
+          hour12: false
+        }).format(utcDate);
+
+        const dateString = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Europe/Rome'
+        }).format(utcDate); // yyyy-mm-dd
 
         return {
           id: tx.id,
