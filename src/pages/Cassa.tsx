@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from "../lib/supabase"; // adjust path based on your file structure
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
