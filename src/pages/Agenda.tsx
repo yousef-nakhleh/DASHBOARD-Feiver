@@ -112,8 +112,7 @@ const Agenda = () => {
         </button>
       </div>
 
-      {/* Constrain the calendar box */}
-      <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-lg shadow mb-6 h-[calc(100vh-200px)] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center">
             <button onClick={() => navigateDay('prev')} className="p-2 rounded-full hover:bg-gray-100">
@@ -139,7 +138,6 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* View Mode Switcher */}
         <div className="flex space-x-2 px-4 pt-2">
           {['day', '3day', 'week'].map((mode) => (
             <button
@@ -156,7 +154,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* Barber Filter */}
         <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
           <button
             onClick={() => setSelectedBarber('Tutti')}
@@ -183,7 +180,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* Scrollable calendar */}
         <div className="flex-1 overflow-hidden">
           <Calendar
             timeSlots={timeSlots}
@@ -197,7 +193,6 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Edit Modal */}
       {selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -206,7 +201,6 @@ const Agenda = () => {
         />
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateAppointmentModal
           selectedDate={selectedDate}
