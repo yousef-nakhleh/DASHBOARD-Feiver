@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 
 const groupTransactionsByDate = (transactions: any[]) => {
   return transactions.reduce((groups, transaction) => {
@@ -22,47 +22,57 @@ const Cassa: React.FC = () => {
     const fetchTransactions = async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, total, payment_method, completed_at')
-        .not('payment_method', 'is', null);
+        .select(`
+          id,
+          total,
+          price,
+          discount,
+          payment_method,
+          completed_at,
+          service_id,
+          appointment_id (
+            id,
+            customer_id (
+              full_name
+            )
+          )
+        `);
 
       if (error) {
-        console.error('Errore durante il fetch delle transazioni:', error);
+        console.error('Errore nel fetch delle transazioni:', error);
         return;
       }
 
-      const parsed = data.map((tx: any) => {
+      const formatted = data.map((tx: any) => {
         const dateObj = new Date(tx.completed_at);
-        const date = dateObj.toISOString().split('T')[0];
-        const time = dateObj.toTimeString().substring(0, 5);
-
         return {
           id: tx.id,
-          date,
-          time,
-          client: '—',
-          service: 'Servizio',
+          date: dateObj.toISOString().split('T')[0],
+          time: dateObj.toTimeString().split(':').slice(0, 2).join(':'),
+          client: tx.appointment_id?.customer_id?.full_name ?? '—',
           amount: tx.total,
-          method: tx.payment_method || 'Contanti',
+          service: 'Servizio', // Placeholder until service names are joined
+          method: tx.payment_method,
         };
       });
 
-      setTransactions(parsed);
+      setTransactions(formatted);
     };
 
     fetchTransactions();
   }, []);
 
   const filteredTransactions = transactions.filter(
-    (tx) =>
-      (tx.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tx.client.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    tx =>
+      (tx.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tx.service.toLowerCase().includes(searchQuery.toLowerCase())) &&
       (dateFilter ? tx.date === dateFilter : true)
   );
 
   const groupedTransactions = groupTransactionsByDate(filteredTransactions);
   const dailyTotal = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const cardTotal = filteredTransactions.filter((tx) => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
-  const cashTotal = filteredTransactions.filter((tx) => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
+  const cardTotal = filteredTransactions.filter(tx => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
+  const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="h-full">
@@ -131,9 +141,7 @@ const Cassa: React.FC = () => {
             Object.entries(groupedTransactions).map(([date, txs]) => (
               <div key={date} className="mb-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-3">
-                  {new Date(date).toLocaleDateString('it-IT', {
-                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-                  })}
+                  {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -174,7 +182,9 @@ const Cassa: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500">Nessuna transazione trovata</div>
+            <div className="text-center py-8 text-gray-500">
+              Nessuna transazione trovata
+            </div>
           )}
         </div>
       </div>
