@@ -1,61 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import {
-  Receipt,
-  CreditCard,
-  Banknote,
-  Calendar,
-  Search,
-  FileText,
-  Plus,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
+ 
+// Mock data
+const transactions = [
+  { id: 1, date: '2025-05-09', time: '09:45', client: 'Giovanni Rossi', amount: 35, service: 'Taglio e barba', method: 'Carta' },
+  { id: 2, date: '2025-05-09', time: '11:30', client: 'Luca Bianchi', amount: 25, service: 'Taglio classico', method: 'Contanti' },
+  { id: 3, date: '2025-05-09', time: '14:00', client: 'Andrea Verdi', amount: 20, service: 'Rasatura completa', method: 'Contanti' },
+  { id: 4, date: '2025-05-08', time: '10:15', client: 'Marco Neri', amount: 45, service: 'Taglio, barba e trattamento', method: 'Carta' },
+  { id: 5, date: '2025-05-08', time: '16:30', client: 'Fabio Gialli', amount: 30, service: 'Taglio e shampoo', method: 'Carta' },
+  { id: 6, date: '2025-05-07', time: '12:00', client: 'Simone Rossi', amount: 15, service: 'Rasatura semplice', method: 'Contanti' },
+];
+
+// Group transactions by date
+const groupTransactionsByDate = (transactions: any[]) => {
+  return transactions.reduce((groups, transaction) => {
+    const date = transaction.date;
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(transaction);
+    return groups;
+  }, {});
+};
 
 const Cassa: React.FC = () => {
-  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(
-          `id, total, price, discount, payment_method, completed_at,
-           appointments!inner(hour, clients(name), services(name))`
-        )
-        .order('completed_at', { ascending: false });
+  // Filter transactions based on search query and date
+  const filteredTransactions = transactions.filter(
+    tx => 
+      (tx.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       tx.service.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (dateFilter ? tx.date === dateFilter : true)
+  );
 
-      if (error) {
-        console.error('Errore Supabase:', error.message);
-      } else {
-        setTransactions(data);
-      }
-    };
+  const groupedTransactions = groupTransactionsByDate(filteredTransactions);
 
-    fetchTransactions();
-  }, []);
-
-  const filtered = transactions.filter((tx) => {
-    const client = tx.appointments?.clients?.name?.toLowerCase() || '';
-    const service = tx.appointments?.services?.name?.toLowerCase() || '';
-    const date = tx.completed_at?.split('T')[0];
-    return (
-      (client.includes(searchQuery.toLowerCase()) ||
-        service.includes(searchQuery.toLowerCase())) &&
-      (dateFilter ? date === dateFilter : true)
-    );
-  });
-
-  const grouped = filtered.reduce((acc: any, tx) => {
-    const date = new Date(tx.completed_at).toISOString().split('T')[0];
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(tx);
-    return acc;
-  }, {});
-
-  const total = filtered.reduce((sum, tx) => sum + tx.total, 0);
-  const card = filtered.filter((tx) => tx.payment_method === 'Carta').reduce((sum, tx) => sum + tx.total, 0);
-  const cash = filtered.filter((tx) => tx.payment_method === 'Contanti').reduce((sum, tx) => sum + tx.total, 0);
+  // Calculate totals
+  const dailyTotal = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const cardTotal = filteredTransactions.filter(tx => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
+  const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="h-full">
@@ -76,21 +61,21 @@ const Cassa: React.FC = () => {
             <Receipt size={20} className="text-blue-600 mr-2" />
             <h3 className="text-gray-600">Incasso Totale</h3>
           </div>
-          <p className="text-2xl font-semibold">€{total}</p>
+          <p className="text-2xl font-semibold">€{dailyTotal}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center mb-2">
             <CreditCard size={20} className="text-green-600 mr-2" />
             <h3 className="text-gray-600">Pagamenti Carta</h3>
           </div>
-          <p className="text-2xl font-semibold">€{card}</p>
+          <p className="text-2xl font-semibold">€{cardTotal}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center mb-2">
             <Banknote size={20} className="text-yellow-600 mr-2" />
             <h3 className="text-gray-600">Pagamenti Contanti</h3>
           </div>
-          <p className="text-2xl font-semibold">€{cash}</p>
+          <p className="text-2xl font-semibold">€{cashTotal}</p>
         </div>
       </div>
 
@@ -120,16 +105,11 @@ const Cassa: React.FC = () => {
         </div>
 
         <div className="p-4">
-          {Object.keys(grouped).length > 0 ? (
-            Object.entries(grouped).map(([date, txs]: any) => (
+          {Object.keys(groupedTransactions).length > 0 ? (
+            Object.entries(groupedTransactions).map(([date, txs]) => (
               <div key={date} className="mb-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-3">
-                  {new Date(date).toLocaleDateString('it-IT', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -144,19 +124,17 @@ const Cassa: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {txs.map((transaction: any) => (
+                      {(txs as any[]).map((transaction) => (
                         <tr key={transaction.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm">{transaction.appointments?.hour}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{transaction.appointments?.clients?.name}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{transaction.appointments?.services?.name}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">€{transaction.total}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">{transaction.time}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{transaction.client}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{transaction.service}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">€{transaction.amount}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              transaction.payment_method === 'Carta'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                              transaction.method === 'Carta' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {transaction.payment_method}
+                              {transaction.method}
                             </span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -172,7 +150,9 @@ const Cassa: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500">Nessuna transazione trovata</div>
+            <div className="text-center py-8 text-gray-500">
+              Nessuna transazione trovata
+            </div>
           )}
         </div>
       </div>
@@ -180,4 +160,4 @@ const Cassa: React.FC = () => {
   );
 };
 
-export default Cassa;
+export default Cassa; 
