@@ -19,15 +19,15 @@ export const Calendar = ({
       : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className="grid grid-cols-[80px_1fr] h-[700px] relative">
+    <div className="h-[700px] w-full">
       {/* Shared Scrollable Container */}
-      <div className="overflow-y-auto h-full col-span-2 flex">
+      <div className="flex h-full overflow-y-auto">
         {/* Time Labels */}
         <div className="bg-white border-r shrink-0">
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[40px] px-2 flex items-start pt-[1px] justify-end text-xs ${
+              className={`h-[40px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
@@ -40,9 +40,9 @@ export const Calendar = ({
           ))}
         </div>
 
-        {/* Appointments Canvas */}
-        <div className="bg-white w-full border-l overflow-x-auto">
-          <div className="flex w-full" style={{ minWidth: '100%' }}>
+        {/* Appointment Grid */}
+        <div className="flex-1 overflow-x-auto bg-white">
+          <div className="flex min-w-full">
             {datesInView.map((date) => {
               const dateStr = date.toISOString().split('T')[0];
               return barbersToRender.map((barber) => (
