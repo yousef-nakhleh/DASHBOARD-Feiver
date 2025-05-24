@@ -18,8 +18,10 @@ export const Calendar = ({
       ? barbers
       : barbers.filter((b) => b.id === selectedBarber);
 
+  const totalHeight = timeSlots.length * slotHeight;
+
   return (
-    <div className="h-[700px] w-full">
+    <div className="w-full" style={{ height: `${totalHeight}px` }}>
       {/* Shared Scrollable Container */}
       <div className="flex h-full overflow-y-auto">
         {/* Time Labels */}
@@ -27,7 +29,7 @@ export const Calendar = ({
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[40px] px-2 flex items-start pt-1 justify-end text-xs ${
+              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
