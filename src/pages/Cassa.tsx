@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { supabase } from "../lib/supabase"; // correct path
+import { supabase } from "../lib/supabase";
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
@@ -11,6 +11,26 @@ const groupTransactionsByDate = (transactions) => {
     groups[date].push(transaction);
     return groups;
   }, {});
+};
+
+const getRomeTimeParts = (date) => {
+  const formatter = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const hour = parts.find(p => p.type === 'hour')?.value || '00';
+  const minute = parts.find(p => p.type === 'minute')?.value || '00';
+  return `${hour}:${minute}`;
+};
+
+const getRomeDateString = (date) => {
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Rome'
+  });
+  return formatter.format(date); // yyyy-mm-dd
 };
 
 const Cassa = () => {
@@ -31,24 +51,11 @@ const Cassa = () => {
       }
 
       const formatted = data.map(tx => {
-        const utcDate = new Date(tx.completed_at);
-
-        // Convert to string in Rome timezone, then back to Date
-        const romeString = utcDate.toLocaleString('en-US', { timeZone: 'Europe/Rome' });
-        const romeDate = new Date(romeString); // This is now local Italy time
-
-        const timeString = romeDate.toLocaleTimeString('it-IT', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-
-        const dateString = romeDate.toISOString().split('T')[0]; // yyyy-mm-dd
-
+        const rawDate = new Date(tx.completed_at);
         return {
           id: tx.id,
-          time: timeString,
-          date: dateString,
+          time: getRomeTimeParts(rawDate),
+          date: getRomeDateString(rawDate),
           client: tx.appointments?.customer_name || '-',
           service: tx.services?.name || 'Servizio',
           amount: tx.total,
