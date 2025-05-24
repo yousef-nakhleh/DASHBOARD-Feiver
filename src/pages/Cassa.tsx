@@ -32,17 +32,15 @@ const Cassa = () => {
 
       const formatted = data.map(tx => {
         const utcDate = new Date(tx.completed_at);
+        const romeDate = new Date(utcDate.toLocaleString('en-US', { timeZone: 'Europe/Rome' }));
 
-        const timeString = new Intl.DateTimeFormat('it-IT', {
+        const timeString = romeDate.toLocaleTimeString('it-IT', {
           hour: '2-digit',
           minute: '2-digit',
-          timeZone: 'Europe/Rome',
-          hour12: false
-        }).format(utcDate);
+          hour12: false,
+        });
 
-        const dateString = new Intl.DateTimeFormat('sv-SE', {
-          timeZone: 'Europe/Rome'
-        }).format(utcDate); // yyyy-mm-dd
+        const dateString = romeDate.toISOString().split('T')[0];
 
         return {
           id: tx.id,
