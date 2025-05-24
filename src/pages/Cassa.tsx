@@ -1,17 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
- 
-// Mock data 
-const transactions = [
-  { id: 1, date: '2025-05-09', time: '09:45', client: 'Giovanni Rossi', amount: 35, service: 'Taglio e barba', method: 'Carta' },
-  { id: 2, date: '2025-05-09', time: '11:30', client: 'Luca Bianchi', amount: 25, service: 'Taglio classico', method: 'Contanti' },
-  { id: 3, date: '2025-05-09', time: '14:00', client: 'Andrea Verdi', amount: 20, service: 'Rasatura completa', method: 'Contanti' },
-  { id: 4, date: '2025-05-08', time: '10:15', client: 'Marco Neri', amount: 45, service: 'Taglio, barba e trattamento', method: 'Carta' },
-  { id: 5, date: '2025-05-08', time: '16:30', client: 'Fabio Gialli', amount: 30, service: 'Taglio e shampoo', method: 'Carta' },
-  { id: 6, date: '2025-05-07', time: '12:00', client: 'Simone Rossi', amount: 15, service: 'Rasatura semplice', method: 'Contanti' },
-];
+import { supabase } from '@/lib/supabase';
 
-// Group transactions by date
 const groupTransactionsByDate = (transactions: any[]) => {
   return transactions.reduce((groups, transaction) => {
     const date = transaction.date;
@@ -24,23 +14,55 @@ const groupTransactionsByDate = (transactions: any[]) => {
 };
 
 const Cassa: React.FC = () => {
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  // Filter transactions based on search query and date
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, total, payment_method, completed_at')
+        .not('payment_method', 'is', null);
+
+      if (error) {
+        console.error('Errore durante il fetch delle transazioni:', error);
+        return;
+      }
+
+      const parsed = data.map((tx: any) => {
+        const dateObj = new Date(tx.completed_at);
+        const date = dateObj.toISOString().split('T')[0];
+        const time = dateObj.toTimeString().substring(0, 5);
+
+        return {
+          id: tx.id,
+          date,
+          time,
+          client: '—',
+          service: 'Servizio',
+          amount: tx.total,
+          method: tx.payment_method || 'Contanti',
+        };
+      });
+
+      setTransactions(parsed);
+    };
+
+    fetchTransactions();
+  }, []);
+
   const filteredTransactions = transactions.filter(
-    tx => 
-      (tx.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       tx.service.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (tx) =>
+      (tx.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tx.client.toLowerCase().includes(searchQuery.toLowerCase())) &&
       (dateFilter ? tx.date === dateFilter : true)
   );
 
   const groupedTransactions = groupTransactionsByDate(filteredTransactions);
-
-  // Calculate totals
   const dailyTotal = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
-  const cardTotal = filteredTransactions.filter(tx => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
-  const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
+  const cardTotal = filteredTransactions.filter((tx) => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
+  const cashTotal = filteredTransactions.filter((tx) => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="h-full">
@@ -109,7 +131,9 @@ const Cassa: React.FC = () => {
             Object.entries(groupedTransactions).map(([date, txs]) => (
               <div key={date} className="mb-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-3">
-                  {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  {new Date(date).toLocaleDateString('it-IT', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                  })}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -150,9 +174,7 @@ const Cassa: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              Nessuna transazione trovata
-            </div>
+            <div className="text-center py-8 text-gray-500">Nessuna transazione trovata</div>
           )}
         </div>
       </div>
@@ -160,4 +182,4 @@ const Cassa: React.FC = () => {
   );
 };
 
-export default Cassa; 
+export default Cassa;
