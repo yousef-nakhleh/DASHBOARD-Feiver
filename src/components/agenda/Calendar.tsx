@@ -2,11 +2,11 @@ import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
-const slotHeight = 40;
+const slotHeight = 40; 
 
 export const Calendar = ({
   timeSlots,
-  appointments,
+  appointments, 
   onDrop,
   onClickAppointment,
   barbers,
@@ -19,10 +19,7 @@ export const Calendar = ({
       : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div
-      className="w-full"
-      style={{ height: `${timeSlots.length * slotHeight}px` }} // ✅ Dynamic height
-    >
+    <div className="h-[700px] w-full">
       {/* Shared Scrollable Container */}
       <div className="flex h-full overflow-y-auto">
         {/* Time Labels */}
