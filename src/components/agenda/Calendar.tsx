@@ -2,7 +2,7 @@ import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
-const slotHeight = 40;
+const slotHeight = 40; 
 
 export const Calendar = ({
   timeSlots,
@@ -18,10 +18,8 @@ export const Calendar = ({
       ? barbers
       : barbers.filter((b) => b.id === selectedBarber);
 
-  const totalHeight = timeSlots.length * slotHeight;
-
   return (
-    <div className="w-full" style={{ height: `${totalHeight}px` }}>
+    <div className="h-[700px] w-full">
       {/* Shared Scrollable Container */}
       <div className="flex h-full overflow-y-auto">
         {/* Time Labels */}
@@ -29,7 +27,7 @@ export const Calendar = ({
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
+              className={`h-[40px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
