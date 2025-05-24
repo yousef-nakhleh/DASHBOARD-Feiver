@@ -1,66 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase"; // adjust path based on your file structure
 
-const groupTransactionsByDate = (transactions: any[]) => {
+const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
     const date = transaction.date;
     if (!groups[date]) {
       groups[date] = [];
     }
-    groups[date].push(transaction);
+    groups[date].push(transaction); 
     return groups;
   }, {});
 };
 
-const Cassa: React.FC = () => {
-  const [transactions, setTransactions] = useState<any[]>([]);
+const Cassa = () => {
+  const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      const { data: transactionsData, error } = await supabase
+      const { data, error } = await supabase
         .from('transactions')
-        .select(`id, total, payment_method, completed_at, appointment_id, service_id`)
+        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`) // assuming services table has 'name'
         .order('completed_at', { ascending: false });
 
       if (error) {
-        console.error("Errore nel fetch delle transazioni:", error);
+        console.error('Errore nel fetch delle transazioni:', error);
         return;
       }
 
-      const serviceIds = transactionsData.map((t) => t.service_id);
-      const appointmentIds = transactionsData.map((t) => t.appointment_id);
-
-      const { data: services } = await supabase
-        .from('services')
-        .select('id, name')
-        .in('id', serviceIds);
-
-      const { data: appointments } = await supabase
-        .from('appointments')
-        .select('id, customer_name')
-        .in('id', appointmentIds);
-
-      const formatted = transactionsData.map((t) => {
-        const dateObj = new Date(t.completed_at);
-        const ora = dateObj.toLocaleTimeString('it-IT', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        const date = dateObj.toISOString().split('T')[0];
-        const service = services?.find((s) => s.id === t.service_id)?.name || 'Servizio';
-        const client = appointments?.find((a) => a.id === t.appointment_id)?.customer_name || '—';
+      const formatted = data.map(tx => {
+        const romeTime = new Date(tx.completed_at);
+        const timeString = romeTime.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+        const dateString = romeTime.toISOString().split('T')[0];
 
         return {
-          id: t.id,
-          date,
-          time: ora,
-          client,
-          service,
-          amount: t.total,
-          method: t.payment_method
+          id: tx.id,
+          time: timeString,
+          date: dateString,
+          client: tx.appointments?.customer_name || '-',
+          service: tx.services?.name || 'Servizio',
+          amount: tx.total,
+          method: tx.payment_method,
         };
       });
 
@@ -78,7 +60,6 @@ const Cassa: React.FC = () => {
   );
 
   const groupedTransactions = groupTransactionsByDate(filteredTransactions);
-
   const dailyTotal = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
   const cardTotal = filteredTransactions.filter(tx => tx.method === 'Carta').reduce((sum, tx) => sum + tx.amount, 0);
   const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
@@ -150,7 +131,9 @@ const Cassa: React.FC = () => {
             Object.entries(groupedTransactions).map(([date, txs]) => (
               <div key={date} className="mb-6">
                 <h3 className="text-lg font-medium text-gray-800 mb-3">
-                  {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  {new Date(date).toLocaleDateString('it-IT', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                  })}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
@@ -165,7 +148,7 @@ const Cassa: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {(txs as any[]).map((transaction) => (
+                      {txs.map((transaction) => (
                         <tr key={transaction.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap text-sm">{transaction.time}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{transaction.client}</td>
@@ -173,9 +156,7 @@ const Cassa: React.FC = () => {
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">€{transaction.amount}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              transaction.method === 'Carta'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                              transaction.method === 'Carta' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                             }`}>
                               {transaction.method}
                             </span>
@@ -193,9 +174,7 @@ const Cassa: React.FC = () => {
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              Nessuna transazione trovata
-            </div>
+            <div className="text-center py-8 text-gray-500">Nessuna transazione trovata</div>
           )}
         </div>
       </div>
