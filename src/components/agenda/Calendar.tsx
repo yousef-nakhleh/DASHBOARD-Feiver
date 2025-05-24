@@ -2,11 +2,11 @@ import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
-const slotHeight = 40; 
+const slotHeight = 40;
 
 export const Calendar = ({
   timeSlots,
-  appointments, 
+  appointments,
   onDrop,
   onClickAppointment,
   barbers,
@@ -19,15 +19,14 @@ export const Calendar = ({
       : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className="h-[700px] w-full">
-      {/* Shared Scrollable Container */}
-      <div className="flex h-full overflow-y-auto">
+    <div className="w-full overflow-x-auto">
+      <div className="flex min-w-full">
         {/* Time Labels */}
         <div className="bg-white border-r shrink-0">
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[40px] px-2 flex items-start pt-1 justify-end text-xs ${
+              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
@@ -42,7 +41,7 @@ export const Calendar = ({
 
         {/* Appointment Grid */}
         <div className="flex-1 overflow-x-auto bg-white">
-          <div className="flex min-w-full">
+          <div className="flex" style={{ minWidth: `${barbersToRender.length * 250}px`, height: `${timeSlots.length * slotHeight}px` }}>
             {datesInView.map((date) => {
               const dateStr = date.toISOString().split('T')[0];
               return barbersToRender.map((barber) => (
