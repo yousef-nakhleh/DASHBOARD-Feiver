@@ -1,6 +1,6 @@
 // src/pages/cassa/PaymentPage.tsx
 import { useLocation, useNavigate } from 'react-router-dom';
-import PaymentForm from '../../components/payments/PaymentForm';
+import PaymentForm from "./PaymentForm";
 
 const PaymentPage = () => {
   const location = useLocation();
