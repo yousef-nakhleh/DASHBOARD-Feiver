@@ -1,4 +1,3 @@
-// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -12,7 +11,9 @@ import Magazzino from './pages/Magazzino';
 import Staff from './pages/Staff';
 import Spese from './pages/Spese';
 import Promozioni from './pages/Promozioni';
-import PaymentPage from './components/payment/PaymentPage'; // ✅ Corrected path to your component
+
+// ✅ Import the PaymentPage from the correct path
+import PaymentPage from './components/payment/PaymentPage';
 
 function App() {
   return (
@@ -22,7 +23,6 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="cassa" element={<Cassa />} />
-          <Route path="cassa/pagamento" element={<PaymentPage />} /> {/* ✅ Now correctly mapped */}
           <Route path="rubrica" element={<Rubrica />} />
           <Route path="trattamenti" element={<Trattamenti />} />
           <Route path="statistiche" element={<Statistiche />} />
@@ -30,6 +30,10 @@ function App() {
           <Route path="staff" element={<Staff />} />
           <Route path="spese" element={<Spese />} />
           <Route path="promozioni" element={<Promozioni />} />
+
+          {/* ✅ Correct route to PaymentPage */}
+          <Route path="cassa/nuova" element={<PaymentPage />} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
