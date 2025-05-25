@@ -1,5 +1,6 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase'; 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -36,6 +37,8 @@ const Agenda = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const navigate = useNavigate();
+
   const timeSlots = generateTimeSlots();
 
   const formatDate = (date: Date) =>
@@ -85,6 +88,18 @@ const Agenda = () => {
     fetchAppointments();
   };
 
+  const handlePay = () => {
+    if (!selectedAppointment) return;
+    const prefill = {
+      appointment_id: selectedAppointment.id,
+      barber_id: selectedAppointment.barber_id,
+      service_id: selectedAppointment.service_id,
+      price: selectedAppointment.services?.price || 0,
+      customer_name: selectedAppointment.customer_name,
+    };
+    navigate('/cassa/pagamento', { state: prefill });
+  };
+
   const filtered = selectedBarber === 'Tutti'
     ? appointments.filter((app) =>
         app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,7 +127,6 @@ const Agenda = () => {
         </button>
       </div>
 
-      {/* Constrain the calendar box */}
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center">
@@ -139,7 +153,6 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* View Mode Switcher */}
         <div className="flex space-x-2 px-4 pt-2">
           {['day', '3day', 'week'].map((mode) => (
             <button
@@ -156,7 +169,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* Barber Filter */}
         <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
           <button
             onClick={() => setSelectedBarber('Tutti')}
@@ -183,7 +195,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* Scrollable calendar */}
         <div className="flex-1 overflow-hidden">
           <Calendar
             timeSlots={timeSlots}
@@ -197,16 +208,16 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Appointment Summary Banner */}
       {selectedAppointment && (
         <AppointmentSummaryBanner
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
-          onUpdated={fetchAppointments}
+          onPay={handlePay}
+          onEdit={() => {}}
+          onDelete={() => {}}
         />
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateAppointmentModal
           selectedDate={selectedDate}
