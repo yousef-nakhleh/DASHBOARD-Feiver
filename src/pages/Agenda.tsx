@@ -2,8 +2,8 @@ import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-re
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase'; 
 import { Calendar } from '../components/agenda/Calendar';
-import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
+import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -197,9 +197,9 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Appointment Summary Banner */}
       {selectedAppointment && (
-        <EditAppointmentModal
+        <AppointmentSummaryBanner
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
           onUpdated={fetchAppointments}
