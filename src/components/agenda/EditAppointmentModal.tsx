@@ -1,26 +1,33 @@
+// src/components/agenda/EditAppointmentModal.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
 const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
 
 const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
+  const navigate = useNavigate();
+
+  // ✅ Return early if appointment is not available
+  if (!appointment) return null;
+
   const [activeTab, setActiveTab] = useState<'edit' | 'payment'>('payment');
 
-  const [customerName, setCustomerName] = useState(appointment.customer_name);
+  const [customerName, setCustomerName] = useState(appointment.customer_name ?? '');
   const [services, setServices] = useState([]);
-  const [selectedServiceId, setSelectedServiceId] = useState(appointment.service_id);
-  const [duration, setDuration] = useState(appointment.duration_min);
+  const [selectedServiceId, setSelectedServiceId] = useState(appointment.service_id ?? '');
+  const [duration, setDuration] = useState(appointment.duration_min ?? 0);
   const [price, setPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
 
   const [appointmentDate, setAppointmentDate] = useState(
-    appointment.appointment_date?.split('T')[0] || new Date().toISOString().split('T')[0]
+    appointment.appointment_date?.split('T')[0] ?? new Date().toISOString().split('T')[0]
   );
   const [appointmentTime, setAppointmentTime] = useState(
-    appointment.appointment_date?.split('T')[1]?.slice(0, 5) || '08:00'
+    appointment.appointment_time?.slice(0, 5) ?? '08:00'
   );
 
-  const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method || '');
+  const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method ?? '');
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -48,6 +55,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           customer_name: customerName,
           duration_min: duration,
           appointment_date: fullDateTime,
+          appointment_time: appointmentTime,
           service_id: selectedServiceId,
         })
         .eq('id', appointment.id);
@@ -82,9 +90,25 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
     onClose();
   };
 
+  const handleGoToPayment = () => {
+    navigate('/cassa/nuova', {
+      state: {
+        appointment_id: appointment.id,
+        customer_name: appointment.customer_name ?? '',
+        barber_id: appointment.barber_id ?? '',
+        service_id: appointment.service_id ?? '',
+        price: price ?? 0,
+        discount: 0,
+        total: price ?? 0,
+        payment_method: '',
+      },
+    });
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
+        {/* Tab Switcher */}
         <div className="absolute top-4 right-4 flex space-x-2">
           <button
             onClick={() => setActiveTab('edit')}
@@ -104,10 +128,12 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </button>
         </div>
 
+        {/* Title */}
         <h2 className="text-lg font-semibold mb-4">
           {activeTab === 'edit' ? 'Modifica Appuntamento' : 'Gestione Pagamento'}
         </h2>
 
+        {/* Edit Tab */}
         {activeTab === 'edit' && (
           <div className="space-y-4 mt-2">
             <div>
@@ -119,6 +145,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Servizio</label>
               <select
@@ -141,6 +168,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 ))}
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Data</label>
               <input
@@ -150,6 +178,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Orario</label>
               <input
@@ -159,6 +188,7 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
                 className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
               <input
@@ -171,53 +201,21 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
           </div>
         )}
 
+        {/* Payment Tab */}
         {activeTab === 'payment' && (
           <div className="space-y-4 mt-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              <button
+                onClick={handleGoToPayment}
+                className="w-full px-4 py-2 bg-[#5D4037] text-white rounded hover:bg-[#4E342E] transition"
               >
-                <option value="">Seleziona metodo</option>
-                {paymentMethods.map((method) => (
-                  <option key={method} value={method}>
-                    {method}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Prezzo</label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Sconto</label>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Totale</label>
-              <input
-                type="text"
-                value={`€ ${price - discount}`}
-                disabled
-                className="w-full mt-1 border border-gray-200 bg-gray-50 rounded px-3 py-2 text-gray-500"
-              />
+                Vai alla pagina pagamento
+              </button>
             </div>
           </div>
         )}
 
+        {/* Footer */}
         <div className="flex justify-end mt-6 space-x-3">
           <button
             onClick={onClose}
