@@ -19,7 +19,7 @@ const getRomeTimeParts = (date) => {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  });
+  }); 
   const parts = formatter.formatToParts(date);
   const hour = parts.find(p => p.type === 'hour')?.value || '00';
   const minute = parts.find(p => p.type === 'minute')?.value || '00';
