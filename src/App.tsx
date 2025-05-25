@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -11,7 +12,7 @@ import Magazzino from './pages/Magazzino';
 import Staff from './pages/Staff';
 import Spese from './pages/Spese';
 import Promozioni from './pages/Promozioni';
-import PaymentPage from './pages/cassa/PaymentPage'; // ✅ NEW IMPORT
+import PaymentPage from './pages/cassa/PaymentPage'; // ✅ Correct path
 
 function App() {
   return (
@@ -21,7 +22,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="cassa" element={<Cassa />} />
-          <Route path="cassa/pagamento" element={<PaymentPage />} /> {/* ✅ NEW ROUTE */}
+          <Route path="cassa/pagamento" element={<PaymentPage />} /> {/* ✅ Added route */}
           <Route path="rubrica" element={<Rubrica />} />
           <Route path="trattamenti" element={<Trattamenti />} />
           <Route path="statistiche" element={<Statistiche />} />
