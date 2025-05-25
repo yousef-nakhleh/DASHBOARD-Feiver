@@ -11,9 +11,7 @@ import Magazzino from './pages/Magazzino';
 import Staff from './pages/Staff';
 import Spese from './pages/Spese';
 import Promozioni from './pages/Promozioni';
-
-// ✅ Import the PaymentPage from the correct path
-import PaymentPage from './components/payment/PaymentPage';
+import PaymentPage from './components/payment/PaymentPage'; // ✅ CORRECTED import
 
 function App() {
   return (
@@ -23,6 +21,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="cassa" element={<Cassa />} />
+          <Route path="cassa/pagamento" element={<PaymentPage />} /> {/* ✅ Add this */}
           <Route path="rubrica" element={<Rubrica />} />
           <Route path="trattamenti" element={<Trattamenti />} />
           <Route path="statistiche" element={<Statistiche />} />
@@ -30,10 +29,6 @@ function App() {
           <Route path="staff" element={<Staff />} />
           <Route path="spese" element={<Spese />} />
           <Route path="promozioni" element={<Promozioni />} />
-
-          {/* ✅ Correct route to PaymentPage */}
-          <Route path="cassa/nuova" element={<PaymentPage />} />
-
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
