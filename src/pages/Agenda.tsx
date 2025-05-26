@@ -62,7 +62,7 @@ const Agenda = () => {
     const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
     const { data } = await supabase
       .from('appointments')
-      .select(`*, services ( name )`)
+      .select(`*, services ( name, price )`) // ✅ FIXED HERE
       .in('appointment_date', dateStrings);
     setAppointments(data || []);
   };
