@@ -1,5 +1,5 @@
 // src/components/payment/PaymentForm.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,11 +8,17 @@ const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
 const PaymentForm = ({ prefill = {}, onSuccess }) => {
   const navigate = useNavigate();
 
-  const [customerName] = useState(prefill.customer_name ?? '');
-  const [price] = useState(prefill.price ?? 0);
-  const [discount, setDiscount] = useState(prefill.discount ?? 0);
+  const [customerName, setCustomerName] = useState('');
+  const [price, setPrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (prefill.customer_name !== undefined) setCustomerName(prefill.customer_name);
+    if (prefill.price !== undefined) setPrice(prefill.price);
+    if (prefill.discount !== undefined) setDiscount(prefill.discount);
+  }, [prefill]);
 
   const total = Math.max(price - discount, 0);
 
