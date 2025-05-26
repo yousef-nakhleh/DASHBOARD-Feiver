@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 
 const Rubrica: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClient, setSelectedClient] = useState<null | number>(null);
+  const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
@@ -41,6 +41,7 @@ const Rubrica: React.FC = () => {
             name: contact.customer_name,
             phone: contact.customer_phone,
             email: contact.customer_email,
+            birthdate: contact.customer_birthdate,
             lastVisit,
             visitCount,
             favoriteService,
@@ -57,7 +58,7 @@ const Rubrica: React.FC = () => {
     client =>
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone.includes(searchQuery) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase())
+      client.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const selectedClientData = clients.find(client => client.id === selectedClient);
@@ -159,7 +160,7 @@ const Rubrica: React.FC = () => {
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                         <polyline points="22,6 12,13 2,6"></polyline>
                       </svg>
-                      <span>{selectedClientData.email}</span>
+                      <span>{selectedClientData.email || 'N/D'}</span>
                     </div>
                   </div>
                 </div>
@@ -182,7 +183,6 @@ const Rubrica: React.FC = () => {
                 </div>
               </div>
 
-              {/* Placeholder for historical appointment data */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-sm font-medium text-gray-500 mb-4">Storico Appuntamenti</h3>
                 <div className="text-gray-400 text-sm">(Integrazione futura)</div>
