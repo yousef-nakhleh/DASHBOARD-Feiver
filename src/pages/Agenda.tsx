@@ -1,10 +1,10 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase'; 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -36,8 +36,9 @@ const Agenda = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
-  const navigate = useNavigate();
 
   const timeSlots = generateTimeSlots();
 
@@ -62,7 +63,7 @@ const Agenda = () => {
     const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
     const { data } = await supabase
       .from('appointments')
-      .select(`*, services ( name, price )`) // ✅ FIXED HERE
+      .select(`*, services ( name, price )`)
       .in('appointment_date', dateStrings);
     setAppointments(data || []);
   };
@@ -97,7 +98,8 @@ const Agenda = () => {
       price: selectedAppointment.services?.price || 0,
       customer_name: selectedAppointment.customer_name,
     };
-    navigate('/cassa/pagamento', { state: prefill });
+    setPaymentPrefill(prefill);
+    setShowPaymentPanel(true);
   };
 
   const filtered = selectedBarber === 'Tutti'
@@ -225,6 +227,16 @@ const Agenda = () => {
           onCreated={fetchAppointments}
         />
       )}
+
+      <SlidingPanelPayment
+        visible={showPaymentPanel}
+        prefill={paymentPrefill}
+        onClose={() => setShowPaymentPanel(false)}
+        onSuccess={() => {
+          setShowPaymentPanel(false);
+          fetchAppointments();
+        }}
+      />
     </div>
   );
 };
