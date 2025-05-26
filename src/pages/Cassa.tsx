@@ -1,14 +1,13 @@
-// src/pages/Cassa.tsx
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
 import { supabase } from "../lib/supabase";
-import SlidingPanelPayment from "../components/payment/SlidingPanelPayment"; // ✅ NEW
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment'; // ✅ Import
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
     const date = transaction.date;
     if (!groups[date]) {
-      groups[date] = [];
+      groups[date] = []; 
     }
     groups[date].push(transaction);
     return groups;
@@ -32,52 +31,49 @@ const getRomeDateString = (date) => {
   const formatter = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Europe/Rome'
   });
-  return formatter.format(date); // yyyy-mm-dd
+  return formatter.format(date);
 };
 
 const Cassa = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false); // ✅
+  const [prefill, setPrefill] = useState({}); // ✅
 
-  const [panelOpen, setPanelOpen] = useState(false); // ✅ New
-  const [prefill, setPrefill] = useState({}); // ✅ New
-
-  const openNewTransactionPanel = () => {
+  const handleNewTransaction = () => {
     setPrefill({});
-    setPanelOpen(true);
-  };
-
-  const closePanel = () => setPanelOpen(false);
-
-  const fetchTransactions = async () => {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`)
-      .order('completed_at', { ascending: false });
-
-    if (error) {
-      console.error('Errore nel fetch delle transazioni:', error);
-      return;
-    }
-
-    const formatted = data.map(tx => {
-      const rawDate = new Date(tx.completed_at);
-      return {
-        id: tx.id,
-        time: getRomeTimeParts(rawDate),
-        date: getRomeDateString(rawDate),
-        client: tx.appointments?.customer_name || '-',
-        service: tx.services?.name || 'Servizio',
-        amount: tx.total,
-        method: tx.payment_method,
-      };
-    });
-
-    setTransactions(formatted);
+    setShowPaymentPanel(true);
   };
 
   useEffect(() => {
+    const fetchTransactions = async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('Errore nel fetch delle transazioni:', error);
+        return;
+      }
+
+      const formatted = data.map(tx => {
+        const rawDate = new Date(tx.completed_at);
+        return {
+          id: tx.id,
+          time: getRomeTimeParts(rawDate),
+          date: getRomeDateString(rawDate),
+          client: tx.appointments?.customer_name || '-',
+          service: tx.services?.name || 'Servizio',
+          amount: tx.total,
+          method: tx.payment_method,
+        };
+      });
+
+      setTransactions(formatted);
+    };
+
     fetchTransactions();
   }, []);
 
@@ -101,7 +97,7 @@ const Cassa = () => {
           <p className="text-gray-600">Gestisci transazioni e pagamenti</p>
         </div>
         <button
-          onClick={openNewTransactionPanel} // ✅ Now opens the sliding panel
+          onClick={handleNewTransaction}
           className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors"
         >
           <Plus size={18} className="mr-1" />
@@ -109,16 +105,115 @@ const Cassa = () => {
         </button>
       </div>
 
-      {/* ... dashboard cards and transaction table remain unchanged ... */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <Receipt size={20} className="text-blue-600 mr-2" />
+            <h3 className="text-gray-600">Incasso Totale</h3>
+          </div>
+          <p className="text-2xl font-semibold">€{dailyTotal}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <CreditCard size={20} className="text-green-600 mr-2" />
+            <h3 className="text-gray-600">Pagamenti Carta</h3>
+          </div>
+          <p className="text-2xl font-semibold">€{cardTotal}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center mb-2">
+            <Banknote size={20} className="text-yellow-600 mr-2" />
+            <h3 className="text-gray-600">Pagamenti Contanti</h3>
+          </div>
+          <p className="text-2xl font-semibold">€{cashTotal}</p>
+        </div>
+      </div>
 
-      {/* ✅ SLIDING PANEL RENDERED HERE */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="relative">
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cerca cliente o servizio"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5D4037] w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center">
+              <Calendar size={18} className="text-gray-400 mr-2" />
+              <input
+                type="date"
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#5D4037]"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {Object.keys(groupedTransactions).length > 0 ? (
+            Object.entries(groupedTransactions).map(([date, txs]) => (
+              <div key={date} className="mb-6">
+                <h3 className="text-lg font-medium text-gray-800 mb-3">
+                  {new Date(date).toLocaleDateString('it-IT', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                  })}
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ora</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servizio</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Importo</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metodo</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azioni</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {txs.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">{transaction.time}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{transaction.client}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{transaction.service}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">€{transaction.amount}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              transaction.method === 'Carta' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {transaction.method}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <button className="text-blue-600 hover:text-blue-800">
+                              <FileText size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">Nessuna transazione trovata</div>
+          )}
+        </div>
+      </div>
+
+      {/* ✅ Sliding Panel for new transactions */}
       <SlidingPanelPayment
-        visible={panelOpen}
-        onClose={closePanel}
+        open={showPaymentPanel}
+        onClose={() => setShowPaymentPanel(false)}
         prefill={prefill}
         onSuccess={() => {
-          closePanel();
-          fetchTransactions(); // refresh after saving
+          setShowPaymentPanel(false);
         }}
       />
     </div>
