@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // 🆕 Add navigation hook
 import { supabase } from "../lib/supabase";
 
 const groupTransactionsByDate = (transactions) => {
@@ -19,7 +20,7 @@ const getRomeTimeParts = (date) => {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }); 
+  });
   const parts = formatter.formatToParts(date);
   const hour = parts.find(p => p.type === 'hour')?.value || '00';
   const minute = parts.find(p => p.type === 'minute')?.value || '00';
@@ -37,6 +38,11 @@ const Cassa = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const navigate = useNavigate(); // 🆕 Initialize navigation
+
+  const handleNewTransaction = () => {
+    navigate('/cassa/pagamento'); // 🆕 Navigate to payment page
+  };
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -88,7 +94,10 @@ const Cassa = () => {
           <h1 className="text-2xl font-bold text-gray-800">Cassa</h1>
           <p className="text-gray-600">Gestisci transazioni e pagamenti</p>
         </div>
-        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors">
+        <button
+          onClick={handleNewTransaction}
+          className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors"
+        >
           <Plus size={18} className="mr-1" />
           Nuova Transazione
         </button>
