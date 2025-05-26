@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
+import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
+import NewContactForm from '../components/rubrica/NewContactForm';
 
-// Mock client data
 const clients = [
   { id: 1, name: 'Giovanni Rossi', phone: '333-1234567', email: 'giovanni.rossi@email.it', lastVisit: '2025-05-01', visitCount: 8, favoriteService: 'Taglio e barba' },
   { id: 2, name: 'Luca Bianchi', phone: '333-7654321', email: 'luca.bianchi@email.it', lastVisit: '2025-05-03', visitCount: 5, favoriteService: 'Taglio classico' },
@@ -16,31 +17,34 @@ const clients = [
 const Rubrica: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | number>(null);
+  const [showNewClientPanel, setShowNewClientPanel] = useState(false);
 
-  // Filter clients based on search query
   const filteredClients = clients.filter(
-    client => client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              client.phone.includes(searchQuery) ||
-              client.email.toLowerCase().includes(searchQuery.toLowerCase())
+    client =>
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone.includes(searchQuery) ||
+      client.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const selectedClientData = clients.find(client => client.id === selectedClient);
 
   return (
-    <div className="h-full">
+    <div className="h-full relative">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Rubrica</h1>
           <p className="text-gray-600">Gestisci i contatti dei clienti</p>
         </div>
-        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors">
+        <button
+          onClick={() => setShowNewClientPanel(true)}
+          className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors"
+        >
           <Plus size={18} className="mr-1" />
           Nuovo Cliente
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Client list */}
         <div className="md:col-span-1 bg-white rounded-lg shadow overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
@@ -58,7 +62,7 @@ const Rubrica: React.FC = () => {
           <div className="divide-y divide-gray-200 max-h-[700px] overflow-y-auto">
             {filteredClients.length > 0 ? (
               filteredClients.map((client) => (
-                <div 
+                <div
                   key={client.id}
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                     selectedClient === client.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
@@ -80,14 +84,11 @@ const Rubrica: React.FC = () => {
                 </div>
               ))
             ) : (
-              <div className="p-4 text-center text-gray-500">
-                Nessun cliente trovato
-              </div>
+              <div className="p-4 text-center text-gray-500">Nessun cliente trovato</div>
             )}
           </div>
         </div>
 
-        {/* Client details */}
         <div className="md:col-span-2 bg-white rounded-lg shadow">
           {selectedClientData ? (
             <div className="p-6">
@@ -191,6 +192,17 @@ const Rubrica: React.FC = () => {
           )}
         </div>
       </div>
+
+      <SlidingPanelContact
+        visible={showNewClientPanel}
+        onClose={() => setShowNewClientPanel(false)}
+        onCreated={() => {
+          // Placeholder: reload client list from Supabase later
+          setShowNewClientPanel(false);
+        }}
+      >
+        <NewContactForm onCreated={() => setShowNewClientPanel(false)} />
+      </SlidingPanelContact>
     </div>
   );
 };
