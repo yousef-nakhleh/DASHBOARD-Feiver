@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // 🆕 Add navigation hook
 import { supabase } from "../lib/supabase";
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment'; // ✅ Import
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
@@ -31,17 +31,19 @@ const getRomeDateString = (date) => {
   const formatter = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Europe/Rome'
   });
-  return formatter.format(date); // yyyy-mm-dd
+  return formatter.format(date);
 };
 
 const Cassa = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const navigate = useNavigate(); // 🆕 Initialize navigation
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false); // ✅
+  const [prefill, setPrefill] = useState({}); // ✅
 
   const handleNewTransaction = () => {
-    navigate('/cassa/pagamento'); // 🆕 Navigate to payment page
+    setPrefill({});
+    setShowPaymentPanel(true);
   };
 
   useEffect(() => {
@@ -88,7 +90,7 @@ const Cassa = () => {
   const cashTotal = filteredTransactions.filter(tx => tx.method === 'Contanti').reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
-    <div className="h-full">
+    <div className="h-full relative">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Cassa</h1>
@@ -204,6 +206,16 @@ const Cassa = () => {
           )}
         </div>
       </div>
+
+      {/* ✅ Sliding Panel for new transactions */}
+      <SlidingPanelPayment
+        open={showPaymentPanel}
+        onClose={() => setShowPaymentPanel(false)}
+        prefill={prefill}
+        onSuccess={() => {
+          setShowPaymentPanel(false);
+        }}
+      />
     </div>
   );
 };
