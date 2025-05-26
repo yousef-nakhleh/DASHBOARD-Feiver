@@ -1,87 +1,89 @@
-// src/components/rubrica/NewContactForm.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-const NewContactForm = ({ onCreated }) => {
-  const [fullName, setFullName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [email, setEmail] = useState('');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
+const NewContactForm: React.FC<{ onCreated: () => void }> = ({ onCreated }) => {
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    birthdate: '',
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-    const { error } = await supabase.from('rubrica').insert([
-      {
-        name: fullName,
-        phone: phoneNumber,
-        email,
-        note,
-      },
-    ]);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-    setLoading(false);
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError('');
+
+    const { error } = await supabase.from('contacts').insert({
+      customer_name: form.name,
+      customer_phone: form.phone,
+      customer_email: form.email,
+      customer_birthdate: form.birthdate || null,
+    });
 
     if (error) {
-      alert('Errore nel salvataggio del cliente');
-      return;
+      setError('Errore nel salvataggio del cliente');
+    } else {
+      onCreated();
     }
 
-    if (onCreated) onCreated();
+    setSaving(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+    <div className="p-4">
+      <div className="space-y-4">
         <input
           type="text"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+          name="name"
+          placeholder="Nome Completo"
+          className="w-full border px-3 py-2 rounded"
+          value={form.name}
+          onChange={handleChange}
         />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Numero di Telefono</label>
         <input
           type="tel"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+          name="phone"
+          placeholder="Numero di Telefono"
+          className="w-full border px-3 py-2 rounded"
+          value={form.phone}
+          onChange={handleChange}
         />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Email (opzionale)</label>
         <input
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+          name="email"
+          placeholder="Email (opzionale)"
+          className="w-full border px-3 py-2 rounded"
+          value={form.email}
+          onChange={handleChange}
+        />
+        <input
+          type="date"
+          name="birthdate"
+          placeholder="Data di Nascita (opzionale)"
+          className="w-full border px-3 py-2 rounded"
+          value={form.birthdate}
+          onChange={handleChange}
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Note</label>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-        />
-      </div>
+      {error && <p className="text-red-600 mt-2">{error}</p>}
 
       <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-2 px-4 bg-[#5D4037] text-white rounded hover:bg-[#4E342E] transition"
+        onClick={handleSubmit}
+        disabled={saving}
+        className="mt-6 w-full bg-[#5D4037] text-white py-2 rounded hover:bg-[#4E342E] transition"
       >
-        {loading ? 'Salvataggio...' : 'Salva Cliente'}
+        {saving ? 'Salvataggio...' : 'Salva Cliente'}
       </button>
-    </form>
+    </div>
   );
 };
 
