@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
 import { supabase } from "../lib/supabase";
-import SlidingPanelPayment from '../components/payment/SlidingPanelPayment'; // ✅ Import
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
     const date = transaction.date;
     if (!groups[date]) {
-      groups[date] = []; 
+      groups[date] = [];
     }
     groups[date].push(transaction);
     return groups;
@@ -31,49 +31,47 @@ const getRomeDateString = (date) => {
   const formatter = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Europe/Rome'
   });
-  return formatter.format(date);
+  return formatter.format(date); // yyyy-mm-dd
 };
 
 const Cassa = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [showPaymentPanel, setShowPaymentPanel] = useState(false); // ✅
-  const [prefill, setPrefill] = useState({}); // ✅
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const handleNewTransaction = () => {
-    setPrefill({});
-    setShowPaymentPanel(true);
+    setPanelOpen(true);
+  };
+
+  const fetchTransactions = async () => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`)
+      .order('completed_at', { ascending: false });
+
+    if (error) {
+      console.error('Errore nel fetch delle transazioni:', error);
+      return;
+    }
+
+    const formatted = data.map(tx => {
+      const rawDate = new Date(tx.completed_at);
+      return {
+        id: tx.id,
+        time: getRomeTimeParts(rawDate),
+        date: getRomeDateString(rawDate),
+        client: tx.appointments?.customer_name || '-',
+        service: tx.services?.name || 'Servizio',
+        amount: tx.total,
+        method: tx.payment_method,
+      };
+    });
+
+    setTransactions(formatted);
   };
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`id, total, payment_method, completed_at, appointment_id, service_id, appointments (customer_name), services (name)`)
-        .order('completed_at', { ascending: false });
-
-      if (error) {
-        console.error('Errore nel fetch delle transazioni:', error);
-        return;
-      }
-
-      const formatted = data.map(tx => {
-        const rawDate = new Date(tx.completed_at);
-        return {
-          id: tx.id,
-          time: getRomeTimeParts(rawDate),
-          date: getRomeDateString(rawDate),
-          client: tx.appointments?.customer_name || '-',
-          service: tx.services?.name || 'Servizio',
-          amount: tx.total,
-          method: tx.payment_method,
-        };
-      });
-
-      setTransactions(formatted);
-    };
-
     fetchTransactions();
   }, []);
 
@@ -207,13 +205,13 @@ const Cassa = () => {
         </div>
       </div>
 
-      {/* ✅ Sliding Panel for new transactions */}
       <SlidingPanelPayment
-        open={showPaymentPanel}
-        onClose={() => setShowPaymentPanel(false)}
-        prefill={prefill}
+        visible={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        prefill={{}}
         onSuccess={() => {
-          setShowPaymentPanel(false);
+          setPanelOpen(false);
+          fetchTransactions();
         }}
       />
     </div>
