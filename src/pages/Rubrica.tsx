@@ -1,23 +1,57 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
 import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
 import NewContactForm from '../components/rubrica/NewContactForm';
-
-const clients = [
-  { id: 1, name: 'Giovanni Rossi', phone: '333-1234567', email: 'giovanni.rossi@email.it', lastVisit: '2025-05-01', visitCount: 8, favoriteService: 'Taglio e barba' },
-  { id: 2, name: 'Luca Bianchi', phone: '333-7654321', email: 'luca.bianchi@email.it', lastVisit: '2025-05-03', visitCount: 5, favoriteService: 'Taglio classico' },
-  { id: 3, name: 'Andrea Verdi', phone: '333-9876543', email: 'andrea.verdi@email.it', lastVisit: '2025-05-07', visitCount: 3, favoriteService: 'Rasatura completa' },
-  { id: 4, name: 'Marco Neri', phone: '333-3456789', email: 'marco.neri@email.it', lastVisit: '2025-04-28', visitCount: 12, favoriteService: 'Taglio e trattamento' },
-  { id: 5, name: 'Fabio Gialli', phone: '333-6543210', email: 'fabio.gialli@email.it', lastVisit: '2025-04-15', visitCount: 2, favoriteService: 'Shampoo e taglio' },
-  { id: 6, name: 'Simone Azzurri', phone: '333-2345678', email: 'simone.azzurri@email.it', lastVisit: '2025-03-20', visitCount: 1, favoriteService: 'Taglio prima volta' },
-  { id: 7, name: 'Roberto Marroni', phone: '333-8765432', email: 'roberto.marroni@email.it', lastVisit: '2025-05-08', visitCount: 7, favoriteService: 'Taglio e barba' },
-  { id: 8, name: 'Alessandro Viola', phone: '333-5432109', email: 'alessandro.viola@email.it', lastVisit: '2025-05-05', visitCount: 4, favoriteService: 'Rasatura semplice' },
-];
+import { supabase } from '../lib/supabase';
 
 const Rubrica: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | number>(null);
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
+  const [clients, setClients] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data: contacts } = await supabase.from('contacts').select('*');
+      const enriched = await Promise.all(
+        (contacts || []).map(async (contact) => {
+          const { data: appointments } = await supabase
+            .from('appointments')
+            .select('appointment_date, service_id, services(name)')
+            .eq('customer_id', contact.id);
+
+          const lastVisit = appointments?.length
+            ? appointments.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0].appointment_date
+            : null;
+
+          const visitCount = appointments?.length || 0;
+
+          const serviceFrequency = appointments?.reduce((acc, curr) => {
+            const name = curr.services?.name;
+            if (name) acc[name] = (acc[name] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+
+          const favoriteService = serviceFrequency
+            ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])[0][0]
+            : null;
+
+          return {
+            id: contact.id,
+            name: contact.customer_name,
+            phone: contact.customer_phone,
+            email: contact.customer_email,
+            lastVisit,
+            visitCount,
+            favoriteService,
+          };
+        })
+      );
+      setClients(enriched);
+    };
+
+    fetchClients();
+  }, []);
 
   const filteredClients = clients.filter(
     client =>
@@ -134,7 +168,7 @@ const Rubrica: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-2" />
-                      <span>Ultima visita: {new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT')}</span>
+                      <span>Ultima visita: {selectedClientData.lastVisit ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT') : 'N/D'}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock size={16} className="text-gray-400 mr-2" />
@@ -142,46 +176,16 @@ const Rubrica: React.FC = () => {
                     </div>
                     <div className="flex items-center">
                       <Scissors size={16} className="text-gray-400 mr-2" />
-                      <span>Servizio preferito: {selectedClientData.favoriteService}</span>
+                      <span>Servizio preferito: {selectedClientData.favoriteService || 'N/D'}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Placeholder for historical appointment data */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-sm font-medium text-gray-500 mb-4">Storico Appuntamenti</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servizio</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbiere</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Importo</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      <tr>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">07/05/2025</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Taglio e barba</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Marco</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">€35</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">21/04/2025</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Taglio capelli</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Paolo</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">€25</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">05/04/2025</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Rasatura completa</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">Marco</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm">€20</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <div className="text-gray-400 text-sm">(Integrazione futura)</div>
               </div>
             </div>
           ) : (
@@ -196,10 +200,7 @@ const Rubrica: React.FC = () => {
       <SlidingPanelContact
         visible={showNewClientPanel}
         onClose={() => setShowNewClientPanel(false)}
-        onCreated={() => {
-          // Placeholder: reload client list from Supabase later
-          setShowNewClientPanel(false);
-        }}
+        onCreated={() => setShowNewClientPanel(false)}
       >
         <NewContactForm onCreated={() => setShowNewClientPanel(false)} />
       </SlidingPanelContact>
