@@ -10,47 +10,48 @@ const Rubrica: React.FC = () => {
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
+  // ✅ Moved to top-level so we can re-use it
+  const fetchClients = async () => {
+    const { data: contacts } = await supabase.from('contacts').select('*');
+    const enriched = await Promise.all(
+      (contacts || []).map(async (contact) => {
+        const { data: appointments } = await supabase
+          .from('appointments')
+          .select('appointment_date, service_id, services(name)')
+          .eq('customer_id', contact.id);
+
+        const lastVisit = appointments?.length
+          ? appointments.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0].appointment_date
+          : null;
+
+        const visitCount = appointments?.length || 0;
+
+        const serviceFrequency = appointments?.reduce((acc, curr) => {
+          const name = curr.services?.name;
+          if (name) acc[name] = (acc[name] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const favoriteService = serviceFrequency
+          ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])[0][0]
+          : null;
+
+        return {
+          id: contact.id,
+          name: contact.customer_name,
+          phone: contact.customer_phone,
+          email: contact.customer_email,
+          birthdate: contact.customer_birthdate,
+          lastVisit,
+          visitCount,
+          favoriteService,
+        };
+      })
+    );
+    setClients(enriched);
+  };
+
   useEffect(() => {
-    const fetchClients = async () => {
-      const { data: contacts } = await supabase.from('contacts').select('*');
-      const enriched = await Promise.all(
-        (contacts || []).map(async (contact) => {
-          const { data: appointments } = await supabase
-            .from('appointments')
-            .select('appointment_date, service_id, services(name)')
-            .eq('customer_id', contact.id);
-
-          const lastVisit = appointments?.length
-            ? appointments.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0].appointment_date
-            : null;
-
-          const visitCount = appointments?.length || 0;
-
-          const serviceFrequency = appointments?.reduce((acc, curr) => {
-            const name = curr.services?.name;
-            if (name) acc[name] = (acc[name] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-
-          const favoriteService = serviceFrequency
-            ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])[0][0]
-            : null;
-
-          return {
-            id: contact.id,
-            name: contact.customer_name,
-            phone: contact.customer_phone,
-            email: contact.customer_email,
-            birthdate: contact.customer_birthdate,
-            lastVisit,
-            visitCount,
-            favoriteService,
-          };
-        })
-      );
-      setClients(enriched);
-    };
-
     fetchClients();
   }, []);
 
@@ -200,9 +201,17 @@ const Rubrica: React.FC = () => {
       <SlidingPanelContact
         visible={showNewClientPanel}
         onClose={() => setShowNewClientPanel(false)}
-        onCreated={() => setShowNewClientPanel(false)}
+        onCreated={() => {
+          fetchClients();
+          setShowNewClientPanel(false);
+        }}
       >
-        <NewContactForm onCreated={() => setShowNewClientPanel(false)} />
+        <NewContactForm
+          onCreated={() => {
+            fetchClients();
+            setShowNewClientPanel(false);
+          }}
+        />
       </SlidingPanelContact>
     </div>
   );
