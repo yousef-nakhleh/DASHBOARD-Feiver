@@ -1,85 +1,85 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-const NewContactForm: React.FC<{ onCreated: () => void }> = ({ onCreated }) => {
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    birthdate: '',
-  });
+interface NewContactFormProps {
+  onCreated: () => void;
+}
 
+const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [birthdate, setBirthdate] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleSave = async () => {
+    if (!name || !phone) return alert('Nome e telefono sono obbligatori');
 
-  const handleSubmit = async () => {
     setSaving(true);
-    setError('');
 
     const { error } = await supabase.from('contacts').insert({
-      customer_name: form.name,
-      customer_phone: form.phone,
-      customer_email: form.email,
-      customer_birthdate: form.birthdate || null,
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
+      customer_birthdate: birthdate || null,
     });
 
+    setSaving(false);
+
     if (error) {
-      setError('Errore nel salvataggio del cliente');
+      console.error('Errore nel salvataggio del cliente:', error);
+      alert('Errore nel salvataggio del cliente');
     } else {
       onCreated();
     }
-
-    setSaving(false);
   };
 
   return (
-    <div className="p-4">
-      <div className="space-y-4">
+    <div className="p-6 space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
         <input
           type="text"
-          name="name"
-          placeholder="Nome Completo"
-          className="w-full border px-3 py-2 rounded"
-          value={form.name}
-          onChange={handleChange}
-        />
-        <input
-          type="tel"
-          name="phone"
-          placeholder="Numero di Telefono"
-          className="w-full border px-3 py-2 rounded"
-          value={form.phone}
-          onChange={handleChange}
-        />
-        <input
-          type="email"
-          name="email"
-          placeholder="Email (opzionale)"
-          className="w-full border px-3 py-2 rounded"
-          value={form.email}
-          onChange={handleChange}
-        />
-        <input
-          type="date"
-          name="birthdate"
-          placeholder="Data di Nascita (opzionale)"
-          className="w-full border px-3 py-2 rounded"
-          value={form.birthdate}
-          onChange={handleChange}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
         />
       </div>
 
-      {error && <p className="text-red-600 mt-2">{error}</p>}
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Numero di Telefono</label>
+        <input
+          type="text"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Email (opzionale)</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Data di Nascita</label>
+        <input
+          type="date"
+          value={birthdate}
+          onChange={(e) => setBirthdate(e.target.value)}
+          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+        />
+      </div>
 
       <button
-        onClick={handleSubmit}
+        onClick={handleSave}
         disabled={saving}
-        className="mt-6 w-full bg-[#5D4037] text-white py-2 rounded hover:bg-[#4E342E] transition"
+        className="w-full bg-[#5D4037] text-white py-2 rounded-md hover:bg-[#4E342E] transition"
       >
         {saving ? 'Salvataggio...' : 'Salva Cliente'}
       </button>
