@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
 import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
 import NewContactForm from '../components/rubrica/NewContactForm';
@@ -10,9 +10,14 @@ const Rubrica: React.FC = () => {
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  // ✅ Moved to top-level so we can re-use it
-  const fetchClients = async () => {
-    const { data: contacts } = await supabase.from('contacts').select('*');
+  // Extracted refresh function so we can reuse it
+  const fetchClients = useCallback(async () => {
+    const { data: contacts, error } = await supabase.from('contacts').select('*');
+    if (error) {
+      console.error('Errore nel caricamento dei contatti:', error);
+      return;
+    }
+
     const enriched = await Promise.all(
       (contacts || []).map(async (contact) => {
         const { data: appointments } = await supabase
@@ -21,7 +26,10 @@ const Rubrica: React.FC = () => {
           .eq('customer_id', contact.id);
 
         const lastVisit = appointments?.length
-          ? appointments.sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime())[0].appointment_date
+          ? appointments.sort((a, b) =>
+              new Date(b.appointment_date).getTime() -
+              new Date(a.appointment_date).getTime()
+            )[0].appointment_date
           : null;
 
         const visitCount = appointments?.length || 0;
@@ -49,11 +57,11 @@ const Rubrica: React.FC = () => {
       })
     );
     setClients(enriched);
-  };
+  }, []);
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
 
   const filteredClients = clients.filter(
     client =>
@@ -81,6 +89,7 @@ const Rubrica: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Contact list */}
         <div className="md:col-span-1 bg-white rounded-lg shadow overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
@@ -125,6 +134,7 @@ const Rubrica: React.FC = () => {
           </div>
         </div>
 
+        {/* Details */}
         <div className="md:col-span-2 bg-white rounded-lg shadow">
           {selectedClientData ? (
             <div className="p-6">
@@ -150,23 +160,26 @@ const Rubrica: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Informazioni di Contatto</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Contatto</h3>
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <Phone size={16} className="text-gray-400 mr-2" />
                       <span>{selectedClientData.phone}</span>
                     </div>
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mr-2">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                        <polyline points="22,6 12,13 2,6"></polyline>
-                      </svg>
-                      <span>{selectedClientData.email || 'N/D'}</span>
-                    </div>
+                    {selectedClientData.email && (
+                      <div className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 mr-2">
+                          <path d="M4 4h16v12H4z" />
+                          <path d="m22 6-10 7L2 6" />
+                        </svg>
+                        <span>{selectedClientData.email}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-2">Dettagli Cliente</h3>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Dettagli</h3>
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-2" />
@@ -198,20 +211,19 @@ const Rubrica: React.FC = () => {
         </div>
       </div>
 
+      {/* Sliding Panel */}
       <SlidingPanelContact
         visible={showNewClientPanel}
         onClose={() => setShowNewClientPanel(false)}
         onCreated={() => {
-          fetchClients();
           setShowNewClientPanel(false);
+          fetchClients(); // ⬅️ This line ensures newly added contact appears
         }}
       >
-        <NewContactForm
-          onCreated={() => {
-            fetchClients();
-            setShowNewClientPanel(false);
-          }}
-        />
+        <NewContactForm onCreated={() => {
+          setShowNewClientPanel(false);
+          fetchClients();
+        }} />
       </SlidingPanelContact>
     </div>
   );
