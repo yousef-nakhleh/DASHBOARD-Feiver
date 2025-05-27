@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from "../../../lib/supabase";
 
 const Rubrica: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
