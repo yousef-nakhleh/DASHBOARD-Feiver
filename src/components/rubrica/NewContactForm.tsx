@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
-import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
-import NewContactForm from '../components/rubrica/NewContactForm';
 import { supabase } from '../lib/supabase';
 
 const Rubrica: React.FC = () => {
