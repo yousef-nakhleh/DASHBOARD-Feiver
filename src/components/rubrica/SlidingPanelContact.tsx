@@ -1,35 +1,25 @@
-import { X } from 'lucide-react';
 import React from 'react';
 import NewContactForm from './NewContactForm';
 
-const SlidingPanelContact = ({ visible, onClose, onCreated }) => {
-  return (
-    <>
-      {/* Overlay */}
-      {visible && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-40"
-          onClick={onClose}
-        />
-      )}
+interface SlidingPanelContactProps {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: () => void; // Ensure this is correctly typed as a function
+}
 
-      {/* Sliding Panel */}
-      <div
-        className={`fixed top-0 right-0 h-full w-full sm:w-1/3 bg-white shadow-lg z-50 transform transition-transform duration-300 ${
-          visible ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="p-4 flex justify-between items-center border-b">
-          <h2 className="text-lg font-semibold">Nuovo Cliente</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto h-[calc(100%-64px)]">
-          <NewContactForm onSuccess={onCreated} onClose={onClose} />
-        </div>
+const SlidingPanelContact: React.FC<SlidingPanelContactProps> = ({ visible, onClose, onCreated }) => {
+  if (!visible) return null;
+
+  return (
+    <div className="fixed right-0 top-0 w-[400px] h-full bg-white shadow-xl p-6 z-50 flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Nuovo Cliente</h2>
+        <button onClick={onClose} className="text-gray-600 hover:text-black text-xl">&times;</button>
       </div>
-    </>
+      <div className="flex-grow overflow-y-auto">
+        <NewContactForm onCreated={onCreated} />
+      </div>
+    </div>
   );
 };
 
