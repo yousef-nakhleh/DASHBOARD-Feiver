@@ -18,16 +18,12 @@ const Rubrica: React.FC = () => {
       return;
     }
 
-    console.log('Fetched raw contacts:', contacts); // debug
-
     const enriched = await Promise.all(
       (contacts || []).map(async (contact) => {
         const { data: appointments } = await supabase
           .from('appointments')
           .select('appointment_date, service_id, services(name)')
           .eq('customer_id', contact.id);
-
-        console.log('Appointments for contact', contact.id, appointments); // debug
 
         const lastVisit = appointments?.length
           ? appointments.sort((a, b) =>
@@ -43,9 +39,12 @@ const Rubrica: React.FC = () => {
           return acc;
         }, {} as Record<string, number>);
 
-        const favoriteService = serviceFrequency
-          ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])[0][0]
-          : null;
+        const sortedServices = serviceFrequency
+          ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])
+          : [];
+
+        const favoriteService =
+          sortedServices.length > 0 ? sortedServices[0][0] : null;
 
         return {
           id: contact.id,
@@ -60,7 +59,6 @@ const Rubrica: React.FC = () => {
       })
     );
 
-    console.log('Enriched contacts:', enriched); // debug
     setClients(enriched);
   }, []);
 
