@@ -10,13 +10,15 @@ const Rubrica: React.FC = () => {
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  // Extracted refresh function so we can reuse it
   const fetchClients = useCallback(async () => {
     const { data: contacts, error } = await supabase.from('contacts').select('*');
+
     if (error) {
       console.error('Errore nel caricamento dei contatti:', error);
       return;
     }
+
+    console.log('Fetched raw contacts:', contacts); // debug
 
     const enriched = await Promise.all(
       (contacts || []).map(async (contact) => {
@@ -25,10 +27,11 @@ const Rubrica: React.FC = () => {
           .select('appointment_date, service_id, services(name)')
           .eq('customer_id', contact.id);
 
+        console.log('Appointments for contact', contact.id, appointments); // debug
+
         const lastVisit = appointments?.length
           ? appointments.sort((a, b) =>
-              new Date(b.appointment_date).getTime() -
-              new Date(a.appointment_date).getTime()
+              new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
             )[0].appointment_date
           : null;
 
@@ -46,16 +49,18 @@ const Rubrica: React.FC = () => {
 
         return {
           id: contact.id,
-          name: contact.customer_name,
-          phone: contact.customer_phone,
-          email: contact.customer_email,
-          birthdate: contact.customer_birthdate,
+          name: contact.customer_name || contact.name,
+          phone: contact.customer_phone || contact.phone,
+          email: contact.customer_email || contact.email,
+          birthdate: contact.customer_birthdate || null,
           lastVisit,
           visitCount,
           favoriteService,
         };
       })
     );
+
+    console.log('Enriched contacts:', enriched); // debug
     setClients(enriched);
   }, []);
 
@@ -65,8 +70,8 @@ const Rubrica: React.FC = () => {
 
   const filteredClients = clients.filter(
     client =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.includes(searchQuery) ||
+      client.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.phone?.includes(searchQuery) ||
       client.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -89,7 +94,6 @@ const Rubrica: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Contact list */}
         <div className="md:col-span-1 bg-white rounded-lg shadow overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
@@ -134,14 +138,13 @@ const Rubrica: React.FC = () => {
           </div>
         </div>
 
-        {/* Details */}
         <div className="md:col-span-2 bg-white rounded-lg shadow">
           {selectedClientData ? (
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 h-16 w-16 rounded-full bg-[#5D4037] text-white flex items-center justify-center text-xl font-medium">
-                    {selectedClientData.name.split(' ').map(n => n[0]).join('')}
+                    {selectedClientData.name?.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className="ml-4">
                     <h2 className="text-xl font-bold">{selectedClientData.name}</h2>
@@ -211,13 +214,12 @@ const Rubrica: React.FC = () => {
         </div>
       </div>
 
-      {/* Sliding Panel */}
       <SlidingPanelContact
         visible={showNewClientPanel}
         onClose={() => setShowNewClientPanel(false)}
         onCreated={() => {
           setShowNewClientPanel(false);
-          fetchClients(); // ⬅️ This line ensures newly added contact appears
+          fetchClients();
         }}
       >
         <NewContactForm onCreated={() => {
