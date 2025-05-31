@@ -28,6 +28,13 @@ const getDatesInView = (baseDate, mode) => {
   });
 };
 
+const formatShortDate = (date) => {
+  return date
+    .toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
+    .toUpperCase()
+    .replace('.', '');
+};
+
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -42,11 +49,13 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  const formatShortDate = (date: Date) =>
+  const formatDate = (date: Date) =>
     date.toLocaleDateString('it-IT', {
-      day: '2-digit',
-      month: 'short'
-    }).toUpperCase();
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
 
   const navigateDay = (dir: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
@@ -113,9 +122,9 @@ const Agenda = () => {
       );
 
   const today = new Date();
-  const shortDates = [0, 1, 2].map(offset => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + offset);
+  const dateOptions = [0, 1, 2].map((offset) => {
+    const d = new Date();
+    d.setDate(today.getDate() + offset);
     return d;
   });
 
@@ -137,12 +146,12 @@ const Agenda = () => {
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            {shortDates.map((d, idx) => (
+            {dateOptions.map((d) => (
               <button
-                key={idx}
+                key={d.toISOString()}
                 onClick={() => setSelectedDate(new Date(d))}
-                className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                  selectedDate.toDateString() === d.toDateString()
+                className={`px-4 py-1 rounded-full text-sm border uppercase ${
+                  d.toDateString() === selectedDate.toDateString()
                     ? 'bg-[#5D4037] text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
@@ -151,19 +160,21 @@ const Agenda = () => {
               </button>
             ))}
 
-            <button
-              onClick={() => document.getElementById('customDatePicker')?.click()}
-              className="ml-2 p-2 rounded-full hover:bg-gray-100 border"
-            >
-              <CalendarIcon size={20} className="text-gray-600" />
-            </button>
             <input
               type="date"
-              id="customDatePicker"
-              className="hidden"
+              id="hidden-date-picker"
+              value={selectedDate.toISOString().split('T')[0]}
               onChange={(e) => setSelectedDate(new Date(e.target.value))}
+              className="hidden"
             />
+            <button
+              onClick={() => document.getElementById('hidden-date-picker')?.click()}
+              className="p-2 rounded-full hover:bg-gray-100 border border-gray-300"
+            >
+              <CalendarIcon size={18} />
+            </button>
           </div>
+
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
