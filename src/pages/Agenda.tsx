@@ -5,6 +5,8 @@ import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import { format, addDays } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -39,6 +41,7 @@ const Agenda = () => {
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const timeSlots = generateTimeSlots();
 
@@ -114,6 +117,9 @@ const Agenda = () => {
           app.barber_id === selectedBarber
       );
 
+  const shortLabel = (date) => format(date, "d MMM", { locale: it });
+  const quickDates = [0, 1, 2].map((i) => addDays(new Date(), i));
+
   return (
     <div className="h-full relative">
       <div className="flex justify-between items-center mb-6">
@@ -131,17 +137,37 @@ const Agenda = () => {
 
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center">
-            <button onClick={() => navigateDay('prev')} className="p-2 rounded-full hover:bg-gray-100">
-              <ChevronLeft size={20} />
-            </button>
-            <div className="mx-4 flex items-center">
-              <CalendarIcon size={20} className="text-gray-500 mr-2" />
-              <span className="font-medium capitalize">{formatDate(selectedDate)}</span>
-            </div>
-            <button onClick={() => navigateDay('next')} className="p-2 rounded-full hover:bg-gray-100">
-              <ChevronRight size={20} />
-            </button>
+          <div className="flex items-center space-x-2">
+            {quickDates.map((day, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedDate(day)}
+                className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                  format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+                    ? 'bg-[#5D4037] text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {shortLabel(day).toUpperCase()}
+              </button>
+            ))}
+            <button
+              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              className="ml-2 px-3 py-1 rounded border text-sm text-gray-700 hover:bg-gray-100"
+            >📅</button>
+            {isCalendarOpen && (
+              <div className="absolute mt-2 bg-white border rounded shadow p-4 z-50">
+                <input
+                  type="date"
+                  className="border px-2 py-1 rounded text-sm"
+                  value={format(selectedDate, 'yyyy-MM-dd')}
+                  onChange={(e) => {
+                    setSelectedDate(new Date(e.target.value));
+                    setIsCalendarOpen(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
