@@ -13,6 +13,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
   });
   const [selectedTime, setSelectedTime] = useState('07:00');
   const [duration, setDuration] = useState(30);
+  const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
@@ -24,6 +25,19 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      if (!selectedDate || !selectedBarber) return;
+      const { data } = await supabase
+        .from('appointments')
+        .select('appointment_time, duration_min')
+        .eq('barber_id', selectedBarber)
+        .eq('appointment_date', selectedDate);
+      setAppointments(data || []);
+    };
+    fetchAppointments();
+  }, [selectedDate, selectedBarber, duration]);
 
   const handleServiceChange = (e) => {
     const selectedId = e.target.value;
@@ -38,18 +52,10 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
     const isoDate = new Date(selectedDate).toISOString().split('T')[0];
-    const [startHour, startMinute] = selectedTime.split(':').map(Number);
     const start = new Date(`${isoDate}T${selectedTime}:00`);
     const end = new Date(start.getTime() + duration * 60000);
 
-    // Fetch existing appointments for the same barber on that date
-    const { data: existing } = await supabase
-      .from('appointments')
-      .select('appointment_time, duration_min')
-      .eq('appointment_date', isoDate)
-      .eq('barber_id', selectedBarber);
-
-    const overlap = existing?.some((appt) => {
+    const overlap = appointments.some((appt) => {
       const apptStart = new Date(`${isoDate}T${appt.appointment_time}`);
       const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
       return start < apptEnd && end > apptStart;
@@ -147,12 +153,24 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
               {Array.from({ length: 61 }, (_, i) => {
                 const hour = 6 + Math.floor(i / 4);
                 const minute = (i % 4) * 15;
-                const time = `${hour.toString().padStart(2, '0')}:${minute
-                  .toString()
-                  .padStart(2, '0')}`;
+                const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const slotStart = new Date(`${selectedDate}T${time}:00`);
+                const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+                const isOccupied = appointments.some((appt) => {
+                  const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
+                  const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                  return slotStart < apptEnd && slotEnd > apptStart;
+                });
+
                 return (
-                  <option key={time} value={time}>
-                    {time}
+                  <option
+                    key={time}
+                    value={time}
+                    disabled={isOccupied}
+                    className={isOccupied ? 'line-through text-gray-400' : ''}
+                  >
+                    {time} {isOccupied ? '(occupato)' : ''}
                   </option>
                 );
               })}
