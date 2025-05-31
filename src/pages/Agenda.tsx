@@ -5,8 +5,6 @@ import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
-import { format, addDays } from 'date-fns';
-import { it } from 'date-fns/locale';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -41,17 +39,14 @@ const Agenda = () => {
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const timeSlots = generateTimeSlots();
 
-  const formatDate = (date: Date) =>
+  const formatShortDate = (date: Date) =>
     date.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+      day: '2-digit',
+      month: 'short'
+    }).toUpperCase();
 
   const navigateDay = (dir: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
@@ -117,8 +112,12 @@ const Agenda = () => {
           app.barber_id === selectedBarber
       );
 
-  const shortLabel = (date) => format(date, "d MMM", { locale: it });
-  const quickDates = [0, 1, 2].map((i) => addDays(new Date(), i));
+  const today = new Date();
+  const shortDates = [0, 1, 2].map(offset => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + offset);
+    return d;
+  });
 
   return (
     <div className="h-full relative">
@@ -138,36 +137,32 @@ const Agenda = () => {
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            {quickDates.map((day, index) => (
+            {shortDates.map((d, idx) => (
               <button
-                key={index}
-                onClick={() => setSelectedDate(day)}
-                className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                  format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+                key={idx}
+                onClick={() => setSelectedDate(new Date(d))}
+                className={`px-3 py-1 rounded-full text-sm border font-medium ${
+                  selectedDate.toDateString() === d.toDateString()
                     ? 'bg-[#5D4037] text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {shortLabel(day).toUpperCase()}
+                {formatShortDate(d)}
               </button>
             ))}
+
             <button
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className="ml-2 px-3 py-1 rounded border text-sm text-gray-700 hover:bg-gray-100"
-            >📅</button>
-            {isCalendarOpen && (
-              <div className="absolute mt-2 bg-white border rounded shadow p-4 z-50">
-                <input
-                  type="date"
-                  className="border px-2 py-1 rounded text-sm"
-                  value={format(selectedDate, 'yyyy-MM-dd')}
-                  onChange={(e) => {
-                    setSelectedDate(new Date(e.target.value));
-                    setIsCalendarOpen(false);
-                  }}
-                />
-              </div>
-            )}
+              onClick={() => document.getElementById('customDatePicker')?.click()}
+              className="ml-2 p-2 rounded-full hover:bg-gray-100 border"
+            >
+              <CalendarIcon size={20} className="text-gray-600" />
+            </button>
+            <input
+              type="date"
+              id="customDatePicker"
+              className="hidden"
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+            />
           </div>
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
