@@ -1,267 +1,168 @@
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { Calendar } from '../components/agenda/Calendar';
-import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
-import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
-import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import React from 'react';
+import { useDrop, useDrag } from 'react-dnd';
+import { User } from 'lucide-react';
 
-const generateTimeSlots = () => {
-  const slots = [];
-  for (let h = 6; h <= 21; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      if (h === 21 && m > 0) break;
-      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
-      slots.push({ time, type });
-    }
-  }
-  return slots;
-};
+const slotHeight = 40;
 
-const getDatesInView = (baseDate, mode) => {
-  const count = mode === 'day' ? 1 : mode === '3day' ? 3 : 7;
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(baseDate);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-};
-
-const Agenda = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [barbers, setBarbers] = useState<any[]>([]);
-  const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
-  const [paymentPrefill, setPaymentPrefill] = useState({});
-  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const timeSlots = generateTimeSlots();
-
-  const fetchAppointments = async () => {
-    const dates = getDatesInView(selectedDate, viewMode);
-    const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
-    const { data } = await supabase
-      .from('appointments')
-      .select(`*, services ( name, price )`)
-      .in('appointment_date', dateStrings);
-    setAppointments(data || []);
-  };
-
-  const fetchBarbers = async () => {
-    const { data } = await supabase.from('barbers').select('*');
-    setBarbers(data || []);
-  };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, [selectedDate, viewMode]);
-
-  useEffect(() => {
-    fetchBarbers();
-  }, []);
-
-  const updateAppointmentTime = async (id: string, { newTime, newDate, newBarberId }) => {
-    await supabase
-      .from('appointments')
-      .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
-      .eq('id', id);
-    fetchAppointments();
-  };
-
-  const handlePay = () => {
-    if (!selectedAppointment) return;
-    const prefill = {
-      appointment_id: selectedAppointment.id,
-      barber_id: selectedAppointment.barber_id,
-      service_id: selectedAppointment.service_id,
-      price: selectedAppointment.services?.price || 0,
-      customer_name: selectedAppointment.customer_name,
-    };
-    setPaymentPrefill(prefill);
-    setShowPaymentPanel(true);
-  };
-
-  const filtered = selectedBarber === 'Tutti'
-    ? appointments.filter((app) =>
-        app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : appointments.filter(
-        (app) =>
-          (app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-          app.barber_id === selectedBarber
-      );
-
-  const today = new Date();
-  const dateButtons = [0, 1, 2].map((offset) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + offset);
-    return d;
-  });
-
-  const formatShort = (d: Date) =>
-    d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
+export const Calendar = ({
+  timeSlots,
+  appointments,
+  onDrop,
+  onClickAppointment,
+  barbers,
+  selectedBarber, 
+  datesInView = [],
+}) => {
+  const barbersToRender =
+    selectedBarber === 'Tutti'
+      ? barbers
+      : barbers.filter((b) => b.id === selectedBarber);
 
   return (
-    <div className="h-full relative">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
-          <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
-        >
-          <Plus size={18} className="mr-1" /> Nuovo Appuntamento
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            {dateButtons.map((date, i) => (
-              <button
-                key={i}
-                className={`px-3 py-1 rounded-full text-sm border ${
-                  selectedDate.toDateString() === date.toDateString()
-                    ? 'bg-[#5D4037] text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }`}
-                onClick={() => setSelectedDate(date)}
-              >
-                {formatShort(date)}
-              </button>
-            ))}
-
-            <div className="relative">
-              <button
-                onClick={() => setShowDatePicker((prev) => !prev)}
-                className="p-2 rounded-full hover:bg-gray-100"
-              >
-                <CalendarIcon size={18} />
-              </button>
-              {showDatePicker && (
-                <div className="absolute z-50 top-10">
-                  <DatePicker
-                    selected={selectedDate}
-                    onChange={(date) => {
-                      setSelectedDate(date as Date);
-                      setShowDatePicker(false);
-                    }}
-                    inline
-                    locale="it"
-                  />
-                </div>
-              )}
+    <div className="h-full w-full overflow-y-auto">
+      <div className="flex min-h-[1100px]">
+        {/* Time Labels */}
+        <div className="bg-white border-r shrink-0">
+          {timeSlots.map((slot, i) => (
+            <div
+              key={i}
+              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
+                slot.type === 'hour'
+                  ? 'font-bold text-gray-800'
+                  : slot.type === 'half'
+                  ? 'text-gray-500'
+                  : 'text-gray-300'
+              }`}
+            >
+              {slot.time}
             </div>
-          </div>
-
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Cerca cliente o servizio"
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex space-x-2 px-4 pt-2">
-          {['day', '3day', 'week'].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-3 py-1 rounded-full text-sm border ${
-                viewMode === mode
-                  ? 'bg-[#5D4037] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {mode === 'day' ? 'Giorno' : mode === '3day' ? '3 Giorni' : 'Settimana'}
-            </button>
           ))}
         </div>
 
-        <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
-          <button
-            onClick={() => setSelectedBarber('Tutti')}
-            className={`px-4 py-2 rounded-full text-sm border ${
-              selectedBarber === 'Tutti'
-                ? 'bg-[#5D4037] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            Tutti
-          </button>
-          {barbers.map((barber) => (
-            <button
-              key={barber.id}
-              onClick={() => setSelectedBarber(barber.id)}
-              className={`px-4 py-2 rounded-full text-sm border ${
-                selectedBarber === barber.id
-                  ? 'bg-[#5D4037] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {barber.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <Calendar
-            timeSlots={timeSlots}
-            appointments={filtered}
-            barbers={barbers || []}
-            selectedBarber={selectedBarber}
-            datesInView={getDatesInView(selectedDate, viewMode)}
-            onDrop={updateAppointmentTime}
-            onClickAppointment={(app) => setSelectedAppointment(app)}
-          />
+        {/* Appointment Grid */}
+        <div className="flex-1 overflow-x-auto bg-white">
+          <div className="flex min-w-full">
+            {datesInView.map((date) => {
+              const dateStr = date.toISOString().split('T')[0];
+              return barbersToRender.map((barber) => (
+                <DayBarberColumn
+                  key={`${dateStr}-${barber.id}`}
+                  date={dateStr}
+                  barber={barber}
+                  timeSlots={timeSlots}
+                  appointments={appointments}
+                  onDrop={onDrop}
+                  onClickAppointment={onClickAppointment}
+                  totalBarbers={barbersToRender.length}
+                />
+              ));
+            })}
+          </div>
         </div>
       </div>
-
-      {selectedAppointment && (
-        <AppointmentSummaryBanner
-          appointment={selectedAppointment}
-          onClose={() => setSelectedAppointment(null)}
-          onPay={handlePay}
-          onEdit={() => {}}
-          onDelete={() => {}}
-        />
-      )}
-
-      {showCreateModal && (
-        <CreateAppointmentModal
-          selectedDate={selectedDate}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={fetchAppointments}
-        />
-      )}
-
-      <SlidingPanelPayment
-        visible={showPaymentPanel}
-        prefill={paymentPrefill}
-        onClose={() => setShowPaymentPanel(false)}
-        onSuccess={() => {
-          setShowPaymentPanel(false);
-          fetchAppointments();
-        }}
-      />
     </div>
   );
 };
 
-export default Agenda;
+const DayBarberColumn = ({
+  date,
+  barber,
+  timeSlots,
+  appointments,
+  onDrop,
+  onClickAppointment,
+  totalBarbers,
+}) => {
+  return (
+    <div className="flex flex-col border-r" style={{ width: `${100 / totalBarbers}%` }}>
+      {timeSlots.map((slot) => {
+        const [, drop] = useDrop({
+          accept: 'APPOINTMENT',
+          drop: (draggedItem) => {
+            if (
+              draggedItem.appointment_time.slice(0, 5) !== slot.time ||
+              draggedItem.appointment_date !== date ||
+              draggedItem.barber_id !== barber.id
+            ) {
+              onDrop(draggedItem.id, {
+                newTime: `${slot.time}:00`,
+                newDate: date,
+                newBarberId: barber.id,
+              });
+            }
+          },
+        });
+
+        const apps = appointments.filter(
+          (a) =>
+            a.appointment_date === date &&
+            a.barber_id === barber.id &&
+            a.appointment_time.slice(0, 5) === slot.time
+        );
+
+        return (
+          <div
+            key={slot.time}
+            ref={drop}
+            className="h-[40px] border-t border-gray-200 relative px-1"
+          >
+            {apps.map((app) => (
+              <DraggableAppointment
+                key={app.id}
+                app={app}
+                onClick={() => onClickAppointment?.(app)}
+                flexBasis={100}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const DraggableAppointment = ({ app, onClick, flexBasis }) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: 'APPOINTMENT',
+    item: { ...app },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
+
+  const isPaid = app.paid === true;
+
+  return (
+    <div
+      ref={drag}
+      onClick={onClick}
+      className={`border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move ${
+        isDragging ? 'opacity-50' : ''
+      } ${
+        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+      }`}
+      style={{
+        height: `${(app.duration_min / 15) * slotHeight}px`,
+        flexBasis: `${flexBasis}%`,
+        flexGrow: 1,
+        flexShrink: 0,
+      }}
+    >
+      <div className="flex justify-between text-xs font-medium text-gray-800">
+        <span>{app.appointment_time?.slice(0, 5)}</span>
+        <span>{app.duration_min} min</span>
+      </div>
+      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
+        <div className="flex items-center">
+          <User size={14} className="mr-1 text-gray-500" />
+          <span className="truncate">{app.customer_name}</span>
+        </div>
+        {app.services?.name && (
+          <span className="text-xs italic text-gray-500 mt-1 truncate">
+            {app.services.name}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
