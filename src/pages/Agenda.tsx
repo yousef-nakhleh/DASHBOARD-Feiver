@@ -1,5 +1,7 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -29,7 +31,13 @@ const getDatesInView = (baseDate, mode) => {
 };
 
 const Agenda = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(today.getDate() + 2);
+
+  const [selectedDate, setSelectedDate] = useState(today);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
@@ -40,16 +48,19 @@ const Agenda = () => {
   const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
 
-  const timeSlots = generateTimeSlots();
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeSlots = generateTimeSlots();
 
-  const formatDate = (date: Date) =>
+  const formatDateFull = (date: Date) =>
     date.toLocaleDateString('it-IT', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
+
+  const formatSquare = (date: Date) =>
+    format(date, 'dd MMM', { locale: it }).toUpperCase();
 
   const navigateDay = (dir: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
@@ -115,25 +126,6 @@ const Agenda = () => {
           app.barber_id === selectedBarber
       );
 
-  const dateSquares = [0, 1, 2].map((offset) => {
-    const d = new Date();
-    d.setDate(selectedDate.getDate() + offset);
-    const label = d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
-    return (
-      <button
-        key={offset}
-        onClick={() => setSelectedDate(d)}
-        className={`px-3 py-1 rounded-full text-sm border ${
-          selectedDate.toDateString() === d.toDateString()
-            ? 'bg-[#5D4037] text-white'
-            : 'bg-white text-gray-700 hover:bg-gray-100'
-        }`}
-      >
-        {label}
-      </button>
-    );
-  });
-
   return (
     <div className="h-full relative">
       <div className="flex justify-between items-center mb-6">
@@ -152,17 +144,31 @@ const Agenda = () => {
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            {dateSquares}
+            {[today, tomorrow, dayAfterTomorrow].map((date) => (
+              <button
+                key={date.toDateString()}
+                onClick={() => setSelectedDate(date)}
+                className={`px-3 py-1 rounded-full text-sm border ${
+                  selectedDate.toDateString() === date.toDateString()
+                    ? 'bg-[#5D4037] text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {formatSquare(date)}
+              </button>
+            ))}
+
             <input
               ref={dateInputRef}
               type="date"
               className="hidden"
-              value={selectedDate.toISOString().split('T')[0]}
+              value={format(selectedDate, 'yyyy-MM-dd')}
               onChange={(e) => setSelectedDate(new Date(e.target.value))}
             />
+
             <button
-              onClick={() => dateInputRef.current?.click()}
-              className="p-2 rounded-full hover:bg-gray-100 border border-gray-300"
+              onClick={() => dateInputRef.current?.showPicker()}
+              className="p-2 rounded-full border border-gray-300 hover:bg-gray-100"
             >
               <CalendarIcon size={18} />
             </button>
