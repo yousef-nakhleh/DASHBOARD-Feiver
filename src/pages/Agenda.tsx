@@ -1,8 +1,6 @@
 import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '../lib/supabase'; 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
@@ -30,45 +28,26 @@ const getDatesInView = (baseDate, mode) => {
   });
 };
 
-const Agenda = () => {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(today.getDate() + 2);
+const formatSquareDate = (date) =>
+  date.toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: 'short',
+  }).toUpperCase();
 
-  const [selectedDate, setSelectedDate] = useState(today);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [barbers, setBarbers] = useState<any[]>([]);
-  const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
+const Agenda = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [appointments, setAppointments] = useState([]);
+  const [barbers, setBarbers] = useState([]);
+  const [selectedBarber, setSelectedBarber] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [paymentPrefill, setPaymentPrefill] = useState({});
-  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const [viewMode, setViewMode] = useState('day');
 
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const timeSlots = generateTimeSlots();
-
-  const formatDateFull = (date: Date) =>
-    date.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
-  const formatSquare = (date: Date) =>
-    format(date, 'dd MMM', { locale: it }).toUpperCase();
-
-  const navigateDay = (dir: 'prev' | 'next') => {
-    const newDate = new Date(selectedDate);
-    dir === 'prev'
-      ? newDate.setDate(newDate.getDate() - 1)
-      : newDate.setDate(newDate.getDate() + 1);
-    setSelectedDate(newDate);
-  };
+  const dateInputRef = useRef(null);
 
   const fetchAppointments = async () => {
     const dates = getDatesInView(selectedDate, viewMode);
@@ -93,7 +72,7 @@ const Agenda = () => {
     fetchBarbers();
   }, []);
 
-  const updateAppointmentTime = async (id: string, { newTime, newDate, newBarberId }) => {
+  const updateAppointmentTime = async (id, { newTime, newDate, newBarberId }) => {
     await supabase
       .from('appointments')
       .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
@@ -113,6 +92,13 @@ const Agenda = () => {
     setPaymentPrefill(prefill);
     setShowPaymentPanel(true);
   };
+
+  const today = new Date();
+  const day1 = today;
+  const day2 = new Date(today); day2.setDate(day2.getDate() + 1);
+  const day3 = new Date(today); day3.setDate(day3.getDate() + 2);
+
+  const dayButtons = [day1, day2, day3];
 
   const filtered = selectedBarber === 'Tutti'
     ? appointments.filter((app) =>
@@ -144,9 +130,9 @@ const Agenda = () => {
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            {[today, tomorrow, dayAfterTomorrow].map((date) => (
+            {dayButtons.map((date, idx) => (
               <button
-                key={date.toDateString()}
+                key={idx}
                 onClick={() => setSelectedDate(date)}
                 className={`px-3 py-1 rounded-full text-sm border ${
                   selectedDate.toDateString() === date.toDateString()
@@ -154,24 +140,21 @@ const Agenda = () => {
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {formatSquare(date)}
+                {formatSquareDate(date)}
               </button>
             ))}
-
-            <input
-              ref={dateInputRef}
-              type="date"
-              className="hidden"
-              value={format(selectedDate, 'yyyy-MM-dd')}
-              onChange={(e) => setSelectedDate(new Date(e.target.value))}
-            />
-
             <button
-              onClick={() => dateInputRef.current?.showPicker()}
-              className="p-2 rounded-full border border-gray-300 hover:bg-gray-100"
+              onClick={() => dateInputRef.current?.showPicker?.()}
+              className="p-2 border rounded-full hover:bg-gray-100"
             >
               <CalendarIcon size={18} />
             </button>
+            <input
+              type="date"
+              ref={dateInputRef}
+              className="hidden"
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+            />
           </div>
 
           <div className="relative">
