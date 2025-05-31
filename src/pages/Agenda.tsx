@@ -1,10 +1,12 @@
-import { CalendarIcon, Plus, Search } from 'lucide-react';
+import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase'; 
+import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -28,23 +30,18 @@ const getDatesInView = (baseDate, mode) => {
   });
 };
 
-const formatSquareDate = (date) =>
-  date.toLocaleDateString('it-IT', {
-    day: '2-digit',
-    month: 'short',
-  }).toUpperCase();
-
 const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [appointments, setAppointments] = useState([]);
-  const [barbers, setBarbers] = useState([]);
-  const [selectedBarber, setSelectedBarber] = useState('Tutti');
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [paymentPrefill, setPaymentPrefill] = useState({});
-  const [viewMode, setViewMode] = useState('day');
+  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const timeSlots = generateTimeSlots();
 
@@ -71,7 +68,7 @@ const Agenda = () => {
     fetchBarbers();
   }, []);
 
-  const updateAppointmentTime = async (id, { newTime, newDate, newBarberId }) => {
+  const updateAppointmentTime = async (id: string, { newTime, newDate, newBarberId }) => {
     await supabase
       .from('appointments')
       .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
@@ -92,12 +89,6 @@ const Agenda = () => {
     setShowPaymentPanel(true);
   };
 
-  const today = new Date();
-  const day1 = today;
-  const day2 = new Date(today); day2.setDate(day2.getDate() + 1);
-  const day3 = new Date(today); day3.setDate(day3.getDate() + 2);
-  const dayButtons = [day1, day2, day3];
-
   const filtered = selectedBarber === 'Tutti'
     ? appointments.filter((app) =>
         app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -109,6 +100,16 @@ const Agenda = () => {
             app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
           app.barber_id === selectedBarber
       );
+
+  const today = new Date();
+  const dateButtons = [0, 1, 2].map((offset) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    return d;
+  });
+
+  const formatShort = (d: Date) =>
+    d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
 
   return (
     <div className="h-full relative">
@@ -127,29 +128,42 @@ const Agenda = () => {
 
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            {dayButtons.map((date, idx) => (
+          <div className="flex items-center gap-2">
+            {dateButtons.map((date, i) => (
               <button
-                key={idx}
-                onClick={() => setSelectedDate(date)}
+                key={i}
                 className={`px-3 py-1 rounded-full text-sm border ${
                   selectedDate.toDateString() === date.toDateString()
                     ? 'bg-[#5D4037] text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
                 }`}
+                onClick={() => setSelectedDate(date)}
               >
-                {formatSquareDate(date)}
+                {formatShort(date)}
               </button>
             ))}
 
-            <label className="relative inline-flex items-center px-3 py-1 border rounded-full cursor-pointer hover:bg-gray-100">
-              <CalendarIcon size={18} className="text-gray-700" />
-              <input
-                type="date"
-                className="absolute opacity-0 inset-0 cursor-pointer"
-                onChange={(e) => setSelectedDate(new Date(e.target.value))}
-              />
-            </label>
+            <div className="relative">
+              <button
+                onClick={() => setShowDatePicker((prev) => !prev)}
+                className="p-2 rounded-full hover:bg-gray-100"
+              >
+                <CalendarIcon size={18} />
+              </button>
+              {showDatePicker && (
+                <div className="absolute z-50 top-10">
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={(date) => {
+                      setSelectedDate(date as Date);
+                      setShowDatePicker(false);
+                    }}
+                    inline
+                    locale="it"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="relative">
