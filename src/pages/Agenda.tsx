@@ -1,5 +1,5 @@
-import { CalendarIcon, Plus, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { CalendarIcon, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase'; 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -47,7 +47,6 @@ const Agenda = () => {
   const [viewMode, setViewMode] = useState('day');
 
   const timeSlots = generateTimeSlots();
-  const dateInputRef = useRef(null);
 
   const fetchAppointments = async () => {
     const dates = getDatesInView(selectedDate, viewMode);
@@ -97,7 +96,6 @@ const Agenda = () => {
   const day1 = today;
   const day2 = new Date(today); day2.setDate(day2.getDate() + 1);
   const day3 = new Date(today); day3.setDate(day3.getDate() + 2);
-
   const dayButtons = [day1, day2, day3];
 
   const filtered = selectedBarber === 'Tutti'
@@ -143,18 +141,15 @@ const Agenda = () => {
                 {formatSquareDate(date)}
               </button>
             ))}
-            <button
-              onClick={() => dateInputRef.current?.showPicker?.()}
-              className="p-2 border rounded-full hover:bg-gray-100"
-            >
-              <CalendarIcon size={18} />
-            </button>
-            <input
-              type="date"
-              ref={dateInputRef}
-              className="hidden"
-              onChange={(e) => setSelectedDate(new Date(e.target.value))}
-            />
+
+            <label className="relative inline-flex items-center px-3 py-1 border rounded-full cursor-pointer hover:bg-gray-100">
+              <CalendarIcon size={18} className="text-gray-700" />
+              <input
+                type="date"
+                className="absolute opacity-0 inset-0 cursor-pointer"
+                onChange={(e) => setSelectedDate(new Date(e.target.value))}
+              />
+            </label>
           </div>
 
           <div className="relative">
