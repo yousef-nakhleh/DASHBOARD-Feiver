@@ -16,6 +16,7 @@ const Staff = () => {
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
   const [isEditAvailabilityOpen, setIsEditAvailabilityOpen] = useState(false);
+  const [availabilities, setAvailabilities] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStaff();
@@ -26,7 +27,27 @@ const Staff = () => {
     if (!error) setStaffList(data);
   };
 
-  const handleSelect = (staff: any) => setSelectedStaff(staff);
+  const fetchAvailability = async (barberId: string) => {
+    const { data, error } = await supabase
+      .from('barbers_availabilities')
+      .select('*')
+      .eq('barber_id', barberId);
+
+    if (!error) setAvailabilities(data);
+    else setAvailabilities([]);
+  };
+
+  const handleSelect = async (staff: any) => {
+    setSelectedStaff(staff);
+    await fetchAvailability(staff.id);
+  };
+
+  // Group availability slots by weekday
+  const groupedAvailability: { [key: string]: any[] } = availabilities.reduce((acc: any, slot) => {
+    if (!acc[slot.weekday]) acc[slot.weekday] = [];
+    acc[slot.weekday].push(slot);
+    return acc;
+  }, {});
 
   return (
     <div className="h-full">
@@ -136,20 +157,22 @@ const Staff = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {selectedStaff.availability?.length > 0 ? (
-                    selectedStaff.availability.map((slot: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm font-medium capitalize">{slot.weekday}</p>
-                        <p className="text-sm text-gray-700">
-                          {slot.start_time} - {slot.end_time}
-                        </p>
+                {Object.keys(groupedAvailability).length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {Object.entries(groupedAvailability).map(([weekday, slots]) => (
+                      <div key={weekday} className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm font-medium capitalize">{weekday}</p>
+                        {slots.map((slot, idx) => (
+                          <p key={idx} className="text-sm text-gray-700">
+                            {slot.start_time} – {slot.end_time}
+                          </p>
+                        ))}
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">Nessuna disponibilità inserita.</p>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Nessuna disponibilità inserita.</p>
+                )}
               </div>
             </div>
           ) : (
@@ -161,7 +184,7 @@ const Staff = () => {
         </div>
       </div>
 
-      {/* New Staff Modal */}
+      {/* Modals */}
       {isNewStaffModalOpen && (
         <NewStaffModal
           open={isNewStaffModalOpen}
@@ -170,7 +193,6 @@ const Staff = () => {
         />
       )}
 
-      {/* Edit Availability Modal */}
       {selectedStaff && isEditAvailabilityOpen && (
         <EditStaffAvailabilityModal
           barberId={selectedStaff.id}
@@ -178,7 +200,7 @@ const Staff = () => {
           onClose={() => setIsEditAvailabilityOpen(false)}
           onUpdated={() => {
             setIsEditAvailabilityOpen(false);
-            fetchStaff(); // reload availability
+            fetchAvailability(selectedStaff.id); // refresh display
           }}
         />
       )}
