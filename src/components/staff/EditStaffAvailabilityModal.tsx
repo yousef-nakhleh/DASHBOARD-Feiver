@@ -1,173 +1,211 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { X, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
-const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const weekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday'
+];
 
-const generateTimeOptions = () => {
-  const times = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hour = String(h).padStart(2, '0');
-      const minute = String(m).padStart(2, '0');
-      times.push(`${hour}:${minute}`);
-    }
-  }
-  return times;
-};
+const defaultDay = () => ({ enabled: false, slots: [{ start_time: '', end_time: '' }] });
 
-const timeOptions = generateTimeOptions();
+const timeOptions = Array.from({ length: 24 * 4 }, (_, i) => {
+  const hour = Math.floor(i / 4);
+  const minutes = (i % 4) * 15;
+  return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
 
-const EditStaffAvailabilityModal = ({ open, onClose, barberId, existingAvailability = [] }) => {
+const EditStaffAvailabilityModal = ({ open, onClose, staffId, onUpdated }) => {
   const [availability, setAvailability] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initial = {};
-    weekdays.forEach((day) => {
-      initial[day.toLowerCase()] = [];
-    });
+    if (!open || !staffId) return;
 
-    existingAvailability.forEach((slot) => {
-      const day = slot.weekday.toLowerCase();
-      if (!initial[day]) initial[day] = [];
-      initial[day].push({ start_time: slot.start_time, end_time: slot.end_time });
-    });
+    const fetchAvailability = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('barbers_availabilities')
+        .select('*')
+        .eq('barber_id', staffId);
 
-    setAvailability(initial);
-  }, [existingAvailability]);
+      const initial = {};
+      weekdays.forEach((day) => (initial[day] = defaultDay()));
+
+      if (data) {
+        data.forEach(({ weekday, start_time, end_time }) => {
+          const day = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+          if (!initial[day].enabled) initial[day].enabled = true;
+          initial[day].slots.push({ start_time, end_time });
+        });
+        // remove the first empty default slot if data exists
+        weekdays.forEach((day) => {
+          if (initial[day].slots.length > 1 && initial[day].slots[0].start_time === '') {
+            initial[day].slots.shift();
+          }
+        });
+      }
+
+      setAvailability(initial);
+      setLoading(false);
+    };
+
+    fetchAvailability();
+  }, [open, staffId]);
 
   const handleToggleDay = (day) => {
-    const key = day.toLowerCase();
-    if (availability[key]?.length) {
-      setAvailability({ ...availability, [key]: [] });
-    } else {
-      setAvailability({ ...availability, [key]: [{ start_time: '', end_time: '' }] });
-    }
+    setAvailability((prev) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        enabled: !prev[day].enabled,
+      },
+    }));
   };
 
   const handleChange = (day, index, field, value) => {
-    const updatedDay = [...availability[day]];
-    updatedDay[index][field] = value;
-    setAvailability({ ...availability, [day]: updatedDay });
+    const newSlots = [...availability[day].slots];
+    newSlots[index][field] = value;
+    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], slots: newSlots } }));
   };
 
-  const handleAddTimeRange = (day) => {
-    setAvailability({
-      ...availability,
-      [day]: [...availability[day], { start_time: '', end_time: '' }]
-    });
+  const handleAddSlot = (day) => {
+    setAvailability((prev) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: [...prev[day].slots, { start_time: '', end_time: '' }],
+      },
+    }));
   };
 
-  const handleRemoveTimeRange = (day, index) => {
-    const updatedDay = [...availability[day]];
-    updatedDay.splice(index, 1);
-    setAvailability({ ...availability, [day]: updatedDay });
+  const handleRemoveSlot = (day, index) => {
+    const newSlots = [...availability[day].slots];
+    newSlots.splice(index, 1);
+    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], slots: newSlots } }));
   };
 
   const handleSave = async () => {
-    await supabase.from('barbers_availabilities').delete().eq('barber_id', barberId);
+    const { error: deleteErr } = await supabase
+      .from('barbers_availabilities')
+      .delete()
+      .eq('barber_id', staffId);
 
     const inserts = [];
-    for (const day in availability) {
-      availability[day].forEach(({ start_time, end_time }) => {
-        if (start_time && end_time) {
-          inserts.push({ barber_id: barberId, weekday: day, start_time, end_time });
-        }
-      });
-    }
+    weekdays.forEach((day) => {
+      if (availability[day].enabled) {
+        availability[day].slots.forEach((slot) => {
+          if (slot.start_time && slot.end_time) {
+            inserts.push({
+              barber_id: staffId,
+              weekday: day.toLowerCase(),
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+            });
+          }
+        });
+      }
+    });
 
     if (inserts.length > 0) {
-      await supabase.from('barbers_availabilities').insert(inserts);
+      const { error: insertErr } = await supabase.from('barbers_availabilities').insert(inserts);
+      if (insertErr) {
+        console.error('Insert error:', insertErr);
+        return;
+      }
     }
 
+    onUpdated();
     onClose();
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-[600px] max-h-[90vh] overflow-y-auto relative">
-        <button className="absolute top-2 right-2" onClick={onClose}>
-          <X size={18} />
-        </button>
-
+    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white w-[600px] max-h-[90vh] overflow-y-auto rounded-lg shadow p-6 relative">
         <h2 className="text-lg font-semibold mb-4">Modifica Disponibilità</h2>
 
-        <div className="space-y-4">
-          {weekdays.map((day) => {
-            const key = day.toLowerCase();
-            const isActive = availability[key]?.length > 0;
-            return (
-              <div key={key}>
-                <div className="flex items-center gap-3 mb-1">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={isActive}
-                      onChange={() => handleToggleDay(day)}
-                      className="accent-[#5D4037]"
-                    />
-                    <span className="font-medium w-20">{day}</span>
-                  </label>
-                  {isActive && (
-                    <button
-                      onClick={() => handleAddTimeRange(key)}
-                      className="text-sm text-[#5D4037] font-medium hover:underline"
-                    >
-                      + Aggiungi intervallo
-                    </button>
-                  )}
-                </div>
-
-                {isActive && availability[key].map((range, i) => (
-                  <div key={i} className="flex items-center gap-2 mb-2 ml-7">
-                    <select
-                      value={range.start_time}
-                      onChange={(e) => handleChange(key, i, 'start_time', e.target.value)}
-                      className="border px-2 py-1 rounded w-28"
-                    >
-                      <option value="">--:--</option>
-                      {timeOptions.map((time) => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
-                    </select>
-                    <span>→</span>
-                    <select
-                      value={range.end_time}
-                      onChange={(e) => handleChange(key, i, 'end_time', e.target.value)}
-                      className="border px-2 py-1 rounded w-28"
-                    >
-                      <option value="">--:--</option>
-                      {timeOptions.map((time) => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
-                    </select>
-                    {availability[key].length > 1 && (
-                      <button
-                        onClick={() => handleRemoveTimeRange(key, i)}
-                        className="text-gray-500 hover:text-red-600"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+        {loading ? (
+          <p>Caricamento...</p>
+        ) : (
+          weekdays.map((day) => (
+            <div key={day} className="mb-4">
+              <div className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  checked={availability[day].enabled}
+                  onChange={() => handleToggleDay(day)}
+                  className="mr-2"
+                />
+                <span className="font-medium w-24">{day}</span>
               </div>
-            );
-          })}
-        </div>
 
-        <div className="mt-6 flex justify-end gap-3">
+              {availability[day].enabled && (
+                <div className="space-y-2 pl-6">
+                  {availability[day].slots.map((slot, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select
+                        value={slot.start_time}
+                        onChange={(e) => handleChange(day, idx, 'start_time', e.target.value)}
+                        className="border rounded px-2 py-1"
+                      >
+                        <option value="">--:--</option>
+                        {timeOptions.map((time) => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                      </select>
+
+                      <span>→</span>
+
+                      <select
+                        value={slot.end_time}
+                        onChange={(e) => handleChange(day, idx, 'end_time', e.target.value)}
+                        className="border rounded px-2 py-1"
+                      >
+                        <option value="">--:--</option>
+                        {timeOptions.map((time) => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                      </select>
+
+                      {availability[day].slots.length > 1 && (
+                        <button
+                          onClick={() => handleRemoveSlot(day, idx)}
+                          className="text-red-600 text-sm hover:underline"
+                        >
+                          Rimuovi
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => handleAddSlot(day)}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    + Aggiungi intervallo
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+
+        <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded"
           >
             Annulla
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-[#5D4037] text-white rounded"
+            className="px-4 py-2 bg-[#5D4037] text-white rounded hover:bg-[#4E342E]"
           >
             Salva
           </button>
