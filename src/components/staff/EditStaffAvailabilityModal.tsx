@@ -1,215 +1,173 @@
+// src/components/staff/EditStaffAvailabilityModal.tsx
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
-const weekdays = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday'
-];
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const defaultDay = () => ({ enabled: false, slots: [{ start_time: '', end_time: '' }] });
+const generateTimeSlots = () => {
+  const slots: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return slots;
+};
 
-const timeOptions = Array.from({ length: 24 * 4 }, (_, i) => {
-  const hour = Math.floor(i / 4);
-  const minutes = (i % 4) * 15;
-  return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-});
+const timeOptions = generateTimeSlots();
 
-const EditStaffAvailabilityModal = ({ open, onClose, staffId, onUpdated }) => {
-  const [availability, setAvailability] = useState({});
+const EditStaffAvailabilityModal = ({ open, onClose, barberId, onSaved }) => {
   const [loading, setLoading] = useState(true);
+  const [availability, setAvailability] = useState({});
 
   useEffect(() => {
-    if (!open || !staffId) return;
+    if (!open || !barberId) return;
 
-    const fetchAvailability = async () => {
+    const fetchData = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('barbers_availabilities')
         .select('*')
-        .eq('barber_id', staffId);
+        .eq('barber_id', barberId);
 
-      const initial = {};
-      weekdays.forEach((day) => (initial[day] = defaultDay()));
-
-      if (data) {
-        data.forEach(({ weekday, start_time, end_time }) => {
-          const day = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-          if (!initial[day].enabled) initial[day].enabled = true;
-          initial[day].slots.push({ start_time, end_time });
+      if (!error) {
+        const structured = {};
+        weekdays.forEach(day => structured[day.toLowerCase()] = []);
+        data.forEach(slot => {
+          structured[slot.weekday]?.push({ start: slot.start_time, end: slot.end_time, id: slot.id });
         });
-        // remove the first empty default slot if data exists
-        weekdays.forEach((day) => {
-          if (initial[day].slots.length > 1 && initial[day].slots[0].start_time === '') {
-            initial[day].slots.shift();
-          }
-        });
+        setAvailability(structured);
       }
-
-      setAvailability(initial);
       setLoading(false);
     };
 
-    fetchAvailability();
-  }, [open, staffId]);
+    fetchData();
+  }, [open, barberId]);
 
   const handleToggleDay = (day) => {
-    setAvailability((prev) => ({
+    setAvailability(prev => ({
       ...prev,
-      [day]: {
-        ...prev[day],
-        enabled: !prev[day].enabled,
-      },
+      [day]: prev[day]?.length ? [] : [{ start: '', end: '' }]
     }));
   };
 
-  const handleChange = (day, index, field, value) => {
-    const newSlots = [...availability[day].slots];
-    newSlots[index][field] = value;
-    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], slots: newSlots } }));
+  const handleTimeChange = (day, index, field, value) => {
+    setAvailability(prev => {
+      const updated = [...prev[day]];
+      updated[index][field] = value;
+      return { ...prev, [day]: updated };
+    });
   };
 
-  const handleAddSlot = (day) => {
-    setAvailability((prev) => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        slots: [...prev[day].slots, { start_time: '', end_time: '' }],
-      },
-    }));
+  const addSlot = (day) => {
+    setAvailability(prev => ({ ...prev, [day]: [...prev[day], { start: '', end: '' }] }));
   };
 
-  const handleRemoveSlot = (day, index) => {
-    const newSlots = [...availability[day].slots];
-    newSlots.splice(index, 1);
-    setAvailability((prev) => ({ ...prev, [day]: { ...prev[day], slots: newSlots } }));
+  const removeSlot = (day, index) => {
+    setAvailability(prev => {
+      const updated = prev[day].filter((_, i) => i !== index);
+      return { ...prev, [day]: updated };
+    });
   };
 
   const handleSave = async () => {
-    const { error: deleteErr } = await supabase
-      .from('barbers_availabilities')
-      .delete()
-      .eq('barber_id', staffId);
+    await supabase.from('barbers_availabilities').delete().eq('barber_id', barberId);
 
-    const inserts = [];
-    weekdays.forEach((day) => {
-      if (availability[day].enabled) {
-        availability[day].slots.forEach((slot) => {
-          if (slot.start_time && slot.end_time) {
-            inserts.push({
-              barber_id: staffId,
-              weekday: day.toLowerCase(),
-              start_time: slot.start_time,
-              end_time: slot.end_time,
-            });
-          }
-        });
-      }
-    });
-
-    if (inserts.length > 0) {
-      const { error: insertErr } = await supabase.from('barbers_availabilities').insert(inserts);
-      if (insertErr) {
-        console.error('Insert error:', insertErr);
-        return;
-      }
+    const toInsert = [];
+    for (const day of Object.keys(availability)) {
+      availability[day].forEach(({ start, end }) => {
+        if (start && end) toInsert.push({ barber_id: barberId, weekday: day, start_time: start, end_time: end });
+      });
     }
 
-    onUpdated();
+    if (toInsert.length) await supabase.from('barbers_availabilities').insert(toInsert);
+    onSaved();
     onClose();
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white w-[600px] max-h-[90vh] overflow-y-auto rounded-lg shadow p-6 relative">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-[500px] max-h-[80vh] overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4">Modifica Disponibilità</h2>
-
         {loading ? (
           <p>Caricamento...</p>
         ) : (
-          weekdays.map((day) => (
-            <div key={day} className="mb-4">
-              <div className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  checked={availability[day].enabled}
-                  onChange={() => handleToggleDay(day)}
-                  className="mr-2"
-                />
-                <span className="font-medium w-24">{day}</span>
-              </div>
+          <div className="space-y-4">
+            {weekdays.map(day => {
+              const key = day.toLowerCase();
+              return (
+                <div key={day} className="border rounded p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="font-medium">
+                      <input
+                        type="checkbox"
+                        className="mr-2 accent-[#5D4037]"
+                        checked={!!availability[key]?.length}
+                        onChange={() => handleToggleDay(key)}
+                      />
+                      {day}
+                    </label>
+                    {availability[key]?.length > 0 && (
+                      <button
+                        className="text-sm text-blue-600"
+                        onClick={() => addSlot(key)}
+                      >
+                        + Aggiungi intervallo
+                      </button>
+                    )}
+                  </div>
 
-              {availability[day].enabled && (
-                <div className="space-y-2 pl-6">
-                  {availability[day].slots.map((slot, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+                  {availability[key]?.map((slot, index) => (
+                    <div key={index} className="flex items-center gap-2 mb-2">
                       <select
-                        value={slot.start_time}
-                        onChange={(e) => handleChange(day, idx, 'start_time', e.target.value)}
-                        className="border rounded px-2 py-1"
+                        value={slot.start}
+                        onChange={(e) => handleTimeChange(key, index, 'start', e.target.value)}
+                        className="border px-2 py-1 rounded w-[100px]"
                       >
                         <option value="">--:--</option>
-                        {timeOptions.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
+                        {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
-
                       <span>→</span>
-
                       <select
-                        value={slot.end_time}
-                        onChange={(e) => handleChange(day, idx, 'end_time', e.target.value)}
-                        className="border rounded px-2 py-1"
+                        value={slot.end}
+                        onChange={(e) => handleTimeChange(key, index, 'end', e.target.value)}
+                        className="border px-2 py-1 rounded w-[100px]"
                       >
                         <option value="">--:--</option>
-                        {timeOptions.map((time) => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
+                        {timeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
-
-                      {availability[day].slots.length > 1 && (
+                      {availability[key].length > 1 && (
                         <button
-                          onClick={() => handleRemoveSlot(day, idx)}
-                          className="text-red-600 text-sm hover:underline"
+                          onClick={() => removeSlot(key, index)}
+                          className="text-red-500 text-sm"
                         >
                           Rimuovi
                         </button>
                       )}
                     </div>
                   ))}
-
-                  <button
-                    onClick={() => handleAddSlot(day)}
-                    className="text-blue-600 text-sm hover:underline"
-                  >
-                    + Aggiungi intervallo
-                  </button>
                 </div>
-              )}
-            </div>
-          ))
-        )}
+              );
+            })}
 
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded"
-          >
-            Annulla
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-[#5D4037] text-white rounded hover:bg-[#4E342E]"
-          >
-            Salva
-          </button>
-        </div>
+            <div className="flex justify-end mt-4 gap-2">
+              <button
+                onClick={onClose}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleSave}
+                className="bg-[#5D4037] text-white px-4 py-2 rounded"
+              >
+                Salva
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
