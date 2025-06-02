@@ -6,23 +6,25 @@ import {
   Phone,
   Mail,
   Calendar,
-  Edit,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NewStaffModal from '../components/staff/NewStaffModal';
+import EditStaffAvailabilityModal from '../components/staff/EditStaffAvailabilityModal';
 
 const Staff = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
+  const [isEditAvailabilityOpen, setIsEditAvailabilityOpen] = useState(false);
 
   useEffect(() => {
-    const fetchStaff = async () => {
-      const { data, error } = await supabase.from('barbers').select('*');
-      if (!error) setStaffList(data);
-    };
     fetchStaff();
   }, []);
+
+  const fetchStaff = async () => {
+    const { data, error } = await supabase.from('barbers').select('*');
+    if (!error) setStaffList(data);
+  };
 
   const handleSelect = (staff: any) => setSelectedStaff(staff);
 
@@ -124,7 +126,16 @@ const Staff = () => {
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Orario di Lavoro</h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-medium text-gray-500">Orario di Lavoro</h3>
+                  <button
+                    onClick={() => setIsEditAvailabilityOpen(true)}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Modifica
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {selectedStaff.availability?.length > 0 ? (
                     selectedStaff.availability.map((slot: any, idx: number) => (
@@ -150,12 +161,25 @@ const Staff = () => {
         </div>
       </div>
 
-      {/* Custom Modal */}
+      {/* New Staff Modal */}
       {isNewStaffModalOpen && (
         <NewStaffModal
           open={isNewStaffModalOpen}
           onOpenChange={setIsNewStaffModalOpen}
           onCreated={(newStaff) => setStaffList((prev) => [...prev, newStaff])}
+        />
+      )}
+
+      {/* Edit Availability Modal */}
+      {selectedStaff && isEditAvailabilityOpen && (
+        <EditStaffAvailabilityModal
+          barberId={selectedStaff.id}
+          open={isEditAvailabilityOpen}
+          onClose={() => setIsEditAvailabilityOpen(false)}
+          onUpdated={() => {
+            setIsEditAvailabilityOpen(false);
+            fetchStaff(); // reload availability
+          }}
         />
       )}
     </div>
