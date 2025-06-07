@@ -126,7 +126,7 @@ const Layout = () => {
               <div className="flex items-center">
                 <span className="text-sm text-gray-700 mr-2">Franesca</span>
                 <div className="h-8 w-8 rounded-full bg-[#5D4037] text-white flex items-center justify-center">
-                  MR
+                  F
                 </div>
               </div>
             </div>
