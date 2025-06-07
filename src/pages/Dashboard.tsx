@@ -10,9 +10,9 @@ const Dashboard: React.FC = () => {
   };
 
   const popularServices = [
-    { name: 'Taglio e Barba', bookings: 3, revenue: 105 },
-    { name: 'Taglio Classico', bookings: 2, revenue: 50 },
-    { name: 'Rasatura', bookings: 2, revenue: 40 }
+    { name: 'Extention', bookings: 3, revenue: 105 },
+    { name: 'Piega', bookings: 2, revenue: 50 },
+    { name: 'Unique ristrutturante', bookings: 2, revenue: 40 }
   ];
 
   const staffToday = [
