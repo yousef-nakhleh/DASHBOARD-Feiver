@@ -11,7 +11,8 @@ import Magazzino from './pages/Magazzino';
 import Staff from './pages/Staff';
 import Spese from './pages/Spese';
 import Promozioni from './pages/Promozioni';
-import PaymentPage from './components/payment/PaymentPage'; // ✅ CORRECTED import
+import Settings from './pages/Settings';
+import PaymentPage from './components/payment/PaymentPage';
 
 function App() {
   return (
@@ -21,7 +22,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="agenda" element={<Agenda />} />
           <Route path="cassa" element={<Cassa />} />
-          <Route path="cassa/pagamento" element={<PaymentPage />} /> {/* ✅ Add this */}
+          <Route path="cassa/pagamento" element={<PaymentPage />} />
           <Route path="rubrica" element={<Rubrica />} />
           <Route path="trattamenti" element={<Trattamenti />} />
           <Route path="statistiche" element={<Statistiche />} />
@@ -29,6 +30,7 @@ function App() {
           <Route path="staff" element={<Staff />} />
           <Route path="spese" element={<Spese />} />
           <Route path="promozioni" element={<Promozioni />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
