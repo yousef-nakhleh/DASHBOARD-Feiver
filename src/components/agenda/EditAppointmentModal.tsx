@@ -8,10 +8,9 @@ const EditAppointmentModal = ({
   appointment,
   onClose,
   onUpdated,
-  initialTab = 'edit', // 👈 allow external control
+  initialTab = 'edit',
 }) => {
   const navigate = useNavigate();
-
   if (!appointment) return null;
 
   const [activeTab, setActiveTab] = useState<'edit' | 'payment'>(initialTab);
@@ -63,18 +62,21 @@ const EditAppointmentModal = ({
           appointment_time: appointmentTime,
           service_id: selectedServiceId,
         })
-        .eq('uuid', appointment.uuid);
+        .eq('id', appointment.id); // ✅ Correct column name
 
       if (error) {
         console.error('Errore durante la modifica:', error.message);
         return;
       }
+
+      onUpdated();
+      onClose();
     }
 
     if (activeTab === 'payment') {
       navigate('/cassa/nuova', {
         state: {
-          appointment_id: appointment.uuid,
+          appointment_id: appointment.id, // ✅ Correct column name
           customer_name,
           barber_id: appointment.barber_id,
           service_id: selectedServiceId,
@@ -84,11 +86,7 @@ const EditAppointmentModal = ({
           payment_method: '',
         },
       });
-      return; // Let navigation handle the rest
     }
-
-    onUpdated();
-    onClose();
   };
 
   return (
@@ -119,7 +117,7 @@ const EditAppointmentModal = ({
           {activeTab === 'edit' ? 'Modifica Appuntamento' : 'Gestione Pagamento'}
         </h2>
 
-        {/* Edit Form */}
+        {/* Edit Tab */}
         {activeTab === 'edit' && (
           <div className="space-y-4 mt-2">
             <div>
@@ -209,7 +207,7 @@ const EditAppointmentModal = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={activeTab === 'payment'} // avoid duplicate trigger
+            disabled={activeTab === 'payment'}
             className={`px-4 py-2 rounded text-white ${
               activeTab === 'payment'
                 ? 'bg-gray-400 cursor-not-allowed'
