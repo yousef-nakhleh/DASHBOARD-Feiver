@@ -1,9 +1,7 @@
-// src/pages/Agenda.tsx          ← adjust path if yours is different
+// src/pages/Agenda.tsx
 import {
   CalendarIcon,
   Plus,
-  ChevronLeft,
-  ChevronRight,
   Search,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -12,24 +10,18 @@ import { supabase } from '../lib/supabase';
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
-import EditAppointmentModal from '../components/agenda/EditAppointmentModal';   // 🆕
+import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-
-/* ------------------------------------------------------------------ */
-/* helpers                                                            */
-/* ------------------------------------------------------------------ */
 
 const generateTimeSlots = () => {
   const slots = [];
   for (let h = 6; h <= 21; h++) {
     for (let m = 0; m < 60; m += 15) {
       if (h === 21 && m > 0) break;
-      const time = `${h.toString().padStart(2, '0')}:${m
-        .toString()
-        .padStart(2, '0')}`;
+      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
       const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
       slots.push({ time, type });
     }
@@ -47,27 +39,18 @@ const getDatesInView = (baseDate, mode) => {
 };
 
 const formatShort = (d: Date) =>
-  d
-    .toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
-    .toUpperCase();
-
-/* ------------------------------------------------------------------ */
-/* component                                                          */
-/* ------------------------------------------------------------------ */
+  d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
 
 const Agenda = () => {
-  /* ---------- state ---------- */
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(
-    null
-  );
+  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false); // 🆕
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
@@ -75,16 +58,13 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  /* ---------- fetchers ---------- */
   const fetchAppointments = async () => {
     const dates = getDatesInView(selectedDate, viewMode);
     const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
-
     const { data, error } = await supabase
       .from('appointments')
       .select(`*, services ( name, price )`)
       .in('appointment_date', dateStrings);
-
     if (error) console.error('Errore fetch appointments:', error.message);
     setAppointments(data || []);
   };
@@ -103,40 +83,31 @@ const Agenda = () => {
     fetchBarbers();
   }, []);
 
-  /* ---------- mutations ---------- */
-
-  // drag-and-drop time change
   const updateAppointmentTime = async (
-    uuid: string,
+    id: string,
     { newTime, newDate, newBarberId }
   ) => {
     await supabase
       .from('appointments')
-      .update({
-        appointment_time: newTime,
-        appointment_date: newDate,
-        barber_id: newBarberId,
-      })
-      .eq('uuid', uuid); // 🆕 use correct PK
+      .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
+      .eq('id', id);
     fetchAppointments();
   };
 
-  // soft delete (status → cancellato)
   const handleDelete = async () => {
     if (!selectedAppointment) return;
     await supabase
       .from('appointments')
       .update({ appointment_status: 'cancellato' })
-      .eq('uuid', selectedAppointment.uuid);
+      .eq('id', selectedAppointment.id);
     setSelectedAppointment(null);
     fetchAppointments();
   };
 
-  // open sliding payment panel
   const handlePay = () => {
     if (!selectedAppointment) return;
     setPaymentPrefill({
-      appointment_id: selectedAppointment.uuid, // 🆕
+      appointment_id: selectedAppointment.id,
       barber_id: selectedAppointment.barber_id,
       service_id: selectedAppointment.service_id,
       price: selectedAppointment.services?.price || 0,
@@ -145,25 +116,17 @@ const Agenda = () => {
     setShowPaymentPanel(true);
   };
 
-  /* ---------- derived data ---------- */
-
   const filtered =
     selectedBarber === 'Tutti'
       ? appointments.filter(
           (app) =>
-            app.customer_name
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
+            app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : appointments.filter(
           (app) =>
-            (app.customer_name
-              ?.toLowerCase()
-              .includes(searchQuery.toLowerCase()) ||
-              app.services?.name
-                ?.toLowerCase()
-                .includes(searchQuery.toLowerCase())) &&
+            (app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
             app.barber_id === selectedBarber
         );
 
@@ -174,13 +137,8 @@ const Agenda = () => {
     return d;
   });
 
-  /* ------------------------------------------------------------------ */
-  /* render                                                             */
-  /* ------------------------------------------------------------------ */
-
   return (
     <div className="h-full relative">
-      {/* ---------------- Header ---------------- */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
@@ -194,11 +152,8 @@ const Agenda = () => {
         </button>
       </div>
 
-      {/* ---------------- Card ---------------- */}
       <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
-        {/* -------- top-bar (date/search/view) -------- */}
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          {/* quick-date pills + calendar picker */}
           <div className="flex items-center gap-2">
             {dateButtons.map((date, i) => (
               <button
@@ -213,7 +168,6 @@ const Agenda = () => {
                 {formatShort(date)}
               </button>
             ))}
-
             <div className="relative">
               <button
                 onClick={() => setShowDatePicker((prev) => !prev)}
@@ -237,7 +191,6 @@ const Agenda = () => {
             </div>
           </div>
 
-          {/* search */}
           <div className="relative">
             <Search
               size={18}
@@ -253,7 +206,6 @@ const Agenda = () => {
           </div>
         </div>
 
-        {/* view-mode pills */}
         <div className="flex space-x-2 px-4 pt-2">
           {['day', '3day', 'week'].map((mode) => (
             <button
@@ -265,16 +217,11 @@ const Agenda = () => {
                   : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {mode === 'day'
-                ? 'Giorno'
-                : mode === '3day'
-                ? '3 Giorni'
-                : 'Settimana'}
+              {mode === 'day' ? 'Giorno' : mode === '3day' ? '3 Giorni' : 'Settimana'}
             </button>
           ))}
         </div>
 
-        {/* barber filter pills */}
         <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
           <button
             onClick={() => setSelectedBarber('Tutti')}
@@ -301,7 +248,6 @@ const Agenda = () => {
           ))}
         </div>
 
-        {/* ---------------- Calendar grid ---------------- */}
         <div className="flex-1 overflow-hidden">
           <Calendar
             timeSlots={timeSlots}
@@ -315,18 +261,16 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* ---------------- Summary banner ---------------- */}
       {selectedAppointment && (
         <AppointmentSummaryBanner
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
           onPay={handlePay}
-          onEdit={() => setShowEditModal(true)} // 🆕 open edit
+          onEdit={() => setShowEditModal(true)}
           onDelete={handleDelete}
         />
       )}
 
-      {/* ---------------- Edit modal ---------------- */}
       {showEditModal && selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
@@ -339,7 +283,6 @@ const Agenda = () => {
         />
       )}
 
-      {/* ---------------- Create modal ---------------- */}
       {showCreateModal && (
         <CreateAppointmentModal
           selectedDate={selectedDate}
@@ -348,7 +291,6 @@ const Agenda = () => {
         />
       )}
 
-      {/* ---------------- Payment panel ---------------- */}
       <SlidingPanelPayment
         visible={showPaymentPanel}
         prefill={paymentPrefill}
