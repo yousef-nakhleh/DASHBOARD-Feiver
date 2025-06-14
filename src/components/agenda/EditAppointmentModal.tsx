@@ -1,4 +1,3 @@
-// src/components/agenda/EditAppointmentModal.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -8,7 +7,6 @@ const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
 const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const navigate = useNavigate();
 
-  // ✅ Return early if appointment is not available
   if (!appointment) return null;
 
   const [activeTab, setActiveTab] = useState<'edit' | 'payment'>('payment');
@@ -31,7 +29,15 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
 
   useEffect(() => {
     const fetchServices = async () => {
-      const { data } = await supabase.from('services').select('id, name, duration_min, price');
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name, duration_min, price');
+
+      if (error) {
+        console.error('Errore nel recupero dei servizi:', error.message);
+        return;
+      }
+
       if (data) {
         setServices(data);
         const current = data.find((s) => s.id === appointment.service_id);
@@ -48,52 +54,71 @@ const EditAppointmentModal = ({ appointment, onClose, onUpdated }) => {
   const handleSave = async () => {
     const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
 
-    if (activeTab === 'edit') {
-      await supabase
-        .from('appointments')
-        .update({
-          customer_name: customerName,
-          duration_min: duration,
-          appointment_date: fullDateTime,
-          appointment_time: appointmentTime,
-          service_id: selectedServiceId,
-        })
-        .eq('id', appointment.id);
+    try {
+      if (activeTab === 'edit') {
+        const { error } = await supabase
+          .from('appointments')
+          .update({
+            customer_name: customerName,
+            duration_min: duration,
+            appointment_date: fullDateTime,
+            appointment_time: appointmentTime,
+            service_id: selectedServiceId,
+          })
+          .eq('uuid', appointment.uuid); // FIXED
+
+        if (error) {
+          console.error('Errore durante il salvataggio dell\'appuntamento:', error.message);
+          return;
+        }
+      }
+
+      if (activeTab === 'payment') {
+        const total = price - discount;
+
+        const { error: payError } = await supabase
+          .from('appointments')
+          .update({
+            paid: true,
+            payment_method: paymentMethod,
+          })
+          .eq('uuid', appointment.uuid); // FIXED
+
+        if (payError) {
+          console.error('Errore durante il pagamento:', payError.message);
+          return;
+        }
+
+        const { error: transactionError } = await supabase.from('transactions').insert([
+          {
+            appointment_id: appointment.uuid, // FIXED
+            barber_id: appointment.barber_id,
+            service_id: selectedServiceId,
+            price,
+            discount,
+            total,
+            payment_method: paymentMethod,
+            completed_at: new Date().toISOString(),
+          },
+        ]);
+
+        if (transactionError) {
+          console.error('Errore inserimento transazione:', transactionError.message);
+          return;
+        }
+      }
+
+      onUpdated();
+      onClose();
+    } catch (err) {
+      console.error('Errore imprevisto:', err);
     }
-
-    if (activeTab === 'payment') {
-      const total = price - discount;
-
-      await supabase
-        .from('appointments')
-        .update({
-          paid: true,
-          payment_method: paymentMethod,
-        })
-        .eq('id', appointment.id);
-
-      await supabase.from('transactions').insert([
-        {
-          appointment_id: appointment.id,
-          barber_id: appointment.barber_id,
-          service_id: selectedServiceId,
-          price,
-          discount,
-          total,
-          payment_method: paymentMethod,
-          completed_at: new Date().toISOString(),
-        },
-      ]);
-    }
-
-    onUpdated();
-    onClose();
   };
 
   const handleGoToPayment = () => {
     navigate('/cassa/nuova', {
       state: {
-        appointment_id: appointment.id,
+        appointment_id: appointment.uuid,
         customer_name: appointment.customer_name ?? '',
         barber_id: appointment.barber_id ?? '',
         service_id: appointment.service_id ?? '',
