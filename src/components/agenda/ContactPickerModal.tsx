@@ -1,21 +1,17 @@
+// src/components/agenda/ContactPickerModal.tsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 
-interface ContactPickerModalProps {
-  onSelect: (fullName: string) => void;
-  onClose: () => void;
-}
-
-const ContactPickerModal: React.FC<ContactPickerModalProps> = ({ onSelect, onClose }) => {
-  const [contacts, setContacts] = useState<{ full_name: string }[]>([]);
+const ContactPickerModal = ({ onSelect, onClose }) => {
+  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchContacts = async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('full_name')
-        .order('full_name', { ascending: true });
+        .select('customer_name, customer_email, customer_phone')
+        .order('customer_name', { ascending: true });
 
       if (error) {
         console.error('Errore caricamento contatti:', error.message);
@@ -23,7 +19,6 @@ const ContactPickerModal: React.FC<ContactPickerModalProps> = ({ onSelect, onClo
       } else {
         setContacts(data || []);
       }
-
       setLoading(false);
     };
 
@@ -31,36 +26,31 @@ const ContactPickerModal: React.FC<ContactPickerModalProps> = ({ onSelect, onClo
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-lg p-5 w-[360px] max-h-[500px] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">Seleziona un Contatto</h2>
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-lg w-[400px] p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Seleziona un Contatto</h2>
+          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Chiudi</button>
+        </div>
 
         {loading ? (
-          <p className="text-sm text-gray-500">Caricamento contatti...</p>
+          <p className="text-gray-500 text-sm">Caricamento...</p>
         ) : contacts.length === 0 ? (
-          <p className="text-sm text-gray-500">Nessun contatto disponibile.</p>
+          <p className="text-gray-500 text-sm">Nessun contatto disponibile.</p>
         ) : (
-          <ul className="space-y-2">
-            {contacts.map((contact) => (
+          <ul className="space-y-3 max-h-60 overflow-y-auto">
+            {contacts.map((contact, idx) => (
               <li
-                key={contact.full_name}
-                onClick={() => onSelect(contact.full_name)}
-                className="cursor-pointer px-3 py-2 rounded hover:bg-gray-100 text-sm text-gray-800"
+                key={idx}
+                onClick={() => onSelect(contact)}
+                className="border p-2 rounded hover:bg-gray-100 cursor-pointer"
               >
-                {contact.full_name}
+                <p className="font-medium text-sm">{contact.customer_name}</p>
+                <p className="text-xs text-gray-500">{contact.customer_email}</p>
               </li>
             ))}
           </ul>
         )}
-
-        <div className="flex justify-end mt-5">
-          <button
-            onClick={onClose}
-            className="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Chiudi
-          </button>
-        </div>
       </div>
     </div>
   );
