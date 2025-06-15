@@ -16,6 +16,8 @@ import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
+
 const generateTimeSlots = () => {
   const slots = [];
   for (let h = 6; h <= 21; h++) {
@@ -64,13 +66,17 @@ const Agenda = () => {
     const { data, error } = await supabase
       .from('appointments')
       .select(`*, services ( name, price )`)
+      .eq('business_id', BUSINESS_ID)
       .in('appointment_date', dateStrings);
     if (error) console.error('Errore fetch appointments:', error.message);
     setAppointments(data || []);
   };
 
   const fetchBarbers = async () => {
-    const { data, error } = await supabase.from('barbers').select('*');
+    const { data, error } = await supabase
+      .from('barbers')
+      .select('*')
+      .eq('business_id', BUSINESS_ID);
     if (error) console.error('Errore fetch barbers:', error.message);
     setBarbers(data || []);
   };
