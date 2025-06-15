@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
+import { User2 } from 'lucide-react';
 
 const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [customerName, setCustomerName] = useState('');
@@ -16,6 +17,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [duration, setDuration] = useState(30);
   const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showContactPicker, setShowContactPicker] = useState(false); // 🆕
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,128 +89,161 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
-        <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
+          <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            />
-          </div>
+          <div className="space-y-4">
+            {/* Nome Cliente + Icona contatto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full mt-1 border border-gray-300 rounded px-3 py-2 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowContactPicker(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  title="Seleziona da contatti"
+                >
+                  <User2 size={18} />
+                </button>
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Servizio</label>
-            <select
-              value={selectedService}
-              onChange={handleServiceChange}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">Seleziona servizio</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Barbiere</label>
-            <select
-              value={selectedBarber}
-              onChange={(e) => setSelectedBarber(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">Seleziona barbiere</option>
-              {barbers.map((barber) => (
-                <option key={barber.id} value={barber.id}>
-                  {barber.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Data</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Orario</label>
-            <select
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            >
-              {Array.from({ length: 61 }, (_, i) => {
-                const hour = 6 + Math.floor(i / 4);
-                const minute = (i % 4) * 15;
-                const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                const slotStart = new Date(`${selectedDate}T${time}:00`);
-                const slotEnd = new Date(slotStart.getTime() + duration * 60000);
-
-                const isOccupied = appointments.some((appt) => {
-                  const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
-                  const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
-                  return slotStart < apptEnd && slotEnd > apptStart;
-                });
-
-                return (
-                  <option
-                    key={time}
-                    value={time}
-                    disabled={isOccupied}
-                    className={isOccupied ? 'line-through text-gray-400' : ''}
-                  >
-                    {time} {isOccupied ? '(occupato)' : ''}
+            {/* Servizio */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Servizio</label>
+              <select
+                value={selectedService}
+                onChange={handleServiceChange}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">Seleziona servizio</option>
+                {services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name}
                   </option>
-                );
-              })}
-            </select>
+                ))}
+              </select>
+            </div>
+
+            {/* Barbiere */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Barbiere</label>
+              <select
+                value={selectedBarber}
+                onChange={(e) => setSelectedBarber(e.target.value)}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">Seleziona barbiere</option>
+                {barbers.map((barber) => (
+                  <option key={barber.id} value={barber.id}>
+                    {barber.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Data */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Data</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+
+            {/* Orario */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Orario</label>
+              <select
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              >
+                {Array.from({ length: 61 }, (_, i) => {
+                  const hour = 6 + Math.floor(i / 4);
+                  const minute = (i % 4) * 15;
+                  const time = `${hour.toString().padStart(2, '0')}:${minute
+                    .toString()
+                    .padStart(2, '0')}`;
+                  const slotStart = new Date(`${selectedDate}T${time}:00`);
+                  const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+                  const isOccupied = appointments.some((appt) => {
+                    const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
+                    const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                    return slotStart < apptEnd && slotEnd > apptStart;
+                  });
+
+                  return (
+                    <option
+                      key={time}
+                      value={time}
+                      disabled={isOccupied}
+                      className={isOccupied ? 'line-through text-gray-400' : ''}
+                    >
+                      {time} {isOccupied ? '(occupato)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Durata */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+
+            {/* Error */}
+            {errorMsg && (
+              <div className="text-red-600 text-sm font-medium">{errorMsg}</div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
-            <input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            />
+          {/* Footer */}
+          <div className="flex justify-end mt-6 space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+            >
+              Crea
+            </button>
           </div>
-
-          {errorMsg && (
-            <div className="text-red-600 text-sm font-medium">{errorMsg}</div>
-          )}
-        </div>
-
-        <div className="flex justify-end mt-6 space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
-          >
-            Annulla
-          </button>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
-          >
-            Crea
-          </button>
         </div>
       </div>
-    </div>
+
+      {/* Contact picker modal */}
+      {showContactPicker && (
+        <ContactPickerModal
+          onSelect={(name) => {
+            setCustomerName(name);
+            setShowContactPicker(false);
+          }}
+          onClose={() => setShowContactPicker(false)}
+        />
+      )}
+    </>
   );
 };
 
