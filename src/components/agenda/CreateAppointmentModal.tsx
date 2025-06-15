@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import ContactPickerModal from './ContactPickerModal'; // ✅ import
-import { UserRoundSearch } from 'lucide-react'; // optional icon
+import ContactPickerModal from './ContactPickerModal';
+import { UserRoundSearch } from 'lucide-react';
 
 const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [customerName, setCustomerName] = useState('');
@@ -77,6 +77,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         appointment_date: isoDate,
         appointment_time: selectedTime,
         duration_min: duration,
+        business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ added
       },
     ]);
 
@@ -89,7 +90,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
   };
 
   const handleSelectContact = (contact) => {
-    setCustomerName(contact.customer_name); // ✅ only the name
+    setCustomerName(contact.customer_name);
     setShowContactPicker(false);
   };
 
@@ -99,7 +100,6 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
 
         <div className="space-y-4">
-          {/* Nome Cliente + Icona contatto */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
             <div className="relative">
@@ -170,7 +170,9 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
               {Array.from({ length: 61 }, (_, i) => {
                 const hour = 6 + Math.floor(i / 4);
                 const minute = (i % 4) * 15;
-                const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const time = `${hour.toString().padStart(2, '0')}:${minute
+                  .toString()
+                  .padStart(2, '0')}`;
                 const slotStart = new Date(`${selectedDate}T${time}:00`);
                 const slotEnd = new Date(slotStart.getTime() + duration * 60000);
 
@@ -204,9 +206,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
             />
           </div>
 
-          {errorMsg && (
-            <div className="text-red-600 text-sm font-medium">{errorMsg}</div>
-          )}
+          {errorMsg && <div className="text-red-600 text-sm font-medium">{errorMsg}</div>}
         </div>
 
         <div className="flex justify-end mt-6 space-x-3">
