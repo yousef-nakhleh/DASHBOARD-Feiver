@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
 import { UserRoundSearch } from 'lucide-react';
 
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436'; // ✅ Replace with dynamic ID later if needed
+
 const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [customerName, setCustomerName] = useState('');
   const [services, setServices] = useState([]);
@@ -21,8 +23,16 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: servicesData } = await supabase.from('services').select('*');
-      const { data: barbersData } = await supabase.from('barbers').select('*');
+      const { data: servicesData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('business_id', BUSINESS_ID); // ✅
+
+      const { data: barbersData } = await supabase
+        .from('barbers')
+        .select('*')
+        .eq('business_id', BUSINESS_ID); // ✅
+
       setServices(servicesData || []);
       setBarbers(barbersData || []);
     };
@@ -36,7 +46,8 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         .from('appointments')
         .select('appointment_time, duration_min')
         .eq('barber_id', selectedBarber)
-        .eq('appointment_date', selectedDate);
+        .eq('appointment_date', selectedDate)
+        .eq('business_id', BUSINESS_ID); // ✅
       setAppointments(data || []);
     };
     fetchAppointments();
@@ -77,7 +88,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         appointment_date: isoDate,
         appointment_time: selectedTime,
         duration_min: duration,
-        business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ added
+        business_id: BUSINESS_ID, // ✅ insert here too
       },
     ]);
 
@@ -167,9 +178,9 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
               onChange={(e) => setSelectedTime(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             >
-              {Array.from({ length: 61 }, (_, i) => {
-                const hour = 6 + Math.floor(i / 4);
-                const minute = (i % 4) * 15;
+              {Array.from({ length: 90 }, (_, i) => {
+                const hour = 6 + Math.floor(i / 6);
+                const minute = (i % 6) * 10;
                 const time = `${hour.toString().padStart(2, '0')}:${minute
                   .toString()
                   .padStart(2, '0')}`;
