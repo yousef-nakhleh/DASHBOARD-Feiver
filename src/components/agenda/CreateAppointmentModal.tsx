@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import ContactPickerModal from './ContactPickerModal';
+import ContactPickerModal from './ContactPickerModal'; 
 import { UserRoundSearch } from 'lucide-react';
+
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436'; // ✅ Replace with dynamic ID later if needed
 
 const CreateAppointmentModal = ({ onClose, onCreated }) => {
   const [customerName, setCustomerName] = useState('');
@@ -13,17 +15,24 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTime, setSelectedTime] = useState('07:00');
   const [duration, setDuration] = useState(30);
   const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: servicesData } = await supabase.from('services').select('*');
-      const { data: barbersData } = await supabase.from('barbers').select('*');
+      const { data: servicesData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('business_id', BUSINESS_ID); // ✅
+
+      const { data: barbersData } = await supabase
+        .from('barbers')
+        .select('*')
+        .eq('business_id', BUSINESS_ID); // ✅
+
       setServices(servicesData || []);
       setBarbers(barbersData || []);
     };
@@ -31,61 +40,17 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
   }, []);
 
   useEffect(() => {
-    const fetchAppointmentsAndSlots = async () => {
+    const fetchAppointments = async () => {
       if (!selectedDate || !selectedBarber) return;
-
-      const { data: appts } = await supabase
+      const { data } = await supabase
         .from('appointments')
         .select('appointment_time, duration_min')
         .eq('barber_id', selectedBarber)
-        .eq('appointment_date', selectedDate);
-
-      setAppointments(appts || []);
-
-      // Generate 10-minute slots
-      const slots = [];
-      for (let h = 6; h <= 21; h++) {
-        for (let m = 0; m < 60; m += 10) {
-          if (h === 21 && m > 0) break;
-          slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-        }
-      }
-
-      const now = new Date();
-      const isToday = selectedDate === now.toISOString().split('T')[0];
-      const isoDate = new Date(selectedDate).toISOString().split('T')[0];
-
-      const available = [];
-
-      for (const time of slots) {
-        const [h, m] = time.split(':').map(Number);
-        const slotStart = new Date(`${isoDate}T${time}:00`);
-        slotStart.setHours(slotStart.getHours() + 2); // ✅ Adjust to Italy time
-
-        if (isToday && slotStart <= now) continue;
-
-        const slotEnd = new Date(slotStart.getTime() + duration * 60000);
-
-        const isOccupied = appts.some((appt) => {
-          const apptStart = new Date(`${isoDate}T${appt.appointment_time}`);
-          const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
-          return slotStart < apptEnd && slotEnd > apptStart;
-        });
-
-        if (!isOccupied) {
-          available.push(time);
-        }
-      }
-
-      setAvailableSlots(available);
-      if (available.length > 0) {
-        setSelectedTime(available[0]); // ✅ default to first free
-      } else {
-        setSelectedTime('');
-      }
+        .eq('appointment_date', selectedDate)
+        .eq('business_id', BUSINESS_ID); // ✅
+      setAppointments(data || []);
     };
-
-    fetchAppointmentsAndSlots();
+    fetchAppointments();
   }, [selectedDate, selectedBarber, duration]);
 
   const handleServiceChange = (e) => {
@@ -123,7 +88,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         appointment_date: isoDate,
         appointment_time: selectedTime,
         duration_min: duration,
-        business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ your business_id
+        business_id: BUSINESS_ID, // ✅ insert here too
       },
     ]);
 
@@ -213,11 +178,32 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
               onChange={(e) => setSelectedTime(e.target.value)}
               className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
             >
-              {availableSlots.map((time) => (
-                <option key={time} value={time}>
-                  {time}
-                </option>
-              ))}
+              {Array.from({ length: 90 }, (_, i) => {
+                const hour = 6 + Math.floor(i / 6);
+                const minute = (i % 6) * 10;
+                const time = `${hour.toString().padStart(2, '0')}:${minute
+                  .toString()
+                  .padStart(2, '0')}`;
+                const slotStart = new Date(`${selectedDate}T${time}:00`);
+                const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+                const isOccupied = appointments.some((appt) => {
+                  const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
+                  const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                  return slotStart < apptEnd && slotEnd > apptStart;
+                });
+
+                return (
+                  <option
+                    key={time}
+                    value={time}
+                    disabled={isOccupied}
+                    className={isOccupied ? 'line-through text-gray-400' : ''}
+                  >
+                    {time} {isOccupied ? '(occupato)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
