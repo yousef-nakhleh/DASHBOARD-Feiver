@@ -58,6 +58,12 @@ const Agenda = () => {
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  const [slotPrefill, setSlotPrefill] = useState<{
+    date: string;
+    time: string;
+    barberId: string;
+  } | null>(null);
+
   const timeSlots = generateTimeSlots();
 
   const fetchAppointments = async () => {
@@ -263,6 +269,10 @@ const Agenda = () => {
             datesInView={getDatesInView(selectedDate, viewMode)}
             onDrop={updateAppointmentTime}
             onClickAppointment={(app) => setSelectedAppointment(app)}
+            onEmptySlotClick={(barberId, date, time) => {
+              setSlotPrefill({ barberId, date, time });
+              setShowCreateModal(true);
+            }}
           />
         </div>
       </div>
@@ -291,9 +301,18 @@ const Agenda = () => {
 
       {showCreateModal && (
         <CreateAppointmentModal
-          selectedDate={selectedDate}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={fetchAppointments}
+          initialBarberId={slotPrefill?.barberId || ''}
+          initialDate={slotPrefill?.date || selectedDate.toISOString().split('T')[0]}
+          initialTime={slotPrefill?.time || '07:00'}
+          onClose={() => {
+            setShowCreateModal(false);
+            setSlotPrefill(null);
+          }}
+          onCreated={() => {
+            setShowCreateModal(false);
+            setSlotPrefill(null);
+            fetchAppointments();
+          }}
         />
       )}
 
