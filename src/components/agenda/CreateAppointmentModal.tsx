@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import ContactPickerModal from './ContactPickerModal'; 
+import ContactPickerModal from './ContactPickerModal';
 import { UserRoundSearch } from 'lucide-react';
 
-const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436'; // ✅ Replace with dynamic ID later if needed
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
 
-const CreateAppointmentModal = ({ onClose, onCreated }) => {
+const CreateAppointmentModal = ({
+  onClose,
+  onCreated,
+  initialBarberId = '',
+  initialDate = '',
+  initialTime = '',
+}) => {
   const [customerName, setCustomerName] = useState('');
   const [services, setServices] = useState([]);
   const [barbers, setBarbers] = useState([]);
   const [selectedService, setSelectedService] = useState('');
-  const [selectedBarber, setSelectedBarber] = useState('');
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
-  const [selectedTime, setSelectedTime] = useState('07:00');
+  const [selectedBarber, setSelectedBarber] = useState(initialBarberId);
+  const [selectedDate, setSelectedDate] = useState(
+    initialDate || new Date().toISOString().split('T')[0]
+  );
+  const [selectedTime, setSelectedTime] = useState(initialTime || '07:00');
   const [duration, setDuration] = useState(30);
   const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
@@ -26,12 +31,11 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
       const { data: servicesData } = await supabase
         .from('services')
         .select('*')
-        .eq('business_id', BUSINESS_ID); // ✅
-
+        .eq('business_id', BUSINESS_ID);
       const { data: barbersData } = await supabase
         .from('barbers')
         .select('*')
-        .eq('business_id', BUSINESS_ID); // ✅
+        .eq('business_id', BUSINESS_ID);
 
       setServices(servicesData || []);
       setBarbers(barbersData || []);
@@ -47,7 +51,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         .select('appointment_time, duration_min')
         .eq('barber_id', selectedBarber)
         .eq('appointment_date', selectedDate)
-        .eq('business_id', BUSINESS_ID); // ✅
+        .eq('business_id', BUSINESS_ID);
       setAppointments(data || []);
     };
     fetchAppointments();
@@ -88,7 +92,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
         appointment_date: isoDate,
         appointment_time: selectedTime,
         duration_min: duration,
-        business_id: BUSINESS_ID, // ✅ insert here too
+        business_id: BUSINESS_ID,
       },
     ]);
 
@@ -96,7 +100,7 @@ const CreateAppointmentModal = ({ onClose, onCreated }) => {
       onCreated();
       onClose();
     } else {
-      console.error('Error creating appointment:', error.message);
+      console.error('Errore creazione:', error.message);
     }
   };
 
