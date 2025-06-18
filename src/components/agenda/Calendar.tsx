@@ -9,8 +9,9 @@ export const Calendar = ({
   appointments,
   onDrop,
   onClickAppointment,
+  onEmptySlotClick,      // ✅ nuova prop
   barbers,
-  selectedBarber, 
+  selectedBarber,
   datesInView = [],
 }) => {
   const barbersToRender =
@@ -21,7 +22,7 @@ export const Calendar = ({
   return (
     <div className="h-full w-full overflow-y-auto">
       <div className="flex min-h-[1100px]">
-        {/* Time Labels */}
+        {/* Time labels a sinistra */}
         <div className="bg-white border-r shrink-0">
           {timeSlots.map((slot, i) => (
             <div
@@ -39,7 +40,7 @@ export const Calendar = ({
           ))}
         </div>
 
-        {/* Appointment Grid */}
+        {/* Griglia appuntamenti */}
         <div className="flex-1 overflow-x-auto bg-white">
           <div className="flex min-w-full">
             {datesInView.map((date) => {
@@ -53,6 +54,7 @@ export const Calendar = ({
                   appointments={appointments}
                   onDrop={onDrop}
                   onClickAppointment={onClickAppointment}
+                  onEmptySlotClick={onEmptySlotClick}      // ✅ passa callback
                   totalBarbers={barbersToRender.length}
                 />
               ));
@@ -71,10 +73,14 @@ const DayBarberColumn = ({
   appointments,
   onDrop,
   onClickAppointment,
+  onEmptySlotClick,          // ✅ riceve callback
   totalBarbers,
 }) => {
   return (
-    <div className="flex flex-col border-r" style={{ width: `${100 / totalBarbers}%` }}>
+    <div
+      className="flex flex-col border-r"
+      style={{ width: `${100 / totalBarbers}%` }}
+    >
       {timeSlots.map((slot) => {
         const [, drop] = useDrop({
           accept: 'APPOINTMENT',
@@ -100,11 +106,19 @@ const DayBarberColumn = ({
             a.appointment_time.slice(0, 5) === slot.time
         );
 
+        const isEmpty = apps.length === 0;
+
         return (
           <div
             key={slot.time}
             ref={drop}
-            className="h-[40px] border-t border-gray-200 relative px-1"
+            className={`h-[40px] border-t border-gray-200 relative px-1 ${
+              isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
+            }`}
+            onClick={() =>
+              isEmpty &&
+              onEmptySlotClick?.(barber.id, date, slot.time /* HH:MM */)
+            }                                         {/* ✅ click slot vuoto */}
           >
             {apps.map((app) => (
               <DraggableAppointment
