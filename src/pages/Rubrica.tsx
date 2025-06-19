@@ -229,4 +229,4 @@ const Rubrica: React.FC = () => {
   );
 };
 
-export default Rubrica;
+export default Rubrica; 
