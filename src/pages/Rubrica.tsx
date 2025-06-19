@@ -47,11 +47,10 @@ const Rubrica: React.FC = () => {
           sortedServices.length > 0 ? sortedServices[0][0] : null;
 
         return {
-          id: contact.id,
+          ...contact,
           name: contact.customer_name || contact.name,
           phone: contact.customer_phone || contact.phone,
           email: contact.customer_email || contact.email,
-          birthdate: contact.customer_birthdate || null,
           lastVisit,
           visitCount,
           favoriteService,
@@ -116,16 +115,26 @@ const Rubrica: React.FC = () => {
                   }`}
                   onClick={() => setSelectedClient(client.id)}
                 >
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User size={20} className="text-gray-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-sm font-medium">{client.name}</h3>
-                      <div className="text-xs text-gray-500 flex items-center mt-1">
-                        <Phone size={12} className="mr-1" />
-                        {client.phone}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User size={20} className="text-gray-600" />
                       </div>
+                      <div className="ml-4">
+                        <h3 className="text-sm font-medium">{client.name}</h3>
+                        <div className="text-xs text-gray-500 flex items-center mt-1">
+                          <Phone size={12} className="mr-1" />
+                          {client.phone}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-right text-gray-400">
+                      <div>
+                        {client.lastVisit
+                          ? new Date(client.lastVisit).toLocaleDateString('it-IT')
+                          : 'N/D'}
+                      </div>
+                      <div>{client.visitCount} visite</div>
                     </div>
                   </div>
                 </div>
@@ -229,4 +238,4 @@ const Rubrica: React.FC = () => {
   );
 };
 
-export default Rubrica; 
+export default Rubrica;
