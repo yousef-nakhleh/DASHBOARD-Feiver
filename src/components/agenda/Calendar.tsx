@@ -54,7 +54,7 @@ export const Calendar = ({
                   appointments={appointments}
                   onDrop={onDrop}
                   onClickAppointment={onClickAppointment}
-                  onEmptySlotClick={onEmptySlotClick}    // ✅ passa callback
+                  onEmptySlotClick={onEmptySlotClick}
                   totalBarbers={barbersToRender.length}
                 />
               ));
@@ -73,7 +73,7 @@ const DayBarberColumn = ({
   appointments,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,          // ✅ riceve callback
+  onEmptySlotClick,
   totalBarbers,
 }) => {
   return (
@@ -86,7 +86,7 @@ const DayBarberColumn = ({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
             if (
-              draggedItem.appointment_time.slice(0, 5) !== slot.time ||
+              draggedItem.appointment_time?.slice(0, 5) !== slot.time ||
               draggedItem.appointment_date !== date ||
               draggedItem.barber_id !== barber.id
             ) {
@@ -103,7 +103,7 @@ const DayBarberColumn = ({
           (a) =>
             a.appointment_date === date &&
             a.barber_id === barber.id &&
-            a.appointment_time.slice(0, 5) === slot.time
+            a.appointment_time?.slice(0, 5) === slot.time
         );
 
         const isEmpty = apps.length === 0;
@@ -117,7 +117,7 @@ const DayBarberColumn = ({
             }`}
             onClick={() => {
               if (isEmpty) {
-                onEmptySlotClick?.(barber.id, date, slot.time); // ✅ corretto
+                onEmptySlotClick?.(barber.id, date, slot.time);
               }
             }}
           >
