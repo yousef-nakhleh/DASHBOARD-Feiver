@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2, Scissors } from 'lucide-react';
+import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
 import NewContactForm from '../components/rubrica/NewContactForm';
+import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 
 const Rubrica: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showNewClientPanel, setShowNewClientPanel] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
-  const [appointmentsHistory, setAppointmentsHistory] = useState<any[]>([]);
 
   const fetchClients = useCallback(async () => {
     const { data: contacts, error } = await supabase.from('contacts').select('*');
@@ -23,31 +24,20 @@ const Rubrica: React.FC = () => {
       (contacts || []).map(async (contact) => {
         const { data: appointments } = await supabase
           .from('appointments')
-          .select('appointment_date, appointment_time, service_id, services(name)')
+          .select('appointment_date, service_id, services(name)')
           .eq('customer_id', contact.id);
 
         const lastVisit = appointments?.length
-          ? appointments
-              .sort((a, b) =>
-                new Date(`${b.appointment_date}T${b.appointment_time}`).getTime() -
-                new Date(`${a.appointment_date}T${a.appointment_time}`).getTime()
-              )[0].appointment_date
+          ? appointments.sort((a, b) =>
+              new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
+            )[0].appointment_date
           : null;
 
+        const nextVisit = appointments?.find(
+          (appt) => new Date(appt.appointment_date) > new Date()
+        )?.appointment_date || null;
+
         const visitCount = appointments?.length || 0;
-
-        const serviceFrequency = appointments?.reduce((acc, curr) => {
-          const name = curr.services?.name;
-          if (name) acc[name] = (acc[name] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-
-        const sortedServices = serviceFrequency
-          ? Object.entries(serviceFrequency).sort((a, b) => b[1] - a[1])
-          : [];
-
-        const favoriteService =
-          sortedServices.length > 0 ? sortedServices[0][0] : null;
 
         return {
           id: contact.id,
@@ -57,7 +47,7 @@ const Rubrica: React.FC = () => {
           birthdate: contact.customer_birthdate || null,
           lastVisit,
           visitCount,
-          favoriteService,
+          nextVisit,
         };
       })
     );
@@ -68,22 +58,6 @@ const Rubrica: React.FC = () => {
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
-
-  useEffect(() => {
-    const fetchAppointmentHistory = async () => {
-      if (!selectedClient) return;
-      const { data } = await supabase
-        .from('appointments')
-        .select('appointment_date, appointment_time, services(name)')
-        .eq('customer_id', selectedClient)
-        .order('appointment_date', { ascending: false })
-        .order('appointment_time', { ascending: false });
-
-      setAppointmentsHistory(data || []);
-    };
-
-    fetchAppointmentHistory();
-  }, [selectedClient]);
 
   const filteredClients = clients.filter(
     client =>
@@ -118,7 +92,7 @@ const Rubrica: React.FC = () => {
               <input
                 type="text"
                 placeholder="Cerca cliente"
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5D4037]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -135,22 +109,16 @@ const Rubrica: React.FC = () => {
                   }`}
                   onClick={() => setSelectedClient(client.id)}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <User size={20} className="text-gray-600" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-sm font-medium">{client.name}</h3>
-                        <div className="text-xs text-gray-500 flex items-center mt-1">
-                          <Phone size={12} className="mr-1" />
-                          {client.phone}
-                        </div>
-                      </div>
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <User size={20} className="text-gray-600" />
                     </div>
-                    <div className="text-right text-xs text-gray-400">
-                      <div>{client.lastVisit ? new Date(client.lastVisit).toLocaleDateString('it-IT') : 'N/D'}</div>
-                      <div>{client.visitCount} visite</div>
+                    <div className="ml-4">
+                      <h3 className="text-sm font-medium">{client.name}</h3>
+                      <div className="text-xs text-gray-500 flex items-center mt-1">
+                        <Phone size={12} className="mr-1" />
+                        {client.phone}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -166,7 +134,7 @@ const Rubrica: React.FC = () => {
             <div className="p-6">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center">
-                  <div className="h-16 w-16 rounded-full bg-[#5D4037] text-white flex items-center justify-center text-xl font-medium">
+                  <div className="flex-shrink-0 h-16 w-16 rounded-full bg-[#5D4037] text-white flex items-center justify-center text-xl font-medium">
                     {selectedClientData.name?.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div className="ml-4">
@@ -198,6 +166,10 @@ const Rubrica: React.FC = () => {
                         <span>{selectedClientData.email}</span>
                       </div>
                     )}
+                    <div className="flex items-center">
+                      <Clock size={16} className="text-gray-400 mr-2" />
+                      <span>Visite totali: {selectedClientData.visitCount}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -209,12 +181,17 @@ const Rubrica: React.FC = () => {
                       <span>Ultima visita: {selectedClientData.lastVisit ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT') : 'N/D'}</span>
                     </div>
                     <div className="flex items-center">
-                      <Clock size={16} className="text-gray-400 mr-2" />
-                      <span>Visite totali: {selectedClientData.visitCount}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Scissors size={16} className="text-gray-400 mr-2" />
-                      <span>Servizio preferito: {selectedClientData.favoriteService || 'N/D'}</span>
+                      <Calendar size={16} className="text-gray-400 mr-2" />
+                      {selectedClientData.nextVisit ? (
+                        <span>Prossima visita: {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT')}</span>
+                      ) : (
+                        <button
+                          onClick={() => setShowCreateModal(true)}
+                          className="text-sm text-[#5D4037] underline hover:text-[#3E2723] transition"
+                        >
+                          Prenota ora
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -222,17 +199,7 @@ const Rubrica: React.FC = () => {
 
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-sm font-medium text-gray-500 mb-4">Storico Appuntamenti</h3>
-                {appointmentsHistory.length > 0 ? (
-                  <ul className="text-sm text-gray-700 space-y-2">
-                    {appointmentsHistory.map((a, i) => (
-                      <li key={i}>
-                        {new Date(`${a.appointment_date}T${a.appointment_time}`).toLocaleString('it-IT')} - {a.services?.name || 'Servizio'}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-gray-400 text-sm">Nessun appuntamento trovato</div>
-                )}
+                <div className="text-gray-400 text-sm">(Integrazione futura)</div>
               </div>
             </div>
           ) : (
@@ -252,13 +219,18 @@ const Rubrica: React.FC = () => {
           fetchClients();
         }}
       >
-        <NewContactForm
-          onCreated={() => {
-            setShowNewClientPanel(false);
-            fetchClients();
-          }}
-        />
+        <NewContactForm onCreated={() => {
+          setShowNewClientPanel(false);
+          fetchClients();
+        }} />
       </SlidingPanelContact>
+
+      {showCreateModal && (
+        <CreateAppointmentModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchClients}
+        />
+      )}
     </div>
   );
 };
