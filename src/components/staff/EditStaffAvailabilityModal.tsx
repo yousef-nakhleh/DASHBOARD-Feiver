@@ -101,6 +101,7 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
             weekday: day.weekday,
             start_time: slot.start_time,
             end_time: slot.end_time,
+            business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ aggiunto qui
           });
         }
       });
