@@ -1,7 +1,7 @@
- import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Clock, DollarSign, Edit2, Trash2 } from "lucide-react";
-import EditTreatmentType from "../components/treatments/EditTreatmentType";
+import EditTreatmentModal from "@/components/treatments/EditTreatmentModal";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL!,
@@ -141,4 +141,4 @@ export default function Trattamenti() {
       )}
     </div>
   );
-} 
+}
