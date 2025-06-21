@@ -1,12 +1,6 @@
 import { Dialog } from "@headlessui/react";
 import { useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-// ✅ Supabase client inizializzato una sola volta
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabase";   // 👈  ri-uso l’istanza già pronta
 
 export default function CreateTreatmentModal({
   onClose,
@@ -15,32 +9,41 @@ export default function CreateTreatmentModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName]         = useState("");
   const [duration, setDuration] = useState(30);
-  const [price, setPrice] = useState(20);
+  const [price, setPrice]       = useState(20);
   const [category, setCategory] = useState("");
   const [isPopular, setIsPopular] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = async () => {
+    if (!name) return alert("Il nome è obbligatorio");
+
+    setSaving(true);
     const { error } = await supabase.from("services").insert([
       {
         name,
-        duration_min: duration,
+        duration_min : duration,
         price,
         category,
-        is_popular: isPopular,
+        is_popular   : isPopular,
+        business_id  : "268e0ae9-c539-471c-b4c2-1663cf598436", // 👈 stesso business di default
       },
     ]);
 
+    setSaving(false);
+
     if (error) {
+      console.error(error);
       alert("Errore durante la creazione.");
-    } else {
-      onCreated();
+      return;
     }
+
+    onCreated();    // ricarica lista in pagina padre
   };
 
   return (
-    <Dialog open={true} onClose={onClose} className="fixed inset-0 z-50">
+    <Dialog open onClose={onClose} className="fixed inset-0 z-50">
       <div className="flex items-center justify-center min-h-screen bg-black/30 p-4">
         <Dialog.Panel className="bg-white rounded p-6 w-full max-w-md">
           <Dialog.Title className="text-lg font-semibold mb-4">
@@ -49,33 +52,35 @@ export default function CreateTreatmentModal({
 
           <div className="space-y-4">
             <input
-              type="text"
-              placeholder="Nome"
               className="w-full border p-2 rounded"
+              placeholder="Nome"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
+
             <input
               type="number"
+              className="w-full border p-2 rounded"
               placeholder="Durata (min)"
-              className="w-full border p-2 rounded"
               value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
+              onChange={(e) => setDuration(Number(e.target.value))}
             />
+
             <input
               type="number"
+              className="w-full border p-2 rounded"
               placeholder="Prezzo (€)"
-              className="w-full border p-2 rounded"
               value={price}
-              onChange={(e) => setPrice(parseFloat(e.target.value))}
+              onChange={(e) => setPrice(Number(e.target.value))}
             />
+
             <input
-              type="text"
-              placeholder="Categoria"
               className="w-full border p-2 rounded"
+              placeholder="Categoria"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             />
+
             <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -90,14 +95,16 @@ export default function CreateTreatmentModal({
             <button
               onClick={onClose}
               className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              disabled={saving}
             >
               Annulla
             </button>
             <button
               onClick={handleSubmit}
               className="px-4 py-2 rounded bg-[#5c3b30] text-white hover:bg-[#472c24]"
+              disabled={saving}
             >
-              Salva
+              {saving ? "Salvo…" : "Salva"}
             </button>
           </div>
         </Dialog.Panel>
