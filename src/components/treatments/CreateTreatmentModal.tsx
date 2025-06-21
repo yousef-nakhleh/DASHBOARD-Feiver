@@ -1,8 +1,12 @@
-// src/components/treatments/CreateTreatmentModal.tsx
-
 import { Dialog } from "@headlessui/react";
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+
+// ✅ Supabase client inizializzato una sola volta
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+);
 
 export default function CreateTreatmentModal({
   onClose,
@@ -18,11 +22,6 @@ export default function CreateTreatmentModal({
   const [isPopular, setIsPopular] = useState(false);
 
   const handleSubmit = async () => {
-    const supabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL!,
-      import.meta.env.VITE_SUPABASE_ANON_KEY!
-    );
-
     const { error } = await supabase.from("services").insert([
       {
         name,
@@ -33,10 +32,10 @@ export default function CreateTreatmentModal({
       },
     ]);
 
-    if (!error) {
-      onCreated();
-    } else {
+    if (error) {
       alert("Errore durante la creazione.");
+    } else {
+      onCreated();
     }
   };
 
