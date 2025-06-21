@@ -54,8 +54,8 @@ const Trattamenti: React.FC = () => {
     };
   }, []);
 
-  // Get unique categories from treatments
-  const categories = [...new Set(treatments.map(t => t.category))];
+  // Static categories to maintain original UI
+  const categories = ['Capelli', 'Barba', 'Combo', 'Colore', 'Trattamenti'];
 
   // Filter treatments based on search query and category
   const filteredTreatments = treatments.filter(
