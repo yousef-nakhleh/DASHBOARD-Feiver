@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Clock, DollarSign, Edit2, Trash2 } from "lucide-react";
 import EditTreatmentModal from "@/components/treatments/EditTreatmentModal";
+import CreateTreatmentModal from "@/components/treatments/CreateTreatmentModal";
 import { Dialog } from "@headlessui/react";
 
 const supabase = createClient(
@@ -17,6 +18,7 @@ export default function Trattamenti() {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
   const [toDelete, setToDelete] = useState<any | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -45,7 +47,10 @@ export default function Trattamenti() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">Trattamenti</h2>
-        <button className="bg-[#5c3b30] hover:bg-[#472c24] text-white px-4 py-2 rounded">
+        <button
+          className="bg-[#5c3b30] hover:bg-[#472c24] text-white px-4 py-2 rounded"
+          onClick={() => setCreating(true)}
+        >
           + Nuovo Trattamento
         </button>
       </div>
@@ -183,6 +188,17 @@ export default function Trattamenti() {
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* ✅ Create Treatment Modal */}
+      {creating && (
+        <CreateTreatmentModal
+          onClose={() => setCreating(false)}
+          onCreated={async () => {
+            await fetchServices();
+            setCreating(false);
+          }}
+        />
+      )}
     </div>
   );
 }
