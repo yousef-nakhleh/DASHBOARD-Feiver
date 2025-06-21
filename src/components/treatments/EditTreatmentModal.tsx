@@ -1,15 +1,14 @@
-// src/components/treatments/EditTreatmentModal.tsx
-
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Optional: move to a utils file or env variables
+// Supabase client
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL!,
   import.meta.env.VITE_SUPABASE_ANON_KEY!
 );
 
 type Props = {
+  onClose: () => void;
   onSave: () => void;
   defaultValues?: {
     id?: string;
@@ -20,13 +19,13 @@ type Props = {
   };
 };
 
-export default function EditTreatmentModal({ onSave, defaultValues }: Props) {
+export default function EditTreatmentModal({ onClose, onSave, defaultValues }: Props) {
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [price, setPrice] = useState(defaultValues?.price ?? 0);
   const [duration, setDuration] = useState(defaultValues?.duration_min ?? 0);
   const [category, setCategory] = useState(defaultValues?.category ?? "");
 
-  const isEditing = !!defaultValues;
+  const isEditing = !!defaultValues?.id;
 
   async function handleSave() {
     if (!name || !price || !duration || !category) {
@@ -51,7 +50,7 @@ export default function EditTreatmentModal({ onSave, defaultValues }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 w-full max-w-md mx-auto">
       <div>
         <label className="block mb-1 font-medium">Nome</label>
         <input
@@ -92,10 +91,10 @@ export default function EditTreatmentModal({ onSave, defaultValues }: Props) {
         />
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 mt-4">
         <button
-          onClick={onSave}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          onClick={onClose}
+          className="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300"
         >
           Annulla
         </button>
