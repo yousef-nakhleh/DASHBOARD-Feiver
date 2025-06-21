@@ -1,6 +1,13 @@
 // src/components/treatments/EditTreatmentModal.tsx
+
 import { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+
+// Optional: move to a utils file or env variables
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+);
 
 type Props = {
   onSave: () => void;
@@ -14,8 +21,6 @@ type Props = {
 };
 
 export default function EditTreatmentModal({ onSave, defaultValues }: Props) {
-  const supabase = createClient();
-
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [price, setPrice] = useState(defaultValues?.price ?? 0);
   const [duration, setDuration] = useState(defaultValues?.duration_min ?? 0);
