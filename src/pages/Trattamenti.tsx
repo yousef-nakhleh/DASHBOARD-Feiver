@@ -1,29 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scissors, Clock, DollarSign, Plus, Edit, Search, Trash2 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient'; // Assicurati che questo path sia corretto
 
-// Mock treatments data
-const treatments = [
-  { id: 1, name: 'Taglio Capelli', duration: 30, price: 25, description: 'Taglio classico con rifinitura', category: 'Capelli', popular: true },
-  { id: 2, name: 'Barba', duration: 20, price: 15, description: 'Rasatura e rifinitura barba', category: 'Barba', popular: true },
-  { id: 3, name: 'Taglio e Barba', duration: 45, price: 35, description: 'Combinazione di taglio capelli e barba', category: 'Combo', popular: true },
-  { id: 4, name: 'Shampoo e Taglio', duration: 40, price: 30, description: 'Shampoo, massaggio al cuoio capelluto e taglio', category: 'Capelli', popular: false },
-  { id: 5, name: 'Rasatura Completa', duration: 25, price: 20, description: 'Rasatura completa con panno caldo', category: 'Barba', popular: false },
-  { id: 6, name: 'Taglio Bambino', duration: 20, price: 20, description: 'Taglio specifico per bambini fino a 12 anni', category: 'Capelli', popular: false },
-  { id: 7, name: 'Tinta Capelli', duration: 60, price: 40, description: 'Applicazione colore e ritocco', category: 'Colore', popular: false },
-  { id: 8, name: 'Trattamento Capelli', duration: 30, price: 25, description: 'Trattamento nutriente per capelli', category: 'Trattamenti', popular: false },
-];
-
-const categories = [...new Set(treatments.map(t => t.category))];
+type Treatment = {
+  id: string;
+  name: string;
+  duration_min: number;
+  price: number;
+  description: string;
+  category: string;
+  popular: boolean;
+};
 
 const Trattamenti: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState(''); 
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchTreatments = async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name, duration_min, price, description, category, popular');
+
+      if (error) {
+        console.error('Errore nel fetch dei trattamenti:', error);
+      } else {
+        setTreatments(data);
+      }
+    };
+
+    fetchTreatments();
+  }, []);
+
   const filteredTreatments = treatments.filter(
-    treatment => 
-      treatment.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (selectedCategory ? treatment.category === selectedCategory : true)
+    (t) =>
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (selectedCategory ? t.category === selectedCategory : true)
   );
+
+  const categories = [...new Set(treatments.map((t) => t.category))];
 
   return (
     <div className="h-full">
@@ -101,7 +117,7 @@ const Trattamenti: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Clock size={16} className="text-gray-400 mr-1" />
-                      <span className="text-sm text-gray-900">{treatment.duration} min</span>
+                      <span className="text-sm text-gray-900">{treatment.duration_min} min</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -140,4 +156,4 @@ const Trattamenti: React.FC = () => {
   );
 };
 
-export default Trattamenti; 
+export default Trattamenti;
