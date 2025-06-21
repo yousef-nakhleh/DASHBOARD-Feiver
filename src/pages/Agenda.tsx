@@ -1,4 +1,3 @@
-// src/pages/Agenda.tsx
 import {
   CalendarIcon,
   Plus,
@@ -142,10 +141,10 @@ const Agenda = () => {
             app.barber_id === selectedBarber
         );
 
-  const today = new Date();
+  // ✅ MODIFICA QUI: date dinamiche in base alla selectedDate
   const dateButtons = [0, 1, 2].map((offset) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + offset);
+    const d = new Date(selectedDate);
+    d.setDate(selectedDate.getDate() + offset);
     return d;
   });
 
