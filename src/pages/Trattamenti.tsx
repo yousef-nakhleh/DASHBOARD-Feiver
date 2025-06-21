@@ -1,71 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Scissors, Clock, DollarSign, Plus, Edit, Search, Trash2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
-const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
+// Mock treatments data  
+const treatments = [
+  { id: 1, name: 'Taglio Capelli', duration: 30, price: 25, description: 'Taglio classico con rifinitura', category: 'Capelli', popular: true },
+  { id: 2, name: 'Barba', duration: 20, price: 15, description: 'Rasatura e rifinitura barba', category: 'Barba', popular: true },
+  { id: 3, name: 'Taglio e Barba', duration: 45, price: 35, description: 'Combinazione di taglio capelli e barba', category: 'Combo', popular: true },
+  { id: 4, name: 'Shampoo e Taglio', duration: 40, price: 30, description: 'Shampoo, massaggio al cuoio capelluto e taglio', category: 'Capelli', popular: false },
+  { id: 5, name: 'Rasatura Completa', duration: 25, price: 20, description: 'Rasatura completa con panno caldo', category: 'Barba', popular: false },
+  { id: 6, name: 'Taglio Bambino', duration: 20, price: 20, description: 'Taglio specifico per bambini fino a 12 anni', category: 'Capelli', popular: false },
+  { id: 7, name: 'Tinta Capelli', duration: 60, price: 40, description: 'Applicazione colore e ritocco', category: 'Colore', popular: false },
+  { id: 8, name: 'Trattamento Capelli', duration: 30, price: 25, description: 'Trattamento nutriente per capelli', category: 'Trattamenti', popular: false },
+];
+
+const categories = [...new Set(treatments.map(t => t.category))];
 
 const Trattamenti: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [treatments, setTreatments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch services from Supabase
-  const fetchServices = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('business_id', BUSINESS_ID)
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching services:', error);
-      setTreatments([]);
-    } else {
-      // Map the database fields to match the expected structure
-      const mappedServices = (data || []).map(service => ({
-        id: service.id,
-        name: service.name || 'Servizio senza nome',
-        duration: service.duration_min || 30,
-        price: service.price || 0,
-        description: service.description || 'Nessuna descrizione disponibile',
-        category: 'Servizi', // Default category since it's not in the database
-        popular: false // Default value since it's not in the database
-      }));
-      setTreatments(mappedServices);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchServices();
-
-    // Set up real-time subscription for services table
-    const subscription = supabase
-      .channel('services_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'services',
-          filter: `business_id=eq.${BUSINESS_ID}`
-        }, 
-        () => {
-          // Refetch services when any change occurs
-          fetchServices();
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription on component unmount
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Get unique categories from treatments
-  const categories = [...new Set(treatments.map(t => t.category))];
 
   // Filter treatments based on search query and category
   const filteredTreatments = treatments.filter(
@@ -73,17 +25,6 @@ const Trattamenti: React.FC = () => {
       treatment.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (selectedCategory ? treatment.category === selectedCategory : true)
   );
-
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5D4037] mx-auto mb-4"></div>
-          <p className="text-gray-600">Caricamento servizi...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full">
@@ -164,62 +105,54 @@ const Trattamenti: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTreatments.length > 0 ? (
-                filteredTreatments.map((treatment) => (
-                  <tr key={treatment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{treatment.name}</div>
-                          <div className="text-sm text-gray-500">{treatment.description}</div>
-                        </div>
+              {filteredTreatments.map((treatment) => (
+                <tr key={treatment.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{treatment.name}</div>
+                        <div className="text-sm text-gray-500">{treatment.description}</div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Clock size={16} className="text-gray-400 mr-1" />
-                        <span className="text-sm text-gray-900">{treatment.duration} min</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <DollarSign size={16} className="text-gray-400 mr-1" />
-                        <span className="text-sm text-gray-900">€{treatment.price}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {treatment.category}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <Clock size={16} className="text-gray-400 mr-1" />
+                      <span className="text-sm text-gray-900">{treatment.duration} min</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <DollarSign size={16} className="text-gray-400 mr-1" />
+                      <span className="text-sm text-gray-900">€{treatment.price}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                      {treatment.category}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {treatment.popular ? (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Sì
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {treatment.popular ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Sì
-                        </span>
-                      ) : (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          No
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
-                        <Edit size={16} />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    {treatments.length === 0 ? 'Nessun servizio disponibile' : 'Nessun trattamento trovato'}
+                    ) : (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                        No
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button className="text-blue-600 hover:text-blue-900 mr-3">
+                      <Edit size={16} />
+                    </button>
+                    <button className="text-red-600 hover:text-red-900">
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
