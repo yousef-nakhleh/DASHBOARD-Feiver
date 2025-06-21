@@ -14,7 +14,7 @@ export default function Trattamenti() {
   const [services, setServices] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
   const [filtered, setFiltered] = useState<any[]>([]);
-  const [editing, setEditing] = useState<any | null>(null); // track selected item for modal
+  const [editing, setEditing] = useState<any | null>(null);
 
   useEffect(() => {
     fetchServices();
@@ -28,6 +28,18 @@ export default function Trattamenti() {
   async function fetchServices() {
     const { data, error } = await supabase.from("services").select("*");
     if (!error && data) setServices(data);
+  }
+
+  async function handleDelete(id: string) {
+    const confirmed = window.confirm("Sei sicuro di voler eliminare questo trattamento?");
+    if (!confirmed) return;
+
+    const { error } = await supabase.from("services").delete().eq("id", id);
+    if (!error) {
+      setServices((prev) => prev.filter((s) => s.id !== id));
+    } else {
+      alert("Errore durante l'eliminazione.");
+    }
   }
 
   return (
@@ -113,7 +125,11 @@ export default function Trattamenti() {
                       className="text-blue-600 cursor-pointer"
                       onClick={() => setEditing(s)}
                     />
-                    <Trash2 size={16} className="text-red-600 cursor-pointer" />
+                    <Trash2
+                      size={16}
+                      className="text-red-600 cursor-pointer"
+                      onClick={() => handleDelete(s.id)}
+                    />
                   </td>
                 </tr>
               ))}
