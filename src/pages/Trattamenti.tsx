@@ -68,7 +68,7 @@ export default function Trattamenti() {
 
         <div className="overflow-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b">
+            <thead className="border-b font-semibold">
               <tr>
                 <th className="p-2">TRATTAMENTO</th>
                 <th className="p-2">DURATA</th>
@@ -81,10 +81,7 @@ export default function Trattamenti() {
             <tbody>
               {filtered.map((s) => (
                 <tr key={s.id} className="border-t">
-                  <td className="p-2">
-                    <div className="font-semibold">{s.name}</div>
-                    <div className="text-gray-500 text-sm">{s.description}</div>
-                  </td>
+                  <td className="p-2">{s.name}</td>
                   <td className="p-2 flex items-center gap-1">
                     <Clock size={16} className="text-gray-500" />
                     {s.duration_min} min
