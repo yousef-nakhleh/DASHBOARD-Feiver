@@ -2,6 +2,7 @@
 
 import { Dialog } from "@headlessui/react";
 import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 export default function CreateTreatmentModal({
   onClose,
