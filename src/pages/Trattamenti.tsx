@@ -1,23 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scissors, Clock, DollarSign, Plus, Edit, Search, Trash2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-// Mock treatments data  
-const treatments = [
-  { id: 1, name: 'Taglio Capelli', duration: 30, price: 25, description: 'Taglio classico con rifinitura', category: 'Capelli', popular: true },
-  { id: 2, name: 'Barba', duration: 20, price: 15, description: 'Rasatura e rifinitura barba', category: 'Barba', popular: true },
-  { id: 3, name: 'Taglio e Barba', duration: 45, price: 35, description: 'Combinazione di taglio capelli e barba', category: 'Combo', popular: true },
-  { id: 4, name: 'Shampoo e Taglio', duration: 40, price: 30, description: 'Shampoo, massaggio al cuoio capelluto e taglio', category: 'Capelli', popular: false },
-  { id: 5, name: 'Rasatura Completa', duration: 25, price: 20, description: 'Rasatura completa con panno caldo', category: 'Barba', popular: false },
-  { id: 6, name: 'Taglio Bambino', duration: 20, price: 20, description: 'Taglio specifico per bambini fino a 12 anni', category: 'Capelli', popular: false },
-  { id: 7, name: 'Tinta Capelli', duration: 60, price: 40, description: 'Applicazione colore e ritocco', category: 'Colore', popular: false },
-  { id: 8, name: 'Trattamento Capelli', duration: 30, price: 25, description: 'Trattamento nutriente per capelli', category: 'Trattamenti', popular: false },
-];
-
-const categories = [...new Set(treatments.map(t => t.category))];
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
 
 const Trattamenti: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [treatments, setTreatments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch treatments from Supabase
+  const fetchTreatments = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('business_id', BUSINESS_ID);
+
+    if (error) {
+      console.error('Error fetching services:', error);
+      setTreatments([]);
+    } else {
+      // Map services to treatment format
+      const mappedTreatments = (data || []).map(service => ({
+        id: service.id,
+        name: service.name || 'Servizio',
+        duration: service.duration_min || 30,
+        price: service.price || 0,
+        description: service.description || 'Descrizione non disponibile',
+        category: 'Servizi', // Default category since not in database
+        popular: false // Default value since not in database
+      }));
+      setTreatments(mappedTreatments);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTreatments();
+
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('services_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'services',
+          filter: `business_id=eq.${BUSINESS_ID}`
+        }, 
+        () => {
+          fetchTreatments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const categories = [...new Set(treatments.map(t => t.category))];
 
   // Filter treatments based on search query and category
   const filteredTreatments = treatments.filter(
@@ -25,6 +69,17 @@ const Trattamenti: React.FC = () => {
       treatment.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (selectedCategory ? treatment.category === selectedCategory : true)
   );
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5D4037] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Caricamento trattamenti...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full">
