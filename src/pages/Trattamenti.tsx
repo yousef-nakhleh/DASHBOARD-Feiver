@@ -1,46 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState } from 'react';
 import { Scissors, Clock, DollarSign, Plus, Edit, Search, Trash2 } from 'lucide-react';
 
-// Supabase client
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!,
-  import.meta.env.VITE_SUPABASE_ANON_KEY!
-);
+// Mock treatments data
+const treatments = [
+  { id: 1, name: 'Taglio Capelli', duration: 30, price: 25, description: 'Taglio classico con rifinitura', category: 'Capelli', popular: true },
+  { id: 2, name: 'Barba', duration: 20, price: 15, description: 'Rasatura e rifinitura barba', category: 'Barba', popular: true },
+  { id: 3, name: 'Taglio e Barba', duration: 45, price: 35, description: 'Combinazione di taglio capelli e barba', category: 'Combo', popular: true },
+  { id: 4, name: 'Shampoo e Taglio', duration: 40, price: 30, description: 'Shampoo, massaggio al cuoio capelluto e taglio', category: 'Capelli', popular: false },
+  { id: 5, name: 'Rasatura Completa', duration: 25, price: 20, description: 'Rasatura completa con panno caldo', category: 'Barba', popular: false },
+  { id: 6, name: 'Taglio Bambino', duration: 20, price: 20, description: 'Taglio specifico per bambini fino a 12 anni', category: 'Capelli', popular: false },
+  { id: 7, name: 'Tinta Capelli', duration: 60, price: 40, description: 'Applicazione colore e ritocco', category: 'Colore', popular: false },
+  { id: 8, name: 'Trattamento Capelli', duration: 30, price: 25, description: 'Trattamento nutriente per capelli', category: 'Trattamenti', popular: false },
+];
 
-type Treatment = {
-  id: string;
-  name: string;
-  description: string;
-  duration_min: number;
-  price: number;
-  category: string;
-  popular: boolean;
-};
+const categories = [...new Set(treatments.map(t => t.category))];
 
 const Trattamenti: React.FC = () => {
-  const [treatments, setTreatments] = useState<Treatment[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTreatments = async () => {
-      const { data, error } = await supabase.from('services').select('*');
-      if (error) {
-        console.error('Errore caricamento servizi:', error.message);
-      } else {
-        setTreatments(data as Treatment[]);
-      }
-    };
-    fetchTreatments();
-  }, []);
-
-  const categories = [...new Set(treatments.map(t => t.category))];
-
   const filteredTreatments = treatments.filter(
-    (t) =>
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (selectedCategory ? t.category === selectedCategory : true)
+    treatment => 
+      treatment.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      (selectedCategory ? treatment.category === selectedCategory : true)
   );
 
   return (
@@ -110,34 +92,34 @@ const Trattamenti: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTreatments.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
+              {filteredTreatments.map((treatment) => (
+                <tr key={treatment.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{t.name}</div>
-                    <div className="text-sm text-gray-500">{t.description}</div>
+                    <div className="text-sm font-medium text-gray-900">{treatment.name}</div>
+                    <div className="text-sm text-gray-500">{treatment.description}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex items-center">
-                    <Clock size={16} className="text-gray-400 mr-1" />
-                    <span className="text-sm">{t.duration_min} min</span>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <Clock size={16} className="text-gray-400 mr-1" />
+                      <span className="text-sm text-gray-900">{treatment.duration} min</span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex items-center">
-                    <DollarSign size={16} className="text-gray-400 mr-1" />
-                    <span className="text-sm">€{t.price}</span>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <DollarSign size={16} className="text-gray-400 mr-1" />
+                      <span className="text-sm text-gray-900">€{treatment.price}</span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {t.category}
+                      {treatment.category}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {t.popular ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Sì
-                      </span>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {treatment.popular ? (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Sì</span>
                     ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                        No
-                      </span>
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">No</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -158,4 +140,4 @@ const Trattamenti: React.FC = () => {
   );
 };
 
-export default Trattamenti;
+export default Trattamenti; 
