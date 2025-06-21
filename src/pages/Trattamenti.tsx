@@ -1,205 +1,126 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Clock, DollarSign, Edit, Plus, Search, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+// src/pages/Trattamenti.tsx
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import {
+  Clock,
+  DollarSign,
+  Edit2,
+  Trash2,
+} from "lucide-react";
 
-const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
+);
 
-interface ServiceRow {
-  id: string;
-  name: string;
-  description: string | null;
-  duration_min: number;
-  price: number;
-  category: string | null;
-  popular: boolean | null;
-}
+const categories = ["Tutti", "Capelli", "Barba", "Combo", "Colore", "Trattamenti"];
 
-const Trattamenti: React.FC = () => {
-  const [services, setServices] = useState<ServiceRow[]>([]);
-  const [loading, setLoading]   = useState(true);
+export default function Trattamenti() {
+  const [services, setServices] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("Tutti");
+  const [filtered, setFiltered] = useState<any[]>([]);
 
-  const [searchQuery, setSearchQuery]       = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  /* ----------------------- FETCH FROM SUPABASE ----------------------- */
   useEffect(() => {
-    const fetchServices = async () => {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('business_id', BUSINESS_ID);          // solo i servizi del business
-
-      if (error) console.error('Errore fetch servizi:', error.message);
-      else       setServices(data as ServiceRow[]);
-
-      setLoading(false);
-    };
-
     fetchServices();
   }, []);
-  /* ------------------------------------------------------------------- */
 
-  /* categorie dinamiche in base ai servizi ricevuti */
-  const categories = useMemo(
-    () => Array.from(new Set(services.map(s => s.category ?? ''))).filter(Boolean),
-    [services]
-  );
+  useEffect(() => {
+    if (selectedCategory === "Tutti") setFiltered(services);
+    else setFiltered(services.filter(s => s.category === selectedCategory));
+  }, [selectedCategory, services]);
 
-  /* filtri di ricerca + categoria */
-  const filtered = services.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    (selectedCategory ? s.category === selectedCategory : true)
-  );
+  async function fetchServices() {
+    const { data, error } = await supabase.from("services").select("*");
+    if (!error && data) setServices(data);
+  }
 
   return (
-    <div className="h-full">
-      {/* ---------- HEADER  ---------- */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Trattamenti</h1>
-          <p className="text-gray-600">Gestisci servizi e prezzi</p>
-        </div>
-        <button className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center hover:bg-[#4E342E] transition-colors">
-          <Plus size={18} className="mr-1" />
-          Nuovo Trattamento
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold">Trattamenti</h2>
+        <button className="bg-[#5c3b30] hover:bg-[#472c24] text-white px-4 py-2 rounded">
+          + Nuovo Trattamento
         </button>
       </div>
+      <p className="text-gray-500 mb-4">Gestisci servizi e prezzi</p>
 
-      {/* ---------- CARD CON TABELLA ---------- */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        {/* barra di ricerca + filtri */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            {/* search */}
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Cerca trattamento"
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5D4037] w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            {/* categorie */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-3 py-1 text-sm rounded-full ${
-                  selectedCategory === null
-                    ? 'bg-[#5D4037] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Tutti
-              </button>
-
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 text-sm rounded-full ${
-                    selectedCategory === cat
-                      ? 'bg-[#5D4037] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="bg-white shadow rounded-lg p-4">
+        <input
+          type="text"
+          placeholder="Cerca trattamento"
+          className="w-full p-2 border rounded mb-4"
+        />
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-1 rounded-full ${
+                selectedCategory === cat
+                  ? "bg-[#5c3b30] text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
-        {/* tabella */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <div className="overflow-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b">
               <tr>
-                <th className="px-6 py-3 text-left">Trattamento</th>
-                <th className="px-6 py-3 text-left">Durata</th>
-                <th className="px-6 py-3 text-left">Prezzo</th>
-                <th className="px-6 py-3 text-left">Categoria</th>
-                <th className="px-6 py-3 text-left">Popolare</th>
-                <th className="px-6 py-3 text-right">Azioni</th>
+                <th className="p-2">TRATTAMENTO</th>
+                <th className="p-2">DURATA</th>
+                <th className="p-2">PREZZO</th>
+                <th className="p-2">CATEGORIA</th>
+                <th className="p-2">POPOLARE</th>
+                <th className="p-2">AZIONI</th>
               </tr>
             </thead>
-
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    Caricamento...
+            <tbody>
+              {filtered.map((s) => (
+                <tr key={s.id} className="border-t">
+                  <td className="p-2">
+                    <div className="font-semibold">{s.name}</div>
+                    <div className="text-gray-500 text-sm">{s.description}</div>
+                  </td>
+                  <td className="p-2 flex items-center gap-1">
+                    <Clock size={16} className="text-gray-500" />
+                    {s.duration_min} min
+                  </td>
+                  <td className="p-2 flex items-center gap-1">
+                    <DollarSign size={16} className="text-gray-500" />
+                    €{s.price}
+                  </td>
+                  <td className="p-2">
+                    <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                      {s.category}
+                    </span>
+                  </td>
+                  <td className="p-2">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        s.is_popular
+                          ? "bg-green-100 text-green-600"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {s.is_popular ? "Sì" : "No"}
+                    </span>
+                  </td>
+                  <td className="p-2 flex gap-2">
+                    <Edit2 size={16} className="text-blue-600 cursor-pointer" />
+                    <Trash2 size={16} className="text-red-600 cursor-pointer" />
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ))}
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    Nessun trattamento trovato
+                  <td colSpan={6} className="p-4 text-center text-gray-400">
+                    Nessun trattamento trovato.
                   </td>
                 </tr>
-              ) : (
-                filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
-                    {/* nome + descrizione */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{t.name}</div>
-                      <div className="text-sm text-gray-500">{t.description}</div>
-                    </td>
-
-                    {/* durata */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Clock size={16} className="text-gray-400 mr-1" />
-                        <span className="text-sm">{t.duration_min} min</span>
-                      </div>
-                    </td>
-
-                    {/* prezzo */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <DollarSign size={16} className="text-gray-400 mr-1" />
-                        <span className="text-sm">€{t.price}</span>
-                      </div>
-                    </td>
-
-                    {/* categoria */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {t.category}
-                      </span>
-                    </td>
-
-                    {/* popolare */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {t.popular ? (
-                        <span className="px-2 inline-flex text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          Sì
-                        </span>
-                      ) : (
-                        <span className="px-2 inline-flex text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                          No
-                        </span>
-                      )}
-                    </td>
-
-                    {/* azioni */}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
-                        <Edit size={16} />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
               )}
             </tbody>
           </table>
@@ -207,6 +128,4 @@ const Trattamenti: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default Trattamenti;
+}
