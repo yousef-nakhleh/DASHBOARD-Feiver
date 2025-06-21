@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Clock, DollarSign, Edit2, Trash2 } from "lucide-react";
+import EditTreatmentModal from "@/components/treatments/EditTreatmentModal";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL!,
@@ -13,6 +14,7 @@ export default function Trattamenti() {
   const [services, setServices] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
   const [filtered, setFiltered] = useState<any[]>([]);
+  const [editing, setEditing] = useState<any | null>(null); // track selected item for modal
 
   useEffect(() => {
     fetchServices();
@@ -106,7 +108,11 @@ export default function Trattamenti() {
                     </span>
                   </td>
                   <td className="p-2 flex gap-2">
-                    <Edit2 size={16} className="text-blue-600 cursor-pointer" />
+                    <Edit2
+                      size={16}
+                      className="text-blue-600 cursor-pointer"
+                      onClick={() => setEditing(s)}
+                    />
                     <Trash2 size={16} className="text-red-600 cursor-pointer" />
                   </td>
                 </tr>
@@ -122,6 +128,17 @@ export default function Trattamenti() {
           </table>
         </div>
       </div>
+
+      {editing && (
+        <EditTreatmentModal
+          treatment={editing}
+          onClose={() => setEditing(null)}
+          onSave={async () => {
+            await fetchServices();
+            setEditing(null);
+          }}
+        />
+      )}
     </div>
   );
 }
