@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Clock, DollarSign, Edit2, Trash2 } from "lucide-react";
 import EditTreatmentModal from "@/components/treatments/EditTreatmentModal";
+import { Dialog } from "@headlessui/react";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL!,
@@ -15,6 +16,7 @@ export default function Trattamenti() {
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
   const [filtered, setFiltered] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
+  const [toDelete, setToDelete] = useState<any | null>(null);
 
   useEffect(() => {
     fetchServices();
@@ -30,10 +32,7 @@ export default function Trattamenti() {
     if (!error && data) setServices(data);
   }
 
-  async function handleDelete(id: string) {
-    const confirmed = window.confirm("Sei sicuro di voler eliminare questo trattamento?");
-    if (!confirmed) return;
-
+  async function handleConfirmDelete(id: string) {
     const { error } = await supabase.from("services").delete().eq("id", id);
     if (!error) {
       setServices((prev) => prev.filter((s) => s.id !== id));
@@ -128,7 +127,7 @@ export default function Trattamenti() {
                     <Trash2
                       size={16}
                       className="text-red-600 cursor-pointer"
-                      onClick={() => handleDelete(s.id)}
+                      onClick={() => setToDelete(s)}
                     />
                   </td>
                 </tr>
@@ -155,6 +154,35 @@ export default function Trattamenti() {
           }}
         />
       )}
+
+      {/* ✅ Confirm Delete Modal */}
+      <Dialog open={!!toDelete} onClose={() => setToDelete(null)} className="fixed z-50 inset-0 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen px-4">
+          <Dialog.Panel className="bg-white p-6 rounded shadow max-w-sm w-full">
+            <Dialog.Title className="text-lg font-semibold mb-4">
+              Conferma eliminazione
+            </Dialog.Title>
+            <p className="mb-6">Sei sicuro di voler eliminare questo trattamento?</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setToDelete(null)}
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={async () => {
+                  await handleConfirmDelete(toDelete.id);
+                  setToDelete(null);
+                }}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Elimina
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
     </div>
   );
 }
