@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Scissors, Clock, DollarSign, Plus, Edit, Search, Trash2 } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient'; // Assicurati che questo path sia corretto
+import { supabase } from '../lib/supabase'; // Assicurati che questo path sia corretto
 
 type Treatment = {
   id: string;
