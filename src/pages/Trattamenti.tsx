@@ -149,16 +149,16 @@ export default function Trattamenti() {
         </div>
       </div>
 
-      {editing && (
-        <EditTreatmentModal
-          treatment={editing}
-          onClose={() => setEditing(null)}
-          onSave={async () => {
-            await fetchServices();
-            setEditing(null);
-          }}
-        />
-      )}
+      {/* ✅ Floating Edit Modal */}
+      <EditTreatmentModal
+        isOpen={!!editing}
+        defaultValues={editing ?? undefined}
+        onClose={() => setEditing(null)}
+        onSave={async () => {
+          await fetchServices();
+          setEditing(null);
+        }}
+      />
 
       {/* ✅ Confirm Delete Modal */}
       <Dialog open={!!toDelete} onClose={() => setToDelete(null)} className="fixed z-50 inset-0 overflow-y-auto">
