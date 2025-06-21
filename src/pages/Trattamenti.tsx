@@ -1,15 +1,9 @@
-// src/pages/Trattamenti.tsx
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import {
-  Clock,
-  DollarSign,
-  Edit2,
-  Trash2,
-} from "lucide-react"; 
+import { Clock, DollarSign, Edit2, Trash2 } from "lucide-react";
 
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL!, 
+  import.meta.env.VITE_SUPABASE_URL!,
   import.meta.env.VITE_SUPABASE_ANON_KEY!
 );
 
@@ -26,7 +20,7 @@ export default function Trattamenti() {
 
   useEffect(() => {
     if (selectedCategory === "Tutti") setFiltered(services);
-    else setFiltered(services.filter(s => s.category === selectedCategory));
+    else setFiltered(services.filter((s) => s.category === selectedCategory));
   }, [selectedCategory, services]);
 
   async function fetchServices() {
@@ -50,6 +44,7 @@ export default function Trattamenti() {
           placeholder="Cerca trattamento"
           className="w-full p-2 border rounded mb-4"
         />
+
         <div className="flex gap-2 mb-4 flex-wrap">
           {categories.map((cat) => (
             <button
@@ -82,17 +77,21 @@ export default function Trattamenti() {
               {filtered.map((s) => (
                 <tr key={s.id} className="border-t">
                   <td className="p-2">{s.name}</td>
-                  <td className="p-2 flex items-center gap-1">
-                    <Clock size={16} className="text-gray-500" />
-                    {s.duration_min} min
+                  <td className="p-2">
+                    <div className="inline-flex items-center gap-1 text-gray-700">
+                      <Clock size={16} className="text-gray-500" />
+                      {s.duration_min} min
+                    </div>
                   </td>
-                  <td className="p-2 flex items-center gap-1">
-                    <DollarSign size={16} className="text-gray-500" />
-                    €{s.price}
+                  <td className="p-2">
+                    <div className="inline-flex items-center gap-1 text-gray-700">
+                      <DollarSign size={16} className="text-gray-500" />
+                      €{s.price}
+                    </div>
                   </td>
                   <td className="p-2">
                     <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
-                      {s.category}
+                      {s.category || "—"}
                     </span>
                   </td>
                   <td className="p-2">
