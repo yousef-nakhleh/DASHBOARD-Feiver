@@ -1,5 +1,4 @@
-// src/components/staff/EditStaffAvailabilityModal.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Switch } from "../ui/switch";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +32,51 @@ const defaultState: Day[] = daysOfWeek.map((d) => ({
   slots: [{ ...emptySlot }],
 }));
 
+/* ---------- embedded time select ---------- */
+function TimeSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+}) {
+  const options = useMemo(() => {
+    const times: { label: string; value: string }[] = [];
+    for (let h = 6; h <= 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const date = new Date();
+        date.setHours(h, m, 0);
+        const value = date.toTimeString().slice(0, 5);
+        const label = date.toLocaleTimeString("it-IT", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+        times.push({ value, label });
+      }
+    }
+    return times;
+  }, []);
+
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="w-[96px] rounded border px-2 py-1 text-sm disabled:opacity-40"
+    >
+      <option value="">--</option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /* ---------- component ---------- */
 export default function EditStaffAvailabilityModal({
   barberId,
@@ -43,7 +87,6 @@ export default function EditStaffAvailabilityModal({
   const [loading, setLoading] = useState(false);
   const [availability, setAvailability] = useState<Day[]>(defaultState);
 
-  /* fetch existing availability ------------------------------------------------ */
   useEffect(() => {
     if (!barberId) return;
 
@@ -67,7 +110,6 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId]);
 
-  /* local state helpers ------------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) => {
     setAvailability((prev) =>
       prev.map((d, i) =>
@@ -112,7 +154,6 @@ export default function EditStaffAvailabilityModal({
     );
   };
 
-  /* save ----------------------------------------------------------------------- */
   const handleSave = async () => {
     setLoading(true);
     await supabase.from("barbers_availabilities").delete().eq("barber_id", barberId);
@@ -134,7 +175,6 @@ export default function EditStaffAvailabilityModal({
     onUpdated();
   };
 
-  /* --------------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[540px] px-6 py-5">
@@ -142,11 +182,9 @@ export default function EditStaffAvailabilityModal({
           <DialogTitle className="text-lg">Modifica Disponibilità</DialogTitle>
         </DialogHeader>
 
-        {/* grid giorni -------------------------------------------------------- */}
         <div className="space-y-3">
           {availability.map((day, dIdx) => (
             <div key={day.weekday} className="flex items-center gap-4">
-              {/* toggle + label */}
               <div className="flex items-center gap-3 min-w-[110px]">
                 <Switch
                   checked={day.enabled}
@@ -155,28 +193,23 @@ export default function EditStaffAvailabilityModal({
                 <span className="text-sm">{day.weekday}</span>
               </div>
 
-              {/* slot list */}
               <div className="flex flex-col gap-2 flex-1">
                 {day.slots.map((slot, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      disabled={!day.enabled}
+                    <TimeSelect
                       value={slot.start_time}
-                      onChange={(e) =>
-                        updateSlot(dIdx, sIdx, "start_time", e.target.value)
+                      disabled={!day.enabled}
+                      onChange={(val) =>
+                        updateSlot(dIdx, sIdx, "start_time", val)
                       }
-                      className="w-[96px] rounded border px-2 py-1 text-sm disabled:opacity-40"
                     />
                     <span className="select-none">–</span>
-                    <input
-                      type="time"
-                      disabled={!day.enabled}
+                    <TimeSelect
                       value={slot.end_time}
-                      onChange={(e) =>
-                        updateSlot(dIdx, sIdx, "end_time", e.target.value)
+                      disabled={!day.enabled}
+                      onChange={(val) =>
+                        updateSlot(dIdx, sIdx, "end_time", val)
                       }
-                      className="w-[96px] rounded border px-2 py-1 text-sm disabled:opacity-40"
                     />
 
                     {day.enabled && (
@@ -207,7 +240,6 @@ export default function EditStaffAvailabilityModal({
           ))}
         </div>
 
-        {/* footer ----------------------------------------------------------- */}
         <button
           onClick={handleSave}
           disabled={loading}
