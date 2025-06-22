@@ -1,25 +1,51 @@
-import * as React from "react"
-import * as SwitchPrimitives from "@radix-ui/react-switch"
-import { cva } from "class-variance-authority"
+import * as React from "react";
+import { cva } from "class-variance-authority";
+import { Slot } from "@radix-ui/react-slot";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
+export interface SwitchProps
+  extends React.ComponentPropsWithoutRef<"button"> {
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  asChild?: boolean;
+}
 
 const switchVariants = cva(
-  "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
-)
+  "inline-flex items-center h-[24px] w-[44px] rounded-full transition-colors focus:outline-none",
+  {
+    variants: {
+      checked: {
+        true: "bg-black",
+        false: "bg-gray-200",
+      },
+    },
+  }
+);
 
-const thumbVariants = cva(
-  "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
-)
+const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
+  ({ checked = false, onCheckedChange, asChild = false, className, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
->(({ className, ...props }, ref) => (
-  <SwitchPrimitives.Root ref={ref} className={cn(switchVariants(), className)} {...props}>
-    <SwitchPrimitives.Thumb className={cn(thumbVariants())} />
-  </SwitchPrimitives.Root>
-))
-Switch.displayName = SwitchPrimitives.Root.displayName
+    return (
+      <Comp
+        ref={ref}
+        role="switch"
+        aria-checked={checked}
+        className={cn(switchVariants({ checked }), className)}
+        onClick={() => onCheckedChange?.(!checked)}
+        {...props}
+      >
+        <span
+          className={cn(
+            "pointer-events-none inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition",
+            checked ? "translate-x-[20px]" : "translate-x-[4px]"
+          )}
+        />
+      </Comp>
+    );
+  }
+);
 
-export { Switch }
+Switch.displayName = "Switch";
+
+export { Switch };
