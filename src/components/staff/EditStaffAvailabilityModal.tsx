@@ -1,13 +1,23 @@
 // src/components/staff/EditStaffAvailabilityModal.tsx
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Switch } from "../ui/switch";
 import { supabase } from "@/lib/supabase";
-import { X, Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
-const daysOfWeek = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+const daysOfWeek = [
+  "Lunedì",
+  "Martedì",
+  "Mercoledì",
+  "Giovedì",
+  "Venerdì",
+  "Sabato",
+  "Domenica",
+];
 
+/* ---------- types ---------- */
+type Slot = { start_time: string; end_time: string };
+type Day = { weekday: string; enabled: boolean; slots: Slot[] };
 type Props = {
   barberId: string;
   open: boolean;
@@ -15,120 +25,197 @@ type Props = {
   onUpdated: () => void;
 };
 
-const EditStaffAvailabilityModal = ({ barberId, open, onClose, onUpdated }: Props) => {
-  const [loading, setLoading] = useState(false);
-  const [availability, setAvailability] = useState(
-    daysOfWeek.map((day) => ({
-      weekday: day,
-      enabled: false,
-      slots: [{ start_time: "", end_time: "" }],
-    }))
-  );
+/* ---------- helpers ---------- */
+const emptySlot: Slot = { start_time: "", end_time: "" };
+const defaultState: Day[] = daysOfWeek.map((d) => ({
+  weekday: d,
+  enabled: false,
+  slots: [{ ...emptySlot }],
+}));
 
+/* ---------- component ---------- */
+export default function EditStaffAvailabilityModal({
+  barberId,
+  open,
+  onClose,
+  onUpdated,
+}: Props) {
+  const [loading, setLoading] = useState(false);
+  const [availability, setAvailability] = useState<Day[]>(defaultState);
+
+  /* fetch existing availability ------------------------------------------------ */
   useEffect(() => {
     if (!barberId) return;
-    const fetchAvailability = async () => {
+
+    (async () => {
       const { data } = await supabase
         .from("barbers_availabilities")
         .select("*")
         .eq("barber_id", barberId);
 
-      if (data) {
-        const grouped = daysOfWeek.map((day) => {
-          const slots = data.filter((slot) => slot.weekday === day);
-          return {
-            weekday: day,
-            enabled: slots.length > 0,
-            slots: slots.length > 0 ? slots : [{ start_time: "", end_time: "" }],
-          };
-        });
-        setAvailability(grouped);
-      }
-    };
+      if (!data) return;
 
-    fetchAvailability();
+      const next = daysOfWeek.map((day) => {
+        const slots = data.filter((s) => s.weekday === day);
+        return {
+          weekday: day,
+          enabled: slots.length > 0,
+          slots: slots.length ? slots : [{ ...emptySlot }],
+        };
+      });
+      setAvailability(next);
+    })();
   }, [barberId]);
 
-  const handleSubmit = async () => {
-    setLoading(true);
+  /* local state helpers ------------------------------------------------------- */
+  const toggleDay = (idx: number, val: boolean) => {
+    setAvailability((prev) =>
+      prev.map((d, i) =>
+        i === idx ? { ...d, enabled: val } : d,
+      ),
+    );
+  };
 
-    // Clear existing entries
+  const updateSlot = (dIdx: number, sIdx: number, field: keyof Slot, val: string) => {
+    setAvailability((prev) =>
+      prev.map((d, i) =>
+        i !== dIdx
+          ? d
+          : {
+              ...d,
+              slots: d.slots.map((s, j) =>
+                j === sIdx ? { ...s, [field]: val } : s,
+              ),
+            },
+      ),
+    );
+  };
+
+  const addSlot = (dIdx: number) => {
+    setAvailability((prev) =>
+      prev.map((d, i) =>
+        i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d,
+      ),
+    );
+  };
+
+  const removeSlot = (dIdx: number, sIdx: number) => {
+    setAvailability((prev) =>
+      prev.map((d, i) =>
+        i === dIdx
+          ? {
+              ...d,
+              slots: d.slots.filter((_, j) => j !== sIdx) || [{ ...emptySlot }],
+            }
+          : d,
+      ),
+    );
+  };
+
+  /* save ----------------------------------------------------------------------- */
+  const handleSave = async () => {
+    setLoading(true);
     await supabase.from("barbers_availabilities").delete().eq("barber_id", barberId);
 
-    // Insert new ones
-    const entries = availability
-      .filter((day) => day.enabled)
-      .flatMap((day) =>
-        day.slots.map((slot) => ({
-          barber_id: barberId,
-          weekday: day.weekday,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-        }))
+    const inserts = availability
+      .filter((d) => d.enabled)
+      .flatMap((d) =>
+        d.slots
+          .filter((s) => s.start_time && s.end_time)
+          .map((s) => ({
+            barber_id: barberId,
+            weekday: d.weekday,
+            ...s,
+          })),
       );
 
-    if (entries.length > 0) {
-      await supabase.from("barbers_availabilities").insert(entries);
-    }
-
+    if (inserts.length) await supabase.from("barbers_availabilities").insert(inserts);
     setLoading(false);
     onUpdated();
   };
 
-  const handleChange = (index: number, field: "start_time" | "end_time", value: string) => {
-    const updated = [...availability];
-    updated[index].slots[0][field] = value;
-    setAvailability(updated);
-  };
-
+  /* --------------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-[540px] px-6 py-5">
         <DialogHeader>
-          <DialogTitle>Modifica Disponibilità</DialogTitle>
+          <DialogTitle className="text-lg">Modifica Disponibilità</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {availability.map((day, index) => (
+        {/* grid giorni -------------------------------------------------------- */}
+        <div className="space-y-3">
+          {availability.map((day, dIdx) => (
             <div key={day.weekday} className="flex items-center gap-4">
-              <span className="w-24">{day.weekday}</span>
-              <Switch
-                checked={day.enabled}
-                onCheckedChange={(val) => {
-                  const updated = [...availability];
-                  updated[index].enabled = val;
-                  setAvailability(updated);
-                }}
-              />
-              <input
-                type="time"
-                disabled={!day.enabled}
-                value={day.slots[0].start_time}
-                onChange={(e) => handleChange(index, "start_time", e.target.value)}
-                className="border px-2 py-1 rounded"
-              />
-              <span>→</span>
-              <input
-                type="time"
-                disabled={!day.enabled}
-                value={day.slots[0].end_time}
-                onChange={(e) => handleChange(index, "end_time", e.target.value)}
-                className="border px-2 py-1 rounded"
-              />
+              {/* toggle + label */}
+              <div className="flex items-center gap-3 min-w-[110px]">
+                <Switch
+                  checked={day.enabled}
+                  onCheckedChange={(v) => toggleDay(dIdx, v)}
+                />
+                <span className="text-sm">{day.weekday}</span>
+              </div>
+
+              {/* slot list */}
+              <div className="flex flex-col gap-2 flex-1">
+                {day.slots.map((slot, sIdx) => (
+                  <div key={sIdx} className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      disabled={!day.enabled}
+                      value={slot.start_time}
+                      onChange={(e) =>
+                        updateSlot(dIdx, sIdx, "start_time", e.target.value)
+                      }
+                      className="w-[96px] rounded border px-2 py-1 text-sm disabled:opacity-40"
+                    />
+                    <span className="select-none">–</span>
+                    <input
+                      type="time"
+                      disabled={!day.enabled}
+                      value={slot.end_time}
+                      onChange={(e) =>
+                        updateSlot(dIdx, sIdx, "end_time", e.target.value)
+                      }
+                      className="w-[96px] rounded border px-2 py-1 text-sm disabled:opacity-40"
+                    />
+
+                    {day.enabled && (
+                      <>
+                        {sIdx === day.slots.length - 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => addSlot(dIdx)}
+                            className="p-1 text-gray-500 hover:text-black"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(dIdx, sIdx)}
+                            className="p-1 text-gray-400 hover:text-red-500"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition"
-          >
-            {loading ? "Salvataggio..." : "Salva disponibilità"}
-          </button>
         </div>
+
+        {/* footer ----------------------------------------------------------- */}
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="mt-6 w-full rounded bg-[#1a1a1a] py-2 text-white disabled:opacity-50"
+        >
+          {loading ? "Salvataggio..." : "Salva disponibilità"}
+        </button>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default EditStaffAvailabilityModal;
+}
