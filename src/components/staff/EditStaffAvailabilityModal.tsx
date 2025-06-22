@@ -36,10 +36,12 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
           return {
             weekday: day,
             enabled: daySlots.length > 0,
-            slots: daySlots.length > 0 ? daySlots.map((s) => ({
-              start_time: s.start_time,
-              end_time: s.end_time,
-            })) : [{ start_time: '', end_time: '' }],
+            slots: daySlots.length > 0
+              ? daySlots.map((s) => ({
+                  start_time: s.start_time,
+                  end_time: s.end_time,
+                }))
+              : [{ start_time: '', end_time: '' }],
           };
         });
         setAvailability(grouped);
@@ -85,9 +87,8 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
       .from('barbers_availabilities')
       .delete()
       .eq('barber_id', barberId);
-
     if (deleteError) {
-      console.error('Failed to delete old availability:', deleteError);
+      console.error('Delete error:', deleteError);
       return;
     }
 
@@ -101,7 +102,7 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
             weekday: day.weekday,
             start_time: slot.start_time,
             end_time: slot.end_time,
-            business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ aggiunto qui
+            business_id: '268e0ae9-c539-471c-b4c2-1663cf598436',
           });
         }
       });
@@ -111,7 +112,6 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
       const { error: insertError } = await supabase
         .from('barbers_availabilities')
         .insert(inserts);
-
       if (insertError) {
         console.error('Insert error:', insertError);
       }
@@ -122,37 +122,40 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
 
   if (!open) return null;
 
-  const timeOptions = Array.from({ length: 24 * 4 }, (_, i) => {
-    const hour = Math.floor(i / 4);
-    const minute = (i % 4) * 15;
-    return `${hour.toString().padStart(2, '0')}:${minute
-      .toString()
-      .padStart(2, '0')}`;
+  const timeOptions = Array.from({ length: 96 }, (_, i) => {
+    const h = String(Math.floor(i / 4)).padStart(2, '0');
+    const m = String((i % 4) * 15).padStart(2, '0');
+    return `${h}:${m}`;
   });
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">Modifica Disponibilità</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white w-full max-w-3xl p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold mb-6 text-center">Modifica Disponibilità</h2>
+
         {loading ? (
           <p className="text-center text-gray-500">Caricamento...</p>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {availability.map((day, i) => (
-              <div key={day.weekday}>
-                <label className="flex items-center gap-2 mb-2">
-                  <input
-                    type="checkbox"
-                    checked={day.enabled}
-                    onChange={() => handleToggle(i)}
-                    className="form-checkbox h-5 w-5 text-[#5D4037]"
-                  />
+              <div key={day.weekday} className="border-b pb-4">
+                <div className="flex items-center justify-between mb-2">
                   <span className="capitalize font-medium">{day.weekday}</span>
-                </label>
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Attivo</span>
+                    <input
+                      type="checkbox"
+                      checked={day.enabled}
+                      onChange={() => handleToggle(i)}
+                      className="toggle toggle-sm"
+                    />
+                  </label>
+                </div>
+
                 {day.enabled && (
-                  <div className="space-y-2 pl-6">
+                  <div className="space-y-2">
                     {day.slots.map((slot, j) => (
-                      <div key={j} className="flex gap-2 items-center">
+                      <div key={j} className="flex items-center gap-2">
                         <select
                           value={slot.start_time}
                           onChange={(e) => handleTimeChange(i, j, 'start_time', e.target.value)}
@@ -177,7 +180,7 @@ const EditStaffAvailabilityModal = ({ open, onClose, barberId }) => {
                         {day.slots.length > 1 && (
                           <button
                             onClick={() => handleRemoveSlot(i, j)}
-                            className="text-sm text-red-600 hover:underline"
+                            className="text-sm text-red-600 hover:underline ml-2"
                           >
                             Elimina
                           </button>
