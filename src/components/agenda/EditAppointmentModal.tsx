@@ -1,208 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import PaymentForm from '../payment/PaymentForm';
+import { useState } from "react";
+import { Appointment } from "@/types"; // assicurati che sia importato correttamente
+import PaymentForm from "./PaymentForm";
 
-const EditAppointmentModal = ({
+interface EditAppointmentModalProps {
+  appointment: Appointment;
+  onClose: () => void;
+  onSave: (updatedAppointment: Appointment) => void;
+}
+
+export default function EditAppointmentModal({
   appointment,
   onClose,
-  onUpdated,
-  initialTab = 'edit',
-}) => {
-  if (!appointment) return null;
+  onSave,
+}: EditAppointmentModalProps) {
+  const [activeTab, setActiveTab] = useState<"edit" | "payment">("edit");
+  const [editedAppointment, setEditedAppointment] = useState(appointment);
 
-  const [activeTab, setActiveTab] = useState<'edit' | 'payment'>(initialTab);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setEditedAppointment((prev) => ({
+      ...prev,
+      [name]: name === "duration_min" ? parseInt(value) : value,
+    }));
+  };
 
-  const [customerName, setCustomerName] = useState(appointment.customer_name ?? '');
-  const [services, setServices] = useState([]);
-  const [selectedServiceId, setSelectedServiceId] = useState(appointment.service_id ?? '');
-  const [duration, setDuration] = useState(appointment.duration_min ?? 0);
-  const [price, setPrice] = useState(0);
-  const [appointmentDate, setAppointmentDate] = useState(
-    appointment.appointment_date?.split('T')[0] ?? new Date().toISOString().split('T')[0]
-  );
-  const [appointmentTime, setAppointmentTime] = useState(
-    appointment.appointment_time?.slice(0, 5) ?? '08:00'
-  );
-
-  useEffect(() => {
-    const fetchServices = async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name, duration_min, price');
-      if (error) {
-        console.error('Errore caricamento servizi:', error.message);
-        return;
-      }
-      setServices(data);
-      const current = data.find((s) => s.id === appointment.service_id);
-      if (current) {
-        setPrice(current.price);
-        setDuration(current.duration_min);
-      }
-    };
-
-    fetchServices();
-  }, [appointment.service_id]);
-
-  const handleSaveEdit = async () => {
-    const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
-
-    const { error } = await supabase
-      .from('appointments')
-      .update({
-        customer_name: customerName,
-        duration_min: duration,
-        appointment_date: fullDateTime,
-        appointment_time: appointmentTime,
-        service_id: selectedServiceId,
-      })
-      .eq('id', appointment.id);
-
-    if (error) {
-      console.error('Errore durante la modifica:', error.message);
-      return;
-    }
-
-    onUpdated();
+  const handleSave = () => {
+    onSave(editedAppointment);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px] relative">
-        {/* Tab Switcher */}
-        <div className="absolute top-4 right-4 flex space-x-2">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-md p-6 w-[90%] max-w-md">
+        <div className="flex mb-4 space-x-2">
           <button
-            onClick={() => setActiveTab('edit')}
-            className={`px-3 py-1 text-sm rounded-full ${
-              activeTab === 'edit' ? 'bg-[#5D4037] text-white' : 'bg-gray-100 text-gray-700'
+            onClick={() => setActiveTab("edit")}
+            className={`px-4 py-1 rounded-full text-sm font-medium ${
+              activeTab === "edit" ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-700"
             }`}
           >
             Modifica
           </button>
           <button
-            onClick={() => setActiveTab('payment')}
-            className={`px-3 py-1 text-sm rounded-full ${
-              activeTab === 'payment' ? 'bg-[#5D4037] text-white' : 'bg-gray-100 text-gray-700'
+            onClick={() => setActiveTab("payment")}
+            className={`px-4 py-1 rounded-full text-sm font-medium ${
+              activeTab === "payment" ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-700"
             }`}
           >
             Pagamento
           </button>
         </div>
 
-        {/* Title */}
-        <h2 className="text-lg font-semibold mb-4">
-          {activeTab === 'edit' ? 'Modifica Appuntamento' : 'Gestione Pagamento'}
-        </h2>
-
-        {/* Edit Tab */}
-        {activeTab === 'edit' && (
-          <div className="space-y-4 mt-2">
+        {activeTab === "edit" ? (
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
+              <label className="block text-sm font-medium">Nome Cliente</label>
               <input
                 type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                name="customer_name"
+                value={editedAppointment.customer_name}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Servizio</label>
+              <label className="block text-sm font-medium">Servizio</label>
               <select
-                value={selectedServiceId}
-                onChange={(e) => {
-                  const selected = services.find((s) => s.id === e.target.value);
-                  setSelectedServiceId(e.target.value);
-                  if (selected) {
-                    setPrice(selected.price);
-                    setDuration(selected.duration_min);
-                  }
-                }}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                name="service_name"
+                value={editedAppointment.service_name}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
               >
-                <option value="">Seleziona servizio</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+                <option value="Haircut">Haircut</option>
+                <option value="Color">Color</option>
+                <option value="Balayage">Balayage</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Data</label>
+              <label className="block text-sm font-medium">Data</label>
               <input
                 type="date"
-                value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                name="appointment_date"
+                value={editedAppointment.appointment_date}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Orario</label>
+              <label className="block text-sm font-medium">Orario</label>
               <input
                 type="time"
-                value={appointmentTime}
-                onChange={(e) => setAppointmentTime(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                name="appointment_time"
+                value={editedAppointment.appointment_time}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
+              <label className="block text-sm font-medium">Durata (minuti)</label>
               <input
                 type="number"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+                name="duration_min"
+                value={editedAppointment.duration_min}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
               />
             </div>
-          </div>
-        )}
 
-        {/* Payment Tab */}
-        {activeTab === 'payment' && (
-          <div className="mt-2">
-            <PaymentForm
-              prefill={{
-                appointment_id: appointment.id,
-                customer_name,
-                barber_id: appointment.barber_id,
-                service_id: selectedServiceId,
-                price,
-                discount: 0,
-              }}
-              onSuccess={() => {
-                onUpdated();
-                onClose();
-              }}
-            />
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose} className="px-4 py-2 bg-zinc-200 rounded">
+                Annulla
+              </button>
+              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">
+                Salva
+              </button>
+            </div>
           </div>
-        )}
-
-        {/* Footer */}
-        {activeTab === 'edit' && (
-          <div className="flex justify-end mt-6 space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
-            >
-              Annulla
-            </button>
-            <button
-              onClick={handleSaveEdit}
-              className="px-4 py-2 rounded text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Salva
-            </button>
-          </div>
+        ) : (
+          <PaymentForm appointment={editedAppointment} onClose={onClose} />
         )}
       </div>
     </div>
   );
-};
-
-export default EditAppointmentModal;
+}
