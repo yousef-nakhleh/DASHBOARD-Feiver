@@ -62,7 +62,7 @@ const EditAppointmentModal = ({
           appointment_time: appointmentTime,
           service_id: selectedServiceId,
         })
-        .eq('id', appointment.id); // ✅ Correct column name
+        .eq('id', appointment.id);
 
       if (error) {
         console.error('Errore durante la modifica:', error.message);
@@ -76,8 +76,8 @@ const EditAppointmentModal = ({
     if (activeTab === 'payment') {
       navigate('/cassa/nuova', {
         state: {
-          appointment_id: appointment.id, // ✅ Correct column name
-          customer_name,
+          appointment_id: appointment.id,
+          customer_name: customerName, // ✅ Fixed
           barber_id: appointment.barber_id,
           service_id: selectedServiceId,
           price,
