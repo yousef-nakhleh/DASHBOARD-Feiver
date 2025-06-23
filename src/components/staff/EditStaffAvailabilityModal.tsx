@@ -14,7 +14,6 @@ const daysOfWeek = [
   "Domenica",
 ];
 
-/* ---------- types ---------- */
 type Slot = { start_time: string; end_time: string };
 type Day = { weekday: string; enabled: boolean; slots: Slot[] };
 type Props = {
@@ -24,7 +23,6 @@ type Props = {
   onUpdated: () => void;
 };
 
-/* ---------- helpers ---------- */
 const emptySlot: Slot = { start_time: "", end_time: "" };
 const defaultState: Day[] = daysOfWeek.map((d) => ({
   weekday: d,
@@ -32,7 +30,6 @@ const defaultState: Day[] = daysOfWeek.map((d) => ({
   slots: [{ ...emptySlot }],
 }));
 
-/* ---------- embedded time select ---------- */
 function TimeSelect({
   value,
   onChange,
@@ -77,7 +74,6 @@ function TimeSelect({
   );
 }
 
-/* ---------- component ---------- */
 export default function EditStaffAvailabilityModal({
   barberId,
   open,
@@ -112,9 +108,7 @@ export default function EditStaffAvailabilityModal({
 
   const toggleDay = (idx: number, val: boolean) => {
     setAvailability((prev) =>
-      prev.map((d, i) =>
-        i === idx ? { ...d, enabled: val } : d,
-      ),
+      prev.map((d, i) => (i === idx ? { ...d, enabled: val } : d))
     );
   };
 
@@ -125,19 +119,15 @@ export default function EditStaffAvailabilityModal({
           ? d
           : {
               ...d,
-              slots: d.slots.map((s, j) =>
-                j === sIdx ? { ...s, [field]: val } : s,
-              ),
-            },
-      ),
+              slots: d.slots.map((s, j) => (j === sIdx ? { ...s, [field]: val } : s)),
+            }
+      )
     );
   };
 
   const addSlot = (dIdx: number) => {
     setAvailability((prev) =>
-      prev.map((d, i) =>
-        i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d,
-      ),
+      prev.map((d, i) => (i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d))
     );
   };
 
@@ -149,8 +139,8 @@ export default function EditStaffAvailabilityModal({
               ...d,
               slots: d.slots.filter((_, j) => j !== sIdx) || [{ ...emptySlot }],
             }
-          : d,
-      ),
+          : d
+      )
     );
   };
 
@@ -167,7 +157,7 @@ export default function EditStaffAvailabilityModal({
             barber_id: barberId,
             weekday: d.weekday,
             ...s,
-          })),
+          }))
       );
 
     if (inserts.length) await supabase.from("barbers_availabilities").insert(inserts);
@@ -184,13 +174,13 @@ export default function EditStaffAvailabilityModal({
 
         <div className="space-y-3">
           {availability.map((day, dIdx) => (
-            <div key={day.weekday} className="flex items-center gap-4">
-              <div className="flex items-center gap-3 min-w-[110px]">
+            <div key={day.weekday} className="flex items-start gap-4">
+              <div className="flex min-w-[110px] items-center gap-3 pt-1.5">
                 <Switch
                   checked={day.enabled}
                   onCheckedChange={(v) => toggleDay(dIdx, v)}
                 />
-                <span className="text-sm">{day.weekday}</span>
+                <span className="text-sm whitespace-nowrap">{day.weekday}</span>
               </div>
 
               <div className="flex flex-col gap-2 flex-1">
@@ -199,39 +189,33 @@ export default function EditStaffAvailabilityModal({
                     <TimeSelect
                       value={slot.start_time}
                       disabled={!day.enabled}
-                      onChange={(val) =>
-                        updateSlot(dIdx, sIdx, "start_time", val)
-                      }
+                      onChange={(val) => updateSlot(dIdx, sIdx, "start_time", val)}
                     />
                     <span className="select-none">–</span>
                     <TimeSelect
                       value={slot.end_time}
                       disabled={!day.enabled}
-                      onChange={(val) =>
-                        updateSlot(dIdx, sIdx, "end_time", val)
-                      }
+                      onChange={(val) => updateSlot(dIdx, sIdx, "end_time", val)}
                     />
 
                     {day.enabled && (
-                      <>
-                        {sIdx === day.slots.length - 1 ? (
-                          <button
-                            type="button"
-                            onClick={() => addSlot(dIdx)}
-                            className="p-1 text-gray-500 hover:text-black"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => removeSlot(dIdx, sIdx)}
-                            className="p-1 text-gray-400 hover:text-red-500"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </>
+                      sIdx === day.slots.length - 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => addSlot(dIdx)}
+                          className="p-1 text-gray-500 hover:text-black"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(dIdx, sIdx)}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <X size={14} />
+                        </button>
+                      )
                     )}
                   </div>
                 ))}
