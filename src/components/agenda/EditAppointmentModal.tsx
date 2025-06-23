@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Appointment } from "@/types"; // assicurati che sia importato correttamente
-import PaymentForm from "./PaymentForm";
+import PaymentForm from "@/components/payment/PaymentForm";
 
 interface EditAppointmentModalProps {
   appointment: Appointment;
