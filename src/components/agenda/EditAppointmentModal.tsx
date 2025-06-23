@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-
-const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
+import PaymentForm from '../payment/PaymentForm';
 
 const EditAppointmentModal = ({
   appointment,
@@ -10,7 +8,6 @@ const EditAppointmentModal = ({
   onUpdated,
   initialTab = 'edit',
 }) => {
-  const navigate = useNavigate();
   if (!appointment) return null;
 
   const [activeTab, setActiveTab] = useState<'edit' | 'payment'>(initialTab);
@@ -20,14 +17,12 @@ const EditAppointmentModal = ({
   const [selectedServiceId, setSelectedServiceId] = useState(appointment.service_id ?? '');
   const [duration, setDuration] = useState(appointment.duration_min ?? 0);
   const [price, setPrice] = useState(0);
-  const [discount, setDiscount] = useState(0);
   const [appointmentDate, setAppointmentDate] = useState(
     appointment.appointment_date?.split('T')[0] ?? new Date().toISOString().split('T')[0]
   );
   const [appointmentTime, setAppointmentTime] = useState(
     appointment.appointment_time?.slice(0, 5) ?? '08:00'
   );
-  const [paymentMethod, setPaymentMethod] = useState(appointment.payment_method ?? '');
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -49,44 +44,27 @@ const EditAppointmentModal = ({
     fetchServices();
   }, [appointment.service_id]);
 
-  const handleSave = async () => {
+  const handleSaveEdit = async () => {
     const fullDateTime = `${appointmentDate}T${appointmentTime}:00`;
 
-    if (activeTab === 'edit') {
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          customer_name: customerName,
-          duration_min: duration,
-          appointment_date: fullDateTime,
-          appointment_time: appointmentTime,
-          service_id: selectedServiceId,
-        })
-        .eq('id', appointment.id);
+    const { error } = await supabase
+      .from('appointments')
+      .update({
+        customer_name: customerName,
+        duration_min: duration,
+        appointment_date: fullDateTime,
+        appointment_time: appointmentTime,
+        service_id: selectedServiceId,
+      })
+      .eq('id', appointment.id);
 
-      if (error) {
-        console.error('Errore durante la modifica:', error.message);
-        return;
-      }
-
-      onUpdated();
-      onClose();
+    if (error) {
+      console.error('Errore durante la modifica:', error.message);
+      return;
     }
 
-    if (activeTab === 'payment') {
-      navigate('/cassa/nuova', {
-        state: {
-          appointment_id: appointment.id,
-          customer_name: customerName, // ✅ Fixed
-          barber_id: appointment.barber_id,
-          service_id: selectedServiceId,
-          price,
-          discount: 0,
-          total: price,
-          payment_method: '',
-        },
-      });
-    }
+    onUpdated();
+    onClose();
   };
 
   return (
@@ -187,36 +165,41 @@ const EditAppointmentModal = ({
 
         {/* Payment Tab */}
         {activeTab === 'payment' && (
-          <div className="mt-4">
-            <button
-              onClick={handleSave}
-              className="w-full px-4 py-2 bg-[#5D4037] text-white rounded hover:bg-[#4E342E] transition"
-            >
-              Vai alla pagina pagamento
-            </button>
+          <div className="mt-2">
+            <PaymentForm
+              prefill={{
+                appointment_id: appointment.id,
+                customer_name,
+                barber_id: appointment.barber_id,
+                service_id: selectedServiceId,
+                price,
+                discount: 0,
+              }}
+              onSuccess={() => {
+                onUpdated();
+                onClose();
+              }}
+            />
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex justify-end mt-6 space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
-          >
-            Annulla
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={activeTab === 'payment'}
-            className={`px-4 py-2 rounded text-white ${
-              activeTab === 'payment'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            Salva
-          </button>
-        </div>
+        {activeTab === 'edit' && (
+          <div className="flex justify-end mt-6 space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="px-4 py-2 rounded text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Salva
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
