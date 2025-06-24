@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Switch } from "../ui/switch";
@@ -112,14 +113,21 @@ export default function EditStaffAvailabilityModal({
     );
   };
 
-  const updateSlot = (dIdx: number, sIdx: number, field: keyof Slot, val: string) => {
+  const updateSlot = (
+    dIdx: number,
+    sIdx: number,
+    field: keyof Slot,
+    val: string
+  ) => {
     setAvailability((prev) =>
       prev.map((d, i) =>
         i !== dIdx
           ? d
           : {
               ...d,
-              slots: d.slots.map((s, j) => (j === sIdx ? { ...s, [field]: val } : s)),
+              slots: d.slots.map((s, j) =>
+                j === sIdx ? { ...s, [field]: val } : s
+              ),
             }
       )
     );
@@ -127,7 +135,9 @@ export default function EditStaffAvailabilityModal({
 
   const addSlot = (dIdx: number) => {
     setAvailability((prev) =>
-      prev.map((d, i) => (i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d))
+      prev.map((d, i) =>
+        i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d
+      )
     );
   };
 
@@ -160,46 +170,48 @@ export default function EditStaffAvailabilityModal({
           }))
       );
 
-    if (inserts.length) await supabase.from("barbers_availabilities").insert(inserts);
+    if (inserts.length)
+      await supabase.from("barbers_availabilities").insert(inserts);
     setLoading(false);
     onUpdated();
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[540px] px-6 py-5">
+      <DialogContent className="max-w-[560px] px-6 py-5">
         <DialogHeader>
           <DialogTitle className="text-lg">Modifica Disponibilità</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           {availability.map((day, dIdx) => (
-            <div key={day.weekday} className="flex items-start gap-4">
-              <div className="flex min-w-[110px] items-center gap-3 pt-1.5">
-                <Switch
-                  checked={day.enabled}
-                  onCheckedChange={(v) => toggleDay(dIdx, v)}
-                />
-                <span className="text-sm whitespace-nowrap">{day.weekday}</span>
-              </div>
+            <div
+              key={day.weekday}
+              className="grid grid-cols-[auto,110px,auto,auto,auto] items-center gap-2"
+            >
+              <Switch
+                checked={day.enabled}
+                onCheckedChange={(v) => toggleDay(dIdx, v)}
+              />
+              <span className="text-sm whitespace-nowrap">{day.weekday}</span>
 
-              <div className="flex flex-col gap-2 flex-1">
-                {day.slots.map((slot, sIdx) => (
-                  <div key={sIdx} className="flex items-center gap-2">
-                    <TimeSelect
-                      value={slot.start_time}
-                      disabled={!day.enabled}
-                      onChange={(val) => updateSlot(dIdx, sIdx, "start_time", val)}
-                    />
-                    <span className="select-none">–</span>
-                    <TimeSelect
-                      value={slot.end_time}
-                      disabled={!day.enabled}
-                      onChange={(val) => updateSlot(dIdx, sIdx, "end_time", val)}
-                    />
+              {day.slots.map((slot, sIdx) => (
+                <div key={sIdx} className="col-span-3 flex items-center gap-2">
+                  <TimeSelect
+                    value={slot.start_time}
+                    disabled={!day.enabled}
+                    onChange={(val) => updateSlot(dIdx, sIdx, "start_time", val)}
+                  />
+                  <span className="select-none">–</span>
+                  <TimeSelect
+                    value={slot.end_time}
+                    disabled={!day.enabled}
+                    onChange={(val) => updateSlot(dIdx, sIdx, "end_time", val)}
+                  />
 
-                    {day.enabled && (
-                      sIdx === day.slots.length - 1 ? (
+                  {day.enabled && (
+                    <>
+                      {sIdx === day.slots.length - 1 ? (
                         <button
                           type="button"
                           onClick={() => addSlot(dIdx)}
@@ -215,11 +227,11 @@ export default function EditStaffAvailabilityModal({
                         >
                           <X size={14} />
                         </button>
-                      )
-                    )}
-                  </div>
-                ))}
-              </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
           ))}
         </div>
