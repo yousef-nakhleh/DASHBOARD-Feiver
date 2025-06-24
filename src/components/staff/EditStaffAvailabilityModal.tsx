@@ -17,7 +17,7 @@ const daysOfWeek = [
 ];
 type Slot = { start_time: string; end_time: string };
 type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
-type Props = {
+type Props = { 
   barberId: string;
   open: boolean;
   onClose: () => void;
@@ -180,4 +180,4 @@ export default function EditStaffAvailabilityModal({
       </DialogContent>
     </Dialog>
   );
-} 
+}
