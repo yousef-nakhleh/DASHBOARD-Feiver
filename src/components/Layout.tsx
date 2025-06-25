@@ -76,7 +76,7 @@ const Layout = () => {
               ></div>
               <div className="absolute top-0 left-0 bottom-0 w-64 bg-[#263238] text-white">
                 <div className="flex justify-between items-center p-5 border-b border-gray-600">
-                  <h1 className="text-2xl font-serif font-bold">Unique</h1>
+                  <h1 className="text-2xl font-serif font-bold">Seventyfour</h1>
                   <button onClick={() => setIsSidebarOpen(false)}>
                     <X size={24} />
                   </button>
