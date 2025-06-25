@@ -7,13 +7,13 @@ import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 const daysOfWeek = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thurday',
-  'Friday',
-  'Saturday',
-  'Sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thurday',
+  'friday',
+  'saturday',
+  'sunday',
 ];
 
 type Slot = { start_time: string; end_time: string };
