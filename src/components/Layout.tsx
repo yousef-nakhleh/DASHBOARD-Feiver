@@ -126,7 +126,7 @@ const Layout = () => {
                 {sidebarItems.find(item => item.path === location.pathname)?.name || 'Dashboard'}
               </h2>
               <div className="flex items-center">
-                <span className="text-sm text-gray-700 mr-2">Patrizia</span>
+                <span className="text-sm text-gray-700 mr-2">Pietro</span>
                 <div className="h-8 w-8 rounded-full bg-[#5D4037] text-white flex items-center justify-center">
                   P
                 </div>
