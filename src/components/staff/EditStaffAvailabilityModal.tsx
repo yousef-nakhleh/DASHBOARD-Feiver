@@ -17,7 +17,7 @@ const daysOfWeek = [
 ];
 
 type Slot = { start_time: string; end_time: string };
-type Day = { weekday: string; enabled: boolean; slots: Slot[] };
+type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
 
 interface Props {
   barberId: string;
@@ -34,7 +34,7 @@ const defaultState: Day[] = daysOfWeek.map((d) => ({
 }));
 
 /* ------------------------------------------------------------------ */
-/* Select “compatto” ogni 15′ */
+/* Select compatto (15 min) */
 function TimeSelect({
   value,
   onChange,
@@ -51,7 +51,7 @@ function TimeSelect({
         const d = new Date();
         d.setHours(h, m, 0);
         arr.push({
-          value: d.toTimeString().slice(0, 5), // “08:15”
+          value: d.toTimeString().slice(0, 5), // 08:15
           label: d.toLocaleTimeString('it-IT', {
             hour: 'numeric',
             minute: '2-digit',
@@ -87,17 +87,32 @@ export default function EditStaffAvailabilityModal({
   onClose,
   onUpdated,
 }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [state, setState] = useState<Day[]>(defaultState);
+  const [loading,   setLoading]   = useState(false);
+  const [state,     setState]     = useState<Day[]>(defaultState);
+  const [bizId,     setBizId]     = useState<string | null>(null);
 
-  /* caricamento disponibilità da Supabase */
+  /* 1. Ricaviamo il business_id del barbiere ----------------------------- */
   useEffect(() => {
     if (!barberId) return;
     (async () => {
       const { data } = await supabase
+        .from('barbers')
+        .select('business_id')
+        .eq('id', barberId)
+        .single();
+      setBizId(data?.business_id ?? null);
+    })();
+  }, [barberId]);
+
+  /* 2. Carichiamo le disponibilità attuali ------------------------------ */
+  useEffect(() => {
+    if (!barberId || !bizId) return;
+    (async () => {
+      const { data } = await supabase
         .from('barbers_availabilities')
         .select('*')
-        .eq('barber_id', barberId);
+        .eq('barber_id', barberId)
+        .eq('business_id', bizId);
 
       if (!data) return;
       setState(
@@ -111,9 +126,9 @@ export default function EditStaffAvailabilityModal({
         }),
       );
     })();
-  }, [barberId]);
+  }, [barberId, bizId]);
 
-  /* mutazioni locali ----------------------------------------------------- */
+  /* helpers -------------------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
     setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
 
@@ -155,20 +170,32 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio su Supabase ---------------------------------------------- */
+  /* salvataggio ---------------------------------------------------------- */
   const handleSave = async () => {
+    if (!bizId) return;             // sicurezza
     setLoading(true);
-    await supabase.from('barbers_availabilities').delete().eq('barber_id', barberId);
+
+    await supabase
+      .from('barbers_availabilities')
+      .delete()
+      .eq('barber_id', barberId)
+      .eq('business_id', bizId);
 
     const rows = state
       .filter((d) => d.enabled)
       .flatMap((d) =>
         d.slots
           .filter((s) => s.start_time && s.end_time)
-          .map((s) => ({ barber_id: barberId, weekday: d.weekday, ...s })),
+          .map((s) => ({
+            business_id: bizId,
+            barber_id  : barberId,
+            weekday    : d.weekday,
+            ...s,
+          })),
       );
 
     if (rows.length) await supabase.from('barbers_availabilities').insert(rows);
+
     setLoading(false);
     onUpdated();
   };
@@ -184,7 +211,7 @@ export default function EditStaffAvailabilityModal({
         <div className="space-y-3">
           {state.map((d, dIdx) => (
             <div key={d.weekday} className="flex items-center gap-4">
-              {/* col.1: toggle + label  */}
+              {/* col.1: switch + label */}
               <div className="flex items-center gap-3 w-32">
                 <Switch
                   checked={d.enabled}
@@ -209,7 +236,6 @@ export default function EditStaffAvailabilityModal({
                       onChange={(v) => updateSlot(dIdx, sIdx, 'end_time', v)}
                     />
 
-                    {/* col.4 fissa (icona oppure placeholder) */}
                     {d.enabled ? (
                       sIdx === d.slots.length - 1 ? (
                         <button
