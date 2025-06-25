@@ -16,9 +16,9 @@ const Dashboard: React.FC = () => {
   ];
 
   const staffToday = [
-    { name: 'Marco', appointments: 5, revenue: 175, available: true },
-    { name: 'Paolo', appointments: 3, revenue: 105, available: true },
-    { name: 'Lucia', appointments: 0, revenue: 0, available: false }
+    { name: 'Pietro', appointments: 5, revenue: 175, available: true },
+    { name: 'Annarita', appointments: 3, revenue: 105, available: true },
+    { name: 'Federica', appointments: 0, revenue: 0, available: false }
   ];
 
   const lowStockProducts = [
