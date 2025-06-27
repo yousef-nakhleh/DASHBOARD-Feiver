@@ -10,7 +10,7 @@ const daysOfWeek = [
   'monday', 
   'tuesday',
   'wednesday',
-  'thurday',
+  'thursday',
   'friday',
   'saturday',
   'sunday',
@@ -172,7 +172,7 @@ export default function EditStaffAvailabilityModal({
 
   /* salvataggio ---------------------------------------------------------- */
   const handleSave = async () => {
-    if (!bizId) return;             // sicurezza
+    if (!bizId) return;             
     setLoading(true);
 
     await supabase
@@ -211,7 +211,6 @@ export default function EditStaffAvailabilityModal({
         <div className="space-y-3">
           {state.map((d, dIdx) => (
             <div key={d.weekday} className="flex items-center gap-4">
-              {/* col.1: switch + label */}
               <div className="flex items-center gap-3 w-32">
                 <Switch
                   checked={d.enabled}
@@ -220,7 +219,6 @@ export default function EditStaffAvailabilityModal({
                 <span className="text-sm">{d.weekday}</span>
               </div>
 
-              {/* col.2-3-4: slot */}
               <div className="flex flex-col gap-2 flex-1">
                 {d.slots.map((s, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2">
