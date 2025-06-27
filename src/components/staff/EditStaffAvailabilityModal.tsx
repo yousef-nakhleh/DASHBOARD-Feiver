@@ -6,15 +6,18 @@ import { supabase } from '@/lib/supabase';
 import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-const daysOfWeek = [
-  'monday', 
-  'tuesday', 
-  'wednesday',
-  'thurday',
-  'friday',
-  'saturday',
-  'sunday',
-];
+// Mapping for UI label (Italian) vs. backend value (English lowercase)
+const dayMap = {
+  monday: 'Lunedì',
+  tuesday: 'Martedì',
+  wednesday: 'Mercoledì',
+  thursday: 'Giovedì',
+  friday: 'Venerdì',
+  saturday: 'Sabato',
+  sunday: 'Domenica',
+};
+
+const daysOfWeek = Object.keys(dayMap);
 
 type Slot = { start_time: string; end_time: string };
 type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
@@ -34,7 +37,6 @@ const defaultState: Day[] = daysOfWeek.map((d) => ({
 }));
 
 /* ------------------------------------------------------------------ */
-/* Select compatto (15 min) */
 function TimeSelect({
   value,
   onChange,
@@ -51,7 +53,7 @@ function TimeSelect({
         const d = new Date();
         d.setHours(h, m, 0);
         arr.push({
-          value: d.toTimeString().slice(0, 5), // 08:15
+          value: d.toTimeString().slice(0, 5),
           label: d.toLocaleTimeString('it-IT', {
             hour: 'numeric',
             minute: '2-digit',
@@ -91,7 +93,6 @@ export default function EditStaffAvailabilityModal({
   const [state,     setState]     = useState<Day[]>(defaultState);
   const [bizId,     setBizId]     = useState<string | null>(null);
 
-  /* 1. Ricaviamo il business_id del barbiere ----------------------------- */
   useEffect(() => {
     if (!barberId) return;
     (async () => {
@@ -104,7 +105,6 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId]);
 
-  /* 2. Carichiamo le disponibilità attuali ------------------------------ */
   useEffect(() => {
     if (!barberId || !bizId) return;
     (async () => {
@@ -128,7 +128,6 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId, bizId]);
 
-  /* helpers -------------------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
     setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
 
@@ -170,9 +169,8 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio ---------------------------------------------------------- */
   const handleSave = async () => {
-    if (!bizId) return;             // sicurezza
+    if (!bizId) return;
     setLoading(true);
 
     await supabase
@@ -189,7 +187,7 @@ export default function EditStaffAvailabilityModal({
           .map((s) => ({
             business_id: bizId,
             barber_id  : barberId,
-            weekday    : d.weekday,
+            weekday    : d.weekday, // stays lowercase English
             ...s,
           })),
       );
@@ -200,7 +198,6 @@ export default function EditStaffAvailabilityModal({
     onUpdated();
   };
 
-  /* ---------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[540px] px-6 py-5">
@@ -211,16 +208,14 @@ export default function EditStaffAvailabilityModal({
         <div className="space-y-3">
           {state.map((d, dIdx) => (
             <div key={d.weekday} className="flex items-center gap-4">
-              {/* col.1: switch + label */}
               <div className="flex items-center gap-3 w-32">
                 <Switch
                   checked={d.enabled}
                   onCheckedChange={(v) => toggleDay(dIdx, v)}
                 />
-                <span className="text-sm">{d.weekday}</span>
+                <span className="text-sm">{dayMap[d.weekday]}</span>
               </div>
 
-              {/* col.2-3-4: slot */}
               <div className="flex flex-col gap-2 flex-1">
                 {d.slots.map((s, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2">
@@ -235,7 +230,6 @@ export default function EditStaffAvailabilityModal({
                       disabled={!d.enabled}
                       onChange={(v) => updateSlot(dIdx, sIdx, 'end_time', v)}
                     />
-
                     {d.enabled ? (
                       sIdx === d.slots.length - 1 ? (
                         <button
