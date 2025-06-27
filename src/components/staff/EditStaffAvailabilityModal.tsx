@@ -6,18 +6,31 @@ import { supabase } from '@/lib/supabase';
 import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
+/* 1. Giorni salvati in inglese (minuscolo) -------------------------- */
 const daysOfWeek = [
   'monday',
   'tuesday',
   'wednesday',
-  'thurday',
+  'thursday', // (corretto typo)
   'friday',
   'saturday',
   'sunday',
-];
+] as const;
 
+/* 2. Mappa ➜ etichetta italiana per la UI -------------------------- */
+const weekdayLabels: Record<(typeof daysOfWeek)[number], string> = {
+  monday:    'Lunedì',
+  tuesday:   'Martedì',
+  wednesday: 'Mercoledì',
+  thursday:  'Giovedì',
+  friday:    'Venerdì',
+  saturday:  'Sabato',
+  sunday:    'Domenica',
+};
+
+/* ------------------------------------------------------------------ */
 type Slot = { start_time: string; end_time: string };
-type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
+type Day  = { weekday: (typeof daysOfWeek)[number]; enabled: boolean; slots: Slot[] };
 
 interface Props {
   barberId: string;
@@ -87,11 +100,11 @@ export default function EditStaffAvailabilityModal({
   onClose,
   onUpdated,
 }: Props) {
-  const [loading,   setLoading]   = useState(false);
-  const [state,     setState]     = useState<Day[]>(defaultState);
-  const [bizId,     setBizId]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [state,   setState]   = useState<Day[]>(defaultState);
+  const [bizId,   setBizId]   = useState<string | null>(null);
 
-  /* 1. Ricaviamo il business_id del barbiere ----------------------------- */
+  /* 1️⃣  Recupero business_id del barbiere ------------------------------ */
   useEffect(() => {
     if (!barberId) return;
     (async () => {
@@ -104,7 +117,7 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId]);
 
-  /* 2. Carichiamo le disponibilità attuali ------------------------------ */
+  /* 2️⃣  Carico le disponibilità correnti ------------------------------- */
   useEffect(() => {
     if (!barberId || !bizId) return;
     (async () => {
@@ -128,7 +141,7 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId, bizId]);
 
-  /* helpers -------------------------------------------------------------- */
+  /* helpers ------------------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
     setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
 
@@ -170,9 +183,9 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio ---------------------------------------------------------- */
+  /* salvataggio --------------------------------------------------------- */
   const handleSave = async () => {
-    if (!bizId) return;             // sicurezza
+    if (!bizId) return;
     setLoading(true);
 
     await supabase
@@ -189,7 +202,7 @@ export default function EditStaffAvailabilityModal({
           .map((s) => ({
             business_id: bizId,
             barber_id  : barberId,
-            weekday    : d.weekday,
+            weekday    : d.weekday,      // sempre EN/minuscolo
             ...s,
           })),
       );
@@ -200,7 +213,7 @@ export default function EditStaffAvailabilityModal({
     onUpdated();
   };
 
-  /* ---------------------------------------------------------------------- */
+  /* --------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[540px] px-6 py-5">
@@ -217,7 +230,10 @@ export default function EditStaffAvailabilityModal({
                   checked={d.enabled}
                   onCheckedChange={(v) => toggleDay(dIdx, v)}
                 />
-                <span className="text-sm">{d.weekday}</span>
+                {/* ✅ etichetta italiana */}
+                <span className="text-sm">
+                  {weekdayLabels[d.weekday] ?? d.weekday}
+                </span>
               </div>
 
               {/* col.2-3-4: slot */}
@@ -253,6 +269,7 @@ export default function EditStaffAvailabilityModal({
                         </button>
                       )
                     ) : (
+                      /* placeholder per allineare colonna */
                       <span className="inline-block w-5" />
                     )}
                   </div>
