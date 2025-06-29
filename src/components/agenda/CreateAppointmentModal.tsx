@@ -118,7 +118,7 @@ const CreateAppointmentModal = ({
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
-            <X size={20} />
+            <X size={20} className="text-black" />
           </button>
         </div>
 
@@ -130,7 +130,7 @@ const CreateAppointmentModal = ({
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black placeholder-gray-400"
                 placeholder="Inserisci nome cliente"
               />
               <button
@@ -147,11 +147,11 @@ const CreateAppointmentModal = ({
             <select
               value={selectedService}
               onChange={handleServiceChange}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
-              <option value="">Seleziona servizio</option>
+              <option value="" className="text-gray-400">Seleziona servizio</option>
               {services.map((service) => (
-                <option key={service.id} value={service.id}>
+                <option key={service.id} value={service.id} className="text-black">
                   {service.name}
                 </option>
               ))}
@@ -163,11 +163,11 @@ const CreateAppointmentModal = ({
             <select
               value={selectedBarber}
               onChange={(e) => setSelectedBarber(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
-              <option value="">Seleziona barbiere</option>
+              <option value="" className="text-gray-400">Seleziona barbiere</option>
               {barbers.map((barber) => (
-                <option key={barber.id} value={barber.id}>
+                <option key={barber.id} value={barber.id} className="text-black">
                   {barber.name}
                 </option>
               ))}
@@ -181,7 +181,7 @@ const CreateAppointmentModal = ({
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
 
@@ -191,7 +191,7 @@ const CreateAppointmentModal = ({
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(parseInt(e.target.value))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
           </div>
@@ -201,7 +201,7 @@ const CreateAppointmentModal = ({
             <select
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
               {Array.from({ length: 90 }, (_, i) => {
                 const hour = 6 + Math.floor(i / 6);
@@ -223,7 +223,7 @@ const CreateAppointmentModal = ({
                     key={time}
                     value={time}
                     disabled={isOccupied}
-                    className={isOccupied ? 'line-through text-gray-400' : ''}
+                    className={isOccupied ? 'text-gray-400 line-through' : 'text-black'}
                   >
                     {time} {isOccupied ? '(occupato)' : ''}
                   </option>
