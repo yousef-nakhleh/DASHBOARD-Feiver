@@ -1,6 +1,6 @@
-// src/components/agenda/ContactPickerModal.tsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { X } from 'lucide-react';
 
 const ContactPickerModal = ({ onSelect, onClose }) => {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -26,31 +26,43 @@ const ContactPickerModal = ({ onSelect, onClose }) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-lg w-[400px] p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Seleziona un Contatto</h2>
-          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">Chiudi</button>
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[70vh] overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-black">Seleziona un Contatto</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        {loading ? (
-          <p className="text-gray-500 text-sm">Caricamento...</p>
-        ) : contacts.length === 0 ? (
-          <p className="text-gray-500 text-sm">Nessun contatto disponibile.</p>
-        ) : (
-          <ul className="space-y-3 max-h-60 overflow-y-auto">
-            {contacts.map((contact, idx) => (
-              <li
-                key={idx}
-                onClick={() => onSelect(contact)}
-                className="border p-2 rounded hover:bg-gray-100 cursor-pointer"
-              >
-                <p className="font-medium text-sm">{contact.customer_name}</p>
-                <p className="text-xs text-gray-500">{contact.customer_email}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="p-6">
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Caricamento contatti...</p>
+            </div>
+          ) : contacts.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Nessun contatto disponibile.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {contacts.map((contact, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => onSelect(contact)}
+                  className="border border-gray-200 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <p className="font-semibold text-black">{contact.customer_name}</p>
+                  <p className="text-sm text-gray-500">{contact.customer_email}</p>
+                  <p className="text-sm text-gray-500">{contact.customer_phone}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

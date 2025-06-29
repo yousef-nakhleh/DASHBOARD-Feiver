@@ -35,51 +35,54 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
+        <label className="block text-sm font-semibold text-black mb-2">Nome Completo</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+          placeholder="Inserisci nome completo"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Numero di Telefono</label>
+        <label className="block text-sm font-semibold text-black mb-2">Numero di Telefono</label>
         <input
           type="text"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+          placeholder="Inserisci numero di telefono"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Email (opzionale)</label>
+        <label className="block text-sm font-semibold text-black mb-2">Email (opzionale)</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+          placeholder="Inserisci indirizzo email"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Data di Nascita</label>
+        <label className="block text-sm font-semibold text-black mb-2">Data di Nascita</label>
         <input
           type="date"
           value={birthdate}
           onChange={(e) => setBirthdate(e.target.value)}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring focus:ring-[#5D4037] focus:border-[#5D4037]"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
         />
       </div>
 
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full bg-[#5D4037] text-white py-2 rounded-md hover:bg-[#4E342E] transition"
+        className="w-full bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
       >
         {saving ? 'Salvataggio...' : 'Salva Cliente'}
       </button>

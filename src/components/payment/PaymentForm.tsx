@@ -1,4 +1,3 @@
-// src/components/payment/PaymentForm.tsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -49,54 +48,59 @@ const PaymentForm = ({ prefill = {}, onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Cliente</label>
+        <label className="block text-sm font-semibold text-black mb-2">Cliente</label>
         <input
           type="text"
           value={customerName}
           disabled
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2 bg-gray-100"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 text-black"
         />
       </div>
+      
       <div>
-        <label className="block text-sm font-medium text-gray-700">Prezzo</label>
+        <label className="block text-sm font-semibold text-black mb-2">Prezzo</label>
         <input
           type="number"
           value={price}
           disabled
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2 bg-gray-100"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 text-black"
         />
       </div>
+      
       <div>
-        <label className="block text-sm font-medium text-gray-700">Sconto</label>
+        <label className="block text-sm font-semibold text-black mb-2">Sconto</label>
         <input
           type="number"
           value={discount}
           onChange={(e) => setDiscount(Number(e.target.value))}
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
         />
       </div>
+      
       <div>
-        <label className="block text-sm font-medium text-gray-700">Metodo di pagamento</label>
+        <label className="block text-sm font-semibold text-black mb-2">Metodo di pagamento</label>
         <select
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value)}
-          className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
         >
-          <option value="">Seleziona...</option>
+          <option value="">Seleziona metodo...</option>
           {paymentMethods.map((method) => (
             <option key={method} value={method}>{method}</option>
           ))}
         </select>
       </div>
-      <div className="text-right">
-        <p className="text-lg font-semibold">Totale: €{total}</p>
+      
+      <div className="text-right p-4 bg-gray-50 rounded-xl">
+        <p className="text-2xl font-bold text-black">Totale: €{total}</p>
       </div>
+      
       <button
         type="submit"
         disabled={loading || !paymentMethod}
-        className="w-full py-2 px-4 bg-[#5D4037] text-white rounded hover:bg-[#4E342E] transition"
+        className="w-full py-3 px-4 bg-black text-white rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
       >
         {loading ? 'Salvataggio...' : 'Conferma Pagamento'}
       </button>
