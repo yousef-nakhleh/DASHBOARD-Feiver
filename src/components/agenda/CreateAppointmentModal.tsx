@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
-import { UserRoundSearch } from 'lucide-react';
+import { UserRoundSearch, X } from 'lucide-react';
 
 const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
 
@@ -110,35 +110,44 @@ const CreateAppointmentModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[400px]">
-        <h2 className="text-lg font-semibold mb-4">Nuovo Appuntamento</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-black">Nuovo Appuntamento</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-        <div className="space-y-4">
+        <div className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nome Cliente</label>
+            <label className="block text-sm font-semibold text-black mb-2">Nome Cliente</label>
             <div className="relative">
               <input
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full mt-1 border border-gray-300 rounded px-3 py-2 pr-10"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                placeholder="Inserisci nome cliente"
               />
               <button
                 onClick={() => setShowContactPicker(true)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-black transition-colors"
               >
-                <UserRoundSearch size={18} />
+                <UserRoundSearch size={20} />
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Servizio</label>
+            <label className="block text-sm font-semibold text-black mb-2">Servizio</label>
             <select
               value={selectedService}
               onChange={handleServiceChange}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
               <option value="">Seleziona servizio</option>
               {services.map((service) => (
@@ -150,11 +159,11 @@ const CreateAppointmentModal = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Barbiere</label>
+            <label className="block text-sm font-semibold text-black mb-2">Barbiere</label>
             <select
               value={selectedBarber}
               onChange={(e) => setSelectedBarber(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
               <option value="">Seleziona barbiere</option>
               {barbers.map((barber) => (
@@ -165,22 +174,34 @@ const CreateAppointmentModal = ({
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Data</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Data</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Durata (minuti)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Orario</label>
+            <label className="block text-sm font-semibold text-black mb-2">Orario</label>
             <select
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
               {Array.from({ length: 90 }, (_, i) => {
                 const hour = 6 + Math.floor(i / 6);
@@ -211,31 +232,25 @@ const CreateAppointmentModal = ({
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Durata (minuti)</label>
-            <input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
-              className="w-full mt-1 border border-gray-300 rounded px-3 py-2"
-            />
-          </div>
-
-          {errorMsg && <div className="text-red-600 text-sm font-medium">{errorMsg}</div>}
+          {errorMsg && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
+            </div>
+          )}
         </div>
 
-        <div className="flex justify-end mt-6 space-x-3">
+        <div className="flex justify-end space-x-3 p-6 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700"
+            className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
           >
             Annulla
           </button>
           <button
             onClick={handleCreate}
-            className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+            className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 font-medium transition-colors"
           >
-            Crea
+            Crea Appuntamento
           </button>
         </div>
 

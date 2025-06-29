@@ -141,7 +141,6 @@ const Agenda = () => {
             app.barber_id === selectedBarber
         );
 
-  // ✅ MODIFICA QUI: date dinamiche in base alla selectedDate
   const dateButtons = [0, 1, 2].map((offset) => {
     const d = new Date(selectedDate);
     d.setDate(selectedDate.getDate() + offset);
@@ -149,30 +148,30 @@ const Agenda = () => {
   });
 
   return (
-    <div className="h-full relative">
-      <div className="flex justify-between items-center mb-6">
+    <div className="h-full space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
+          <h1 className="text-3xl font-bold text-black mb-2">Agenda</h1>
           <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-[#5D4037] text-white px-4 py-2 rounded-lg flex items-center"
+          className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
         >
-          <Plus size={18} className="mr-1" /> Nuovo Appuntamento
+          <Plus size={18} className="mr-2" /> Nuovo Appuntamento
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow mb-6 h-[700px] flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-          <div className="flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div className="flex items-center gap-3">
             {dateButtons.map((date, i) => (
               <button
                 key={i}
-                className={`px-3 py-1 rounded-full text-sm border ${
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                   selectedDate.toDateString() === date.toDateString()
-                    ? 'bg-[#5D4037] text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
                 onClick={() => setSelectedDate(date)}
               >
@@ -182,7 +181,7 @@ const Agenda = () => {
             <div className="relative">
               <button
                 onClick={() => setShowDatePicker((prev) => !prev)}
-                className="p-2 rounded-full hover:bg-gray-100"
+                className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 <CalendarIcon size={18} />
               </button>
@@ -210,22 +209,22 @@ const Agenda = () => {
             <input
               type="text"
               placeholder="Cerca cliente o servizio"
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex space-x-2 px-4 pt-2">
+        <div className="flex space-x-2 px-6 pt-4">
           {['day', '3day', 'week'].map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 viewMode === mode
-                  ? 'bg-[#5D4037] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               {mode === 'day' ? 'Giorno' : mode === '3day' ? '3 Giorni' : 'Settimana'}
@@ -233,13 +232,13 @@ const Agenda = () => {
           ))}
         </div>
 
-        <div className="flex space-x-2 overflow-x-auto p-4 border-b border-gray-200">
+        <div className="flex space-x-2 overflow-x-auto p-6 border-b border-gray-100">
           <button
             onClick={() => setSelectedBarber('Tutti')}
-            className={`px-4 py-2 rounded-full text-sm border ${
+            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
               selectedBarber === 'Tutti'
-                ? 'bg-[#5D4037] text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-black text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             Tutti
@@ -248,10 +247,10 @@ const Agenda = () => {
             <button
               key={barber.id}
               onClick={() => setSelectedBarber(barber.id)}
-              className={`px-4 py-2 rounded-full text-sm border ${
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                 selectedBarber === barber.id
-                  ? 'bg-[#5D4037] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-black text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               {barber.name}

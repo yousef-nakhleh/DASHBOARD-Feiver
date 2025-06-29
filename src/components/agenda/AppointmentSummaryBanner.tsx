@@ -5,69 +5,71 @@ const AppointmentSummaryBanner = ({ appointment, onEdit, onPay, onDelete, onClos
   if (!appointment) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-xl w-[500px] relative">
-        {/* Header */}
-        <div className="flex justify-between items-start px-6 pt-4">
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-white rounded-2xl shadow-xl w-[600px] relative">
+        <div className="flex justify-between items-start p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Riepilogo Prenotazione</h2>
-            <p className="text-sm text-gray-500">Dettagli rapidi dell'appuntamento selezionato</p>
+            <h2 className="text-2xl font-bold text-black mb-1">Riepilogo Prenotazione</h2>
+            <p className="text-sm text-gray-500">Dettagli dell'appuntamento selezionato</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="px-6 py-4 space-y-3">
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Cliente:</span>{' '}
-            {appointment.customer_name || 'Non disponibile'}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Servizio:</span>{' '}
-            {appointment.services?.name || 'Non disponibile'}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Data:</span>{' '}
-            {appointment.appointment_date}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Orario:</span>{' '}
-            {appointment.appointment_time?.slice(0, 5)}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Durata:</span>{' '}
-            {appointment.duration_min} minuti
-          </div>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Pagamento:</span>{' '}
-            {appointment.paid ? 'Completato' : 'In sospeso'}
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Cliente</span>
+              <p className="text-lg font-semibold text-black mt-1">{appointment.customer_name || 'Non disponibile'}</p>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Servizio</span>
+              <p className="text-lg font-semibold text-black mt-1">{appointment.services?.name || 'Non disponibile'}</p>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Data</span>
+              <p className="text-lg font-semibold text-black mt-1">{appointment.appointment_date}</p>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Orario</span>
+              <p className="text-lg font-semibold text-black mt-1">{appointment.appointment_time?.slice(0, 5)}</p>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Durata</span>
+              <p className="text-lg font-semibold text-black mt-1">{appointment.duration_min} minuti</p>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pagamento</span>
+              <div className="flex items-center mt-1">
+                <div className={`w-2 h-2 rounded-full mr-2 ${appointment.paid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <p className="text-lg font-semibold text-black">{appointment.paid ? 'Completato' : 'In sospeso'}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex justify-end space-x-3 px-6 pb-5 pt-2 border-t">
+        <div className="flex justify-end space-x-3 p-6 border-t border-gray-100">
           <button
             onClick={onEdit}
-            className="flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700"
+            className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm text-gray-700 font-medium transition-colors"
           >
-            <Pencil size={16} className="mr-1" /> Modifica
+            <Pencil size={16} className="mr-2" /> Modifica
           </button>
           <button
             onClick={onPay}
-            className="flex items-center px-3 py-2 bg-green-100 hover:bg-green-200 rounded text-sm text-green-700"
+            className="flex items-center px-4 py-2 bg-green-100 hover:bg-green-200 rounded-xl text-sm text-green-700 font-medium transition-colors"
           >
-            <DollarSign size={16} className="mr-1" /> Pagamento
+            <DollarSign size={16} className="mr-2" /> Pagamento
           </button>
           <button
             onClick={onDelete}
-            className="flex items-center px-3 py-2 bg-red-100 hover:bg-red-200 rounded text-sm text-red-700"
+            className="flex items-center px-4 py-2 bg-red-100 hover:bg-red-200 rounded-xl text-sm text-red-700 font-medium transition-colors"
           >
-            <Trash2 size={16} className="mr-1" /> Elimina
+            <Trash2 size={16} className="mr-2" /> Elimina
           </button>
         </div>
       </div>

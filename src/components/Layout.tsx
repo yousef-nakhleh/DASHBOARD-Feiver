@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   LogOut,
-  Home
+  Home,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
@@ -44,44 +45,90 @@ const Layout = () => {
   };
 
   const pageVariants = {
-    initial: { opacity: 0, x: 20 },
+    initial: { opacity: 0, y: 20 },
     animate: {
       opacity: 1,
-      x: 0,
-      transition: { duration: 0.3 },
+      y: 0,
+      transition: { duration: 0.4, ease: "easeOut" },
     },
     exit: {
       opacity: 0,
-      x: -20,
-      transition: { duration: 0.2 },
+      y: -20,
+      transition: { duration: 0.3, ease: "easeIn" },
     },
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex h-screen bg-gray-50">
-        {/* Mobile sidebar */}
+      <div className="flex h-screen bg-black text-white">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-black border-r border-gray-800">
+          <div className="flex items-center justify-center h-16 px-6 border-b border-gray-800">
+            <h1 className="text-xl font-bold tracking-wider">SEVENTYFOUR</h1>
+          </div>
+          
+          <nav className="flex-1 px-4 py-6 space-y-1">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                  location.pathname === item.path
+                    ? 'bg-white text-black'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-900'
+                }`}
+              >
+                <div className="flex items-center">
+                  <span className="mr-3">{item.icon}</span>
+                  <span>{item.name}</span>
+                </div>
+                {location.pathname === item.path && (
+                  <ChevronRight size={16} />
+                )}
+              </button>
+            ))}
+          </nav>
+          
+          <div className="p-4 border-t border-gray-800">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
+            >
+              <LogOut size={20} className="mr-3" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile sidebar overlay */}
         <AnimatePresence>
           {isSidebarOpen && (
             <motion.div
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="fixed inset-0 z-50"
+              className="fixed inset-0 z-50 lg:hidden"
             >
               <div
-                className="absolute inset-0 bg-black bg-opacity-50"
+                className="absolute inset-0 bg-black bg-opacity-75"
                 onClick={() => setIsSidebarOpen(false)}
               ></div>
-              <div className="absolute top-0 left-0 bottom-0 w-64 bg-[#263238] text-white">
-                <div className="flex justify-between items-center p-5 border-b border-gray-600">
-                  <h1 className="text-2xl font-serif font-bold">Seventyfour</h1>
+              <motion.div
+                initial={{ x: -300 }}
+                animate={{ x: 0 }}
+                exit={{ x: -300 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="absolute top-0 left-0 bottom-0 w-64 bg-black border-r border-gray-800"
+              >
+                <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
+                  <h1 className="text-xl font-bold tracking-wider">SEVENTYFOUR</h1>
                   <button onClick={() => setIsSidebarOpen(false)}>
                     <X size={24} />
                   </button>
                 </div>
-                <nav className="flex-1 overflow-y-auto py-4">
+                
+                <nav className="flex-1 px-4 py-6 space-y-1">
                   {sidebarItems.map((item) => (
                     <button
                       key={item.path}
@@ -89,45 +136,69 @@ const Layout = () => {
                         navigate(item.path);
                         setIsSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center px-5 py-3 transition-colors ${
+                      className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                         location.pathname === item.path
-                          ? 'bg-[#5D4037] text-white'
-                          : 'text-gray-300 hover:bg-gray-700'
+                          ? 'bg-white text-black'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-900'
                       }`}
                     >
-                      <span className="mr-3">{item.icon}</span>
-                      <span>{item.name}</span>
+                      <div className="flex items-center">
+                        <span className="mr-3">{item.icon}</span>
+                        <span>{item.name}</span>
+                      </div>
+                      {location.pathname === item.path && (
+                        <ChevronRight size={16} />
+                      )}
                     </button>
                   ))}
                 </nav>
-                <div className="p-4 border-t border-gray-600">
+                
+                <div className="p-4 border-t border-gray-800">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center px-4 py-2 text-gray-300 hover:bg-gray-700 rounded"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
                   >
                     <LogOut size={20} className="mr-3" />
                     <span>Logout</span>
                   </button>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col lg:ml-64">
           {/* Header */}
-          <header className="bg-white shadow z-10">
-            <div className="px-4 py-3 flex justify-between items-center">
-              <button onClick={() => setIsSidebarOpen(true)} className="text-gray-700 hover:text-gray-900">
-                <Menu size={24} />
+          <header className="bg-black border-b border-gray-800 h-16 flex items-center justify-between px-6">
+            <div className="flex items-center">
+              <button 
+                onClick={() => setIsSidebarOpen(true)} 
+                className="lg:hidden mr-4 p-2 rounded-lg hover:bg-gray-900 transition-colors"
+              >
+                <Menu size={20} />
               </button>
-              <h2 className="text-xl font-medium font-serif text-gray-800 md:ml-0 ml-4">
-                {sidebarItems.find(item => item.path === location.pathname)?.name || 'Dashboard'}
-              </h2>
-              <div className="flex items-center">
-                <span className="text-sm text-gray-700 mr-2">Pietro</span>
-                <div className="h-8 w-8 rounded-full bg-[#5D4037] text-white flex items-center justify-center">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {sidebarItems.find(item => item.path === location.pathname)?.name || 'Dashboard'}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {new Date().toLocaleDateString('it-IT', { 
+                    weekday: 'long', 
+                    day: 'numeric', 
+                    month: 'long' 
+                  })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-sm font-medium">Pietro</p>
+                  <p className="text-xs text-gray-400">Administrator</p>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center font-semibold">
                   P
                 </div>
               </div>
@@ -135,7 +206,7 @@ const Layout = () => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto p-4 bg-gray-50">
+          <main className="flex-1 overflow-hidden bg-gray-50">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -143,7 +214,7 @@ const Layout = () => {
                 animate="animate"
                 exit="exit"
                 variants={pageVariants}
-                className="h-full"
+                className="h-full p-6"
               >
                 <Outlet />
               </motion.div>
