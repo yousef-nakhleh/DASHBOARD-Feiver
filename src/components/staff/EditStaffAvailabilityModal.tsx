@@ -6,15 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-// Mapping for UI label (Italian) vs. backend value (English lowercase)
-const dayMap = {
-  monday: 'Lunedì',
-  tuesday: 'Martedì',
+// UI label (Italian)  ◀▶  backend value (English, lowercase)
+const dayMap: Record<string, string> = {
+  monday:    'Lunedì',
+  tuesday:   'Martedì',
   wednesday: 'Mercoledì',
-  thursday: 'Giovedì',
-  friday: 'Venerdì',
-  saturday: 'Sabato',
-  sunday: 'Domenica',
+  thursday:  'Giovedì',        // 🔹 fix: “thursday” con la s
+  friday:    'Venerdì',
+  saturday:  'Sabato',
+  sunday:    'Domenica',
 };
 
 const daysOfWeek = Object.keys(dayMap);
@@ -53,7 +53,7 @@ function TimeSelect({
         const d = new Date();
         d.setHours(h, m, 0);
         arr.push({
-          value: d.toTimeString().slice(0, 5),
+          value: d.toTimeString().slice(0, 5), // 08:15
           label: d.toLocaleTimeString('it-IT', {
             hour: 'numeric',
             minute: '2-digit',
@@ -89,10 +89,11 @@ export default function EditStaffAvailabilityModal({
   onClose,
   onUpdated,
 }: Props) {
-  const [loading,   setLoading]   = useState(false);
-  const [state,     setState]     = useState<Day[]>(defaultState);
-  const [bizId,     setBizId]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [state, setState]     = useState<Day[]>(defaultState);
+  const [bizId, setBizId]     = useState<string | null>(null);
 
+  /* business_id del barbiere ------------------------------------------- */
   useEffect(() => {
     if (!barberId) return;
     (async () => {
@@ -105,6 +106,7 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId]);
 
+  /* carica disponibilità ------------------------------------------------ */
   useEffect(() => {
     if (!barberId || !bizId) return;
     (async () => {
@@ -128,6 +130,7 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId, bizId]);
 
+  /* helper mutazioni ---------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
     setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
 
@@ -169,6 +172,7 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
+  /* salvataggio --------------------------------------------------------- */
   const handleSave = async () => {
     if (!bizId) return;
     setLoading(true);
@@ -187,17 +191,20 @@ export default function EditStaffAvailabilityModal({
           .map((s) => ({
             business_id: bizId,
             barber_id  : barberId,
-            weekday    : d.weekday, // stays lowercase English
-            ...s,
+            weekday    : d.weekday, // -> inglese minuscolo per il DB
+            ...s,                   // nessun “id”: lo genera il DB
           })),
       );
 
-    if (rows.length) await supabase.from('barbers_availabilities').insert(rows);
+    if (rows.length) {
+      await supabase.from('barbers_availabilities').insert(rows);
+    }
 
     setLoading(false);
     onUpdated();
   };
 
+  /* -------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[540px] px-6 py-5">
@@ -208,6 +215,7 @@ export default function EditStaffAvailabilityModal({
         <div className="space-y-3">
           {state.map((d, dIdx) => (
             <div key={d.weekday} className="flex items-center gap-4">
+              {/* col.1: switch + etichetta (italiano) */}
               <div className="flex items-center gap-3 w-32">
                 <Switch
                   checked={d.enabled}
@@ -216,6 +224,7 @@ export default function EditStaffAvailabilityModal({
                 <span className="text-sm">{dayMap[d.weekday]}</span>
               </div>
 
+              {/* col.2-3-4: slot */}
               <div className="flex flex-col gap-2 flex-1">
                 {d.slots.map((s, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2">
