@@ -54,23 +54,23 @@ export default function EditAppointmentModal({
         {activeTab === "edit" ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium">Nome Cliente</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome Cliente</label>
               <input
                 type="text"
                 name="customer_name"
                 value={editedAppointment.customer_name}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Servizio</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Servizio</label>
               <select
                 name="service_name"
                 value={editedAppointment.service_name}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               >
                 <option value="Haircut">Haircut</option>
                 <option value="Color">Color</option>
@@ -79,43 +79,49 @@ export default function EditAppointmentModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Data</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
               <input
                 type="date"
                 name="appointment_date"
                 value={editedAppointment.appointment_date}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Orario</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Orario</label>
               <input
                 type="time"
                 name="appointment_time"
                 value={editedAppointment.appointment_time}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Durata (minuti)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Durata (minuti)</label>
               <input
                 type="number"
                 name="duration_min"
                 value={editedAppointment.duration_min}
                 onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
               />
             </div>
 
-            <div className="flex justify-end gap-2">
-              <button onClick={onClose} className="px-4 py-2 bg-zinc-200 rounded">
+            <div className="flex justify-end gap-2 pt-4">
+              <button 
+                onClick={onClose} 
+                className="px-4 py-2 bg-zinc-200 text-zinc-700 rounded hover:bg-zinc-300 transition-colors"
+              >
                 Annulla
               </button>
-              <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">
+              <button 
+                onClick={handleSave} 
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
                 Salva
               </button>
             </div>
