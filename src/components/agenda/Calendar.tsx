@@ -1,3 +1,4 @@
+// src/components/staff/EditStaffAvailabilityModal.tsx
 import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
@@ -99,8 +100,11 @@ const DayBarberColumn = ({
           },
         });
 
+        /* 🔹 UNICA MODIFICA:
+           escludiamo gli appuntamenti con status "cancellato"                 */
         const apps = appointments.filter(
           (a) =>
+            a.appointment_status !== 'cancellato' &&           // ⬅️ filtro
             a.appointment_date === date &&
             a.barber_id === barber.id &&
             a.appointment_time?.slice(0, 5) === slot.time
