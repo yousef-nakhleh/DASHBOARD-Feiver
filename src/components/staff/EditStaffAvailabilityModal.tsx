@@ -1,22 +1,26 @@
 // src/components/staff/EditStaffAvailabilityModal.tsx
 import { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { Switch } from '../ui/switch';
 import { supabase } from '@/lib/supabase';
 import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-// UI label (Italian)  ◀▶  backend value (English, lowercase)
+// UI label (Italiano)  ◀▶  valore per il DB (inglese, lowercase)
 const dayMap: Record<string, string> = {
   monday:    'Lunedì',
   tuesday:   'Martedì',
   wednesday: 'Mercoledì',
-  thursday:  'Giovedì',        // 🔹 fix: “thursday” con la s
+  thursday:  'Giovedì',
   friday:    'Venerdì',
   saturday:  'Sabato',
   sunday:    'Domenica',
 };
-
 const daysOfWeek = Object.keys(dayMap);
 
 type Slot = { start_time: string; end_time: string };
@@ -53,7 +57,7 @@ function TimeSelect({
         const d = new Date();
         d.setHours(h, m, 0);
         arr.push({
-          value: d.toTimeString().slice(0, 5), // 08:15
+          value: d.toTimeString().slice(0, 5),
           label: d.toLocaleTimeString('it-IT', {
             hour: 'numeric',
             minute: '2-digit',
@@ -172,33 +176,43 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio --------------------------------------------------------- */
+  /* salvataggio: cancella/riscrive SOLO il giorno che stai modificando --- */
   const handleSave = async () => {
     if (!bizId) return;
     setLoading(true);
 
-    await supabase
-      .from('barbers_availabilities')
-      .delete()
-      .eq('barber_id', barberId)
-      .eq('business_id', bizId);
+    // costruiamo le promesse di delete & insert per i soli giorni editati
+    const ops: Promise<any>[] = [];
 
-    const rows = state
-      .filter((d) => d.enabled)
-      .flatMap((d) =>
-        d.slots
+    state.forEach((d) => {
+      // prima: cancelliamo le righe esistenti di QUEL giorno
+      ops.push(
+        supabase
+          .from('barbers_availabilities')
+          .delete()
+          .eq('barber_id', barberId)
+          .eq('business_id', bizId)
+          .eq('weekday', d.weekday),
+      );
+
+      // poi: se il giorno è abilitato inseriamo gli slot
+      if (d.enabled) {
+        const inserts = d.slots
           .filter((s) => s.start_time && s.end_time)
           .map((s) => ({
             business_id: bizId,
-            barber_id  : barberId,
-            weekday    : d.weekday, // -> inglese minuscolo per il DB
-            ...s,                   // nessun “id”: lo genera il DB
-          })),
-      );
+            barber_id: barberId,
+            weekday: d.weekday,
+            ...s, // niente id → lo genera il DB
+          }));
+        if (inserts.length) {
+          ops.push(supabase.from('barbers_availabilities').insert(inserts));
+        }
+      }
+    });
 
-    if (rows.length) {
-      await supabase.from('barbers_availabilities').insert(rows);
-    }
+    // eseguiamo tutto in parallelo
+    await Promise.all(ops);
 
     setLoading(false);
     onUpdated();
