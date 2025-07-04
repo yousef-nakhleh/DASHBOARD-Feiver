@@ -25,11 +25,14 @@ const PaymentForm = ({ prefill = {}, onSuccess }) => {
     e.preventDefault();
     setLoading(true);
 
+    // 1. Update appointment: mark as paid + set payment method + update status to 'confirmed'
     await supabase.from('appointments').update({
       paid: true,
       payment_method: paymentMethod,
+      appointment_status: 'confirmed', // ✅ AGGIUNTO
     }).eq('id', prefill.appointment_id);
 
+    // 2. Insert transaction
     await supabase.from('transactions').insert([
       {
         appointment_id: prefill.appointment_id,
