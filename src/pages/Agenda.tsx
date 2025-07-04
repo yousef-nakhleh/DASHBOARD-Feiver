@@ -109,7 +109,7 @@ const Agenda = () => {
     if (!selectedAppointment) return;
     await supabase
       .from('appointments')
-      .update({ appointment_status: 'cancellato' })
+      .update({ appointment_status: 'cancelled' })
       .eq('id', selectedAppointment.id);
     setSelectedAppointment(null);
     fetchAppointments();
