@@ -101,7 +101,7 @@ const DayBarberColumn = ({
         });
 
         /* 🔹 UNICA MODIFICA:
-           escludiamo gli appuntamenti con status "cancellato"                 */
+           escludiamo gli appuntamenti con status "cancelled"                 */
         const apps = appointments.filter(
           (a) =>
             a.appointment_status !== 'cancelled' &&           // ⬅️ filtro
