@@ -6,13 +6,13 @@ export async function getAvailableTimeSlots(
   date: string,
   serviceDuration: number
 ) {
-  // ⬇️  Filtra gli appuntamenti “attivi” (esclude cancellati / no-show)
+  /* ➜  PRIMA ED UNICA MODIFICA */
   const { data: appointments, error } = await supabase
     .from('appointments')
     .select('appointment_time, duration_min')
     .eq('appointment_date', date)
     .eq('barber_id', barberId)
-    .not('appointment_status', 'in', ['cancelled', 'no_show']) // 👈 unico cambio
+    .in('appointment_status', ['pending', 'confirmed'])   // ← filtriamo SOLO questi
     .order('appointment_time', { ascending: true });
 
   if (error) {
@@ -20,11 +20,11 @@ export async function getAvailableTimeSlots(
     return [];
   }
 
+  /* --- codice già presente, invariato --- */
   const startOfDay = new Date(`${date}T06:00:00`);
   const endOfDay   = new Date(`${date}T21:00:00`);
   const slots: { start: Date; end: Date }[] = [];
 
-  // Intervalli occupati
   const appointmentRanges = appointments.map((a) => {
     const start = new Date(`${date}T${a.appointment_time}`);
     const end   = new Date(start.getTime() + a.duration_min * 60000);
@@ -40,12 +40,9 @@ export async function getAvailableTimeSlots(
       (a) => current < a.end && potentialEnd > a.start
     );
 
-    if (!conflict) {
-      slots.push({ start: new Date(current), end: new Date(potentialEnd) });
-    }
+    if (!conflict) slots.push({ start: new Date(current), end: new Date(potentialEnd) });
 
-    // Avanza di 15′
-    current = new Date(current.getTime() + 15 * 60000);
+    current = new Date(current.getTime() + 15 * 60000); // +15'
   }
 
   return slots;
