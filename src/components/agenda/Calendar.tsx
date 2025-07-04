@@ -104,7 +104,7 @@ const DayBarberColumn = ({
            escludiamo gli appuntamenti con status "cancellato"                 */
         const apps = appointments.filter(
           (a) =>
-            a.appointment_status !== 'cancellato' &&           // ⬅️ filtro
+            a.appointment_status !== 'cancelled' &&           // ⬅️ filtro
             a.appointment_date === date &&
             a.barber_id === barber.id &&
             a.appointment_time?.slice(0, 5) === slot.time
