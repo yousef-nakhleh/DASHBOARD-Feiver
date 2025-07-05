@@ -36,7 +36,7 @@ const CreateAppointmentModal = ({
         .from('barbers')
         .select('*')
         .eq('business_id', BUSINESS_ID);
-        .neq('appointment_status', 'cancelled');
+       
 
       setServices(servicesData || []);
       setBarbers(barbersData || []);
