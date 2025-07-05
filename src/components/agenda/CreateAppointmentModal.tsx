@@ -26,17 +26,18 @@ const CreateAppointmentModal = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
 
+  /* -------------------------------------------------- */
   useEffect(() => {
     const fetchData = async () => {
       const { data: servicesData } = await supabase
         .from('services')
         .select('*')
         .eq('business_id', BUSINESS_ID);
+
       const { data: barbersData } = await supabase
         .from('barbers')
         .select('*')
         .eq('business_id', BUSINESS_ID);
-       
 
       setServices(servicesData || []);
       setBarbers(barbersData || []);
@@ -44,6 +45,7 @@ const CreateAppointmentModal = ({
     fetchData();
   }, []);
 
+  /* ---------- ONLY CHANGE: exclude cancelled -------- */
   useEffect(() => {
     const fetchAppointments = async () => {
       if (!selectedDate || !selectedBarber) return;
@@ -52,31 +54,32 @@ const CreateAppointmentModal = ({
         .select('appointment_time, duration_min')
         .eq('barber_id', selectedBarber)
         .eq('appointment_date', selectedDate)
-        .eq('business_id', BUSINESS_ID);
+        .eq('business_id', BUSINESS_ID)
+        .neq('appointment_status', 'cancelled');   // ✅ filter out cancelled
+
       setAppointments(data || []);
     };
     fetchAppointments();
   }, [selectedDate, selectedBarber, duration]);
+  /* ----------------------------------------------- */
 
   const handleServiceChange = (e) => {
     const selectedId = e.target.value;
     setSelectedService(selectedId);
     const matchedService = services.find((s) => s.id === selectedId);
-    if (matchedService) {
-      setDuration(matchedService.duration_min);
-    }
+    if (matchedService) setDuration(matchedService.duration_min);
   };
 
   const handleCreate = async () => {
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
     const isoDate = new Date(selectedDate).toISOString().split('T')[0];
-    const start = new Date(`${isoDate}T${selectedTime}:00`);
-    const end = new Date(start.getTime() + duration * 60000);
+    const start   = new Date(`${isoDate}T${selectedTime}:00`);
+    const end     = new Date(start.getTime() + duration * 60000);
 
     const overlap = appointments.some((appt) => {
       const apptStart = new Date(`${isoDate}T${appt.appointment_time}`);
-      const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
+      const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
       return start < apptEnd && end > apptStart;
     });
 
@@ -87,13 +90,13 @@ const CreateAppointmentModal = ({
 
     const { error } = await supabase.from('appointments').insert([
       {
-        customer_name: customerName,
-        service_id: selectedService,
-        barber_id: selectedBarber,
+        customer_name:    customerName,
+        service_id:       selectedService,
+        barber_id:        selectedBarber,
         appointment_date: isoDate,
         appointment_time: selectedTime,
-        duration_min: duration,
-        business_id: BUSINESS_ID,
+        duration_min:     duration,
+        business_id:      BUSINESS_ID,
       },
     ]);
 
@@ -113,6 +116,7 @@ const CreateAppointmentModal = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+        {/* Header ------------------------------------------------------- */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-black">Nuovo Appuntamento</h2>
           <button
@@ -123,7 +127,9 @@ const CreateAppointmentModal = ({
           </button>
         </div>
 
+        {/* Body --------------------------------------------------------- */}
         <div className="p-6 space-y-6">
+          {/* Nome cliente + picker */}
           <div>
             <label className="block text-sm font-semibold text-black mb-2">Nome Cliente</label>
             <div className="relative">
@@ -143,6 +149,7 @@ const CreateAppointmentModal = ({
             </div>
           </div>
 
+          {/* Servizio */}
           <div>
             <label className="block text-sm font-semibold text-black mb-2">Servizio</label>
             <select
@@ -159,6 +166,7 @@ const CreateAppointmentModal = ({
             </select>
           </div>
 
+          {/* Barbiere */}
           <div>
             <label className="block text-sm font-semibold text-black mb-2">Barbiere</label>
             <select
@@ -175,6 +183,7 @@ const CreateAppointmentModal = ({
             </select>
           </div>
 
+          {/* Data & Durata */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-black mb-2">Data</label>
@@ -197,6 +206,7 @@ const CreateAppointmentModal = ({
             </div>
           </div>
 
+          {/* Orario */}
           <div>
             <label className="block text-sm font-semibold text-black mb-2">Orario</label>
             <select
@@ -205,17 +215,16 @@ const CreateAppointmentModal = ({
               className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
               {Array.from({ length: 90 }, (_, i) => {
-                const hour = 6 + Math.floor(i / 6);
+                const hour   = 6 + Math.floor(i / 6);
                 const minute = (i % 6) * 10;
-                const time = `${hour.toString().padStart(2, '0')}:${minute
-                  .toString()
-                  .padStart(2, '0')}`;
+                const time   = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
                 const slotStart = new Date(`${selectedDate}T${time}:00`);
-                const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+                const slotEnd   = new Date(slotStart.getTime() + duration * 60000);
 
                 const isOccupied = appointments.some((appt) => {
                   const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
-                  const apptEnd = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                  const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
                   return slotStart < apptEnd && slotEnd > apptStart;
                 });
 
@@ -233,6 +242,7 @@ const CreateAppointmentModal = ({
             </select>
           </div>
 
+          {/* Error */}
           {errorMsg && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
@@ -240,6 +250,7 @@ const CreateAppointmentModal = ({
           )}
         </div>
 
+        {/* Footer -------------------------------------------------------- */}
         <div className="flex justify-end space-x-3 p-6 border-t border-gray-100">
           <button
             onClick={onClose}
@@ -255,6 +266,7 @@ const CreateAppointmentModal = ({
           </button>
         </div>
 
+        {/* Picker Modal */}
         {showContactPicker && (
           <ContactPickerModal
             onSelect={handleSelectContact}
