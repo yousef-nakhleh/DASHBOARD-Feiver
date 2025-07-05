@@ -5,12 +5,14 @@ import { User } from 'lucide-react';
 
 const slotHeight = 40;
 
+/* ------------------------------------------------------------------ */
+/* 📅  CALENDAR ROOT -------------------------------------------------- */
 export const Calendar = ({
   timeSlots,
   appointments,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,      // ✅ nuova prop
+  onEmptySlotClick,
   barbers,
   selectedBarber,
   datesInView = [],
@@ -23,7 +25,7 @@ export const Calendar = ({
   return (
     <div className="h-full w-full overflow-y-auto">
       <div className="flex min-h-[1100px]">
-        {/* Time labels */}
+        {/* ← Etichette orarie */}
         <div className="bg-white border-r shrink-0">
           {timeSlots.map((slot, i) => (
             <div
@@ -41,7 +43,7 @@ export const Calendar = ({
           ))}
         </div>
 
-        {/* Appointment Grid */}
+        {/* Griglia appuntamenti */}
         <div className="flex-1 overflow-x-auto bg-white">
           <div className="flex min-w-full">
             {datesInView.map((date) => {
@@ -67,6 +69,8 @@ export const Calendar = ({
   );
 };
 
+/* ------------------------------------------------------------------ */
+/* 📅  COLONNA GIORNO × BARBIERE ------------------------------------- */
 const DayBarberColumn = ({
   date,
   barber,
@@ -100,11 +104,10 @@ const DayBarberColumn = ({
           },
         });
 
-        /* 🔹 UNICA MODIFICA:
-           escludiamo gli appuntamenti con status "cancelled"                 */
+        /* 🔹 MODIFICA: ignoriamo gli appuntamenti cancellati */
         const apps = appointments.filter(
           (a) =>
-            a.appointment_status !== 'cancelled' &&           // ⬅️ filtro
+            a.appointment_status !== 'cancelled' && // 👈   filtro
             a.appointment_date === date &&
             a.barber_id === barber.id &&
             a.appointment_time?.slice(0, 5) === slot.time
@@ -140,6 +143,8 @@ const DayBarberColumn = ({
   );
 };
 
+/* ------------------------------------------------------------------ */
+/* 📅  BLOCCO APPUNTAMENTO DRAGGABLE ---------------------------------- */
 const DraggableAppointment = ({ app, onClick, flexBasis }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
