@@ -72,7 +72,8 @@ const Agenda = () => {
       .from('appointments')
       .select(`*, services ( name, price )`)
       .eq('business_id', BUSINESS_ID)
-      .in('appointment_date', dateStrings);
+      .in('appointment_date', dateStrings)
+      .in('appointment_status', ['pending', 'confirmed']); // ✅ ONLY change
     if (error) console.error('Errore fetch appointments:', error.message);
     setAppointments(data || []);
   };
