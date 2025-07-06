@@ -2,6 +2,7 @@
 import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
+import { formatDateLocal } from '../../lib/utils';
 
 const slotHeight = 40;
 
