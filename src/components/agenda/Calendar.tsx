@@ -46,7 +46,7 @@ export const Calendar = ({
         <div className="flex-1 overflow-x-auto bg-white">
           <div className="flex min-w-full">
             {datesInView.map((date) => {
-              const dateStr = date.toISOString().split('T')[0];
+               const dateStr = formatDateLocal(date);
               return barbersToRender.map((barber) => (
                 <DayBarberColumn
                   key={`${dateStr}-${barber.id}`}
