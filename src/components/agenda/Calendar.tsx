@@ -3,7 +3,6 @@ import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 
-
 const slotHeight = 40;
 
 export const Calendar = ({
@@ -101,15 +100,22 @@ const DayBarberColumn = ({
           },
         });
 
-        /* 🔹 UNICA MODIFICA:
-           escludiamo gli appuntamenti con status "cancelled"                 */
-        const apps = appointments.filter(
-          (a) =>
-            a.appointment_status !== 'cancelled' &&           // ⬅️ filtro
-            a.appointment_date === date &&
-            a.barber_id === barber.id &&
-            a.appointment_time?.slice(0, 5) === slot.time
-        );
+        // ✅ UNICA MODIFICA: filtro appuntamenti nel blocco corretto
+        const slotStart = new Date(`${date}T${slot.time}:00`);
+        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
+
+        const apps = appointments.filter((a) => {
+          if (
+            a.appointment_status === 'cancelled' ||
+            a.appointment_date !== date ||
+            a.barber_id !== barber.id
+          ) {
+            return false;
+          }
+
+          const aStart = new Date(`${a.appointment_date}T${a.appointment_time}`);
+          return aStart >= slotStart && aStart < slotEnd;
+        });
 
         const isEmpty = apps.length === 0;
 
