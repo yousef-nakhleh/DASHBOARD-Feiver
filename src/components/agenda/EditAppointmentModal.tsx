@@ -1,135 +1,275 @@
-import { useState } from "react";
-import { Appointment } from "@/types"; // assicurati che sia importato correttamente
-import PaymentForm from "@/components/payment/PaymentForm";
+// src/components/staff/EditStaffAvailabilityModal.tsx
+import { useState, useEffect, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Switch } from '../ui/switch';
+import { supabase } from '@/lib/supabase';
+import { Plus, X } from 'lucide-react';
 
-interface EditAppointmentModalProps {
-  appointment: Appointment;
+/* ---------------------------------------------------- */
+const dayMap = {
+  monday: 'Lunedì',
+  tuesday: 'Martedì',
+  wednesday: 'Mercoledì',
+  thursday: 'Giovedì',
+  friday: 'Venerdì',
+  saturday: 'Sabato',
+  sunday: 'Domenica',
+};
+const daysOfWeek = Object.keys(dayMap);
+
+type Slot = { start_time: string; end_time: string };
+type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
+
+interface Props {
+  barberId: string;
+  open: boolean;
   onClose: () => void;
-  onSave: (updatedAppointment: Appointment) => void;
+  onUpdated: () => void;
 }
- 
-export default function EditAppointmentModal({
-  appointment, 
-  onClose,
-  onSave,
-}: EditAppointmentModalProps) {
-  const [activeTab, setActiveTab] = useState<"edit" | "payment">("edit");
-  const [editedAppointment, setEditedAppointment] = useState(appointment);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditedAppointment((prev) => ({
-      ...prev,
-      [name]: name === "duration_min" ? parseInt(value) : value,
-    }));
-  };
+const emptySlot: Slot = { start_time: '', end_time: '' };
+const defaultState: Day[] = daysOfWeek.map((d) => ({
+  weekday: d,
+  enabled: false,
+  slots: [{ ...emptySlot }],
+}));
 
-  const handleSave = () => {
-    onSave(editedAppointment);
-    onClose();
-  };
+/* ---------------------------------------------------- */
+function TimeSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const options = useMemo(() => {
+    const arr: { value: string; label: string }[] = [];
+    for (let h = 6; h <= 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const d = new Date();
+        d.setHours(h, m, 0);
+        arr.push({
+          value: d.toTimeString().slice(0, 5),
+          label: d.toLocaleTimeString('it-IT', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          }),
+        });
+      }
+    }
+    return arr;
+  }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-md p-6 w-[90%] max-w-md">
-        <div className="flex mb-4 space-x-2">
-          <button
-            onClick={() => setActiveTab("edit")}
-            className={`px-4 py-1 rounded-full text-sm font-medium ${
-              activeTab === "edit" ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-700"
-            }`}
-          >
-            Modifica
-          </button>
-          <button
-            onClick={() => setActiveTab("payment")}
-            className={`px-4 py-1 rounded-full text-sm font-medium ${
-              activeTab === "payment" ? "bg-zinc-800 text-white" : "bg-zinc-200 text-zinc-700"
-            }`}
-          >
-            Pagamento
-          </button>
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-24 rounded border px-2 py-1 text-sm disabled:opacity-40"
+    >
+      <option value="">--</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/* ---------------------------------------------------- */
+export default function EditStaffAvailabilityModal({
+  barberId,
+  open,
+  onClose,
+  onUpdated,
+}: Props) {
+  const [loading, setLoading] = useState(false);
+  const [state, setState]     = useState<Day[]>(defaultState);
+  const [bizId, setBizId]     = useState<string | null>(null);
+
+  /* business_id del barbiere */
+  useEffect(() => {
+    if (!barberId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('barbers')
+        .select('business_id')
+        .eq('id', barberId)
+        .single();
+      setBizId(data?.business_id ?? null);
+    })();
+  }, [barberId]);
+
+  /* carica disponibilità esistenti */
+  useEffect(() => {
+    if (!barberId || !bizId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('barbers_availabilities')
+        .select('*')
+        .eq('barber_id', barberId)
+        .eq('business_id', bizId);
+
+      if (!data) return;
+      setState(
+        daysOfWeek.map((day) => {
+          const slots = data.filter((s) => s.weekday === day);
+          return {
+            weekday: day,
+            enabled: !!slots.length,
+            slots: slots.length ? slots : [{ ...emptySlot }],
+          };
+        }),
+      );
+    })();
+  }, [barberId, bizId]);
+
+  /* helper mutazioni state ------------------------------------------- */
+  const toggleDay = (idx: number, val: boolean) =>
+    setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
+
+  const updateSlot = (
+    dIdx: number,
+    sIdx: number,
+    field: keyof Slot,
+    val: string,
+  ) =>
+    setState((p) =>
+      p.map((d, i) =>
+        i !== dIdx
+          ? d
+          : {
+              ...d,
+              slots: d.slots.map((s, j) =>
+                j === sIdx ? { ...s, [field]: val } : s,
+              ),
+            },
+      ),
+    );
+
+  const addSlot = (dIdx: number) =>
+    setState((p) =>
+      p.map((d, i) =>
+        i === dIdx ? { ...d, slots: [...d.slots, { ...emptySlot }] } : d,
+      ),
+    );
+
+  const removeSlot = (dIdx: number, sIdx: number) =>
+    setState((p) =>
+      p.map((d, i) =>
+        i === dIdx
+          ? {
+              ...d,
+              slots: d.slots.filter((_, j) => j !== sIdx) || [{ ...emptySlot }],
+            }
+          : d,
+      ),
+    );
+
+  /* salvataggio ------------------------------------------------------- */
+  const handleSave = async () => {
+    if (!bizId) return;
+    setLoading(true);
+
+    // 1. cancella tutte le vecchie righe del barbiere
+    await supabase
+      .from('barbers_availabilities')
+      .delete()
+      .eq('barber_id', barberId)
+      .eq('business_id', bizId);
+
+    // 2. reinserisci, **senza** l'id
+    const rows = state
+      .filter((d) => d.enabled)
+      .flatMap((d) =>
+        d.slots
+          .filter((s) => s.start_time && s.end_time)
+          .map(({ start_time, end_time }) => ({   // ← id escluso
+            business_id: bizId,
+            barber_id: barberId,
+            weekday: d.weekday,
+            start_time,
+            end_time,
+          })),
+      );
+
+    if (rows.length) await supabase.from('barbers_availabilities').insert(rows);
+
+    setLoading(false);
+    onUpdated();
+  };
+
+  /* ------------------------------------------------------------------ */
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-[540px] px-6 py-5">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Modifica Disponibilità</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {state.map((d, dIdx) => (
+            <div key={d.weekday} className="flex items-center gap-4">
+              <div className="flex items-center gap-3 w-32">
+                <Switch
+                  checked={d.enabled}
+                  onCheckedChange={(v) => toggleDay(dIdx, v)}
+                />
+                <span className="text-sm">{dayMap[d.weekday]}</span>
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1">
+                {d.slots.map((s, sIdx) => (
+                  <div key={sIdx} className="flex items-center gap-2">
+                    <TimeSelect
+                      value={s.start_time}
+                      disabled={!d.enabled}
+                      onChange={(v) => updateSlot(dIdx, sIdx, 'start_time', v)}
+                    />
+                    <span className="w-2 text-center">–</span>
+                    <TimeSelect
+                      value={s.end_time}
+                      disabled={!d.enabled}
+                      onChange={(v) => updateSlot(dIdx, sIdx, 'end_time', v)}
+                    />
+                    {d.enabled ? (
+                      sIdx === d.slots.length - 1 ? (
+                        <button
+                          onClick={() => addSlot(dIdx)}
+                          className="p-1 text-gray-500 hover:text-black"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => removeSlot(dIdx, sIdx)}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <X size={14} />
+                        </button>
+                      )
+                    ) : (
+                      <span className="inline-block w-5" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {activeTab === "edit" ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome Cliente</label>
-              <input
-                type="text"
-                name="customer_name"
-                value={editedAppointment.customer_name}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Servizio</label>
-              <select
-                name="service_name"
-                value={editedAppointment.service_name}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-              >
-                <option value="Haircut">Haircut</option>
-                <option value="Color">Color</option>
-                <option value="Balayage">Balayage</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-              <input
-                type="date"
-                name="appointment_date"
-                value={editedAppointment.appointment_date}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Orario</label>
-              <input
-                type="time"
-                name="appointment_time"
-                value={editedAppointment.appointment_time}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Durata (minuti)</label>
-              <input
-                type="number"
-                name="duration_min"
-                value={editedAppointment.duration_min}
-                onChange={handleInputChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm px-3 py-2 border focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <button 
-                onClick={onClose} 
-                className="px-4 py-2 bg-zinc-200 text-zinc-700 rounded hover:bg-zinc-300 transition-colors"
-              >
-                Annulla
-              </button>
-              <button 
-                onClick={handleSave} 
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                Salva
-              </button>
-            </div>
-          </div>
-        ) : (
-          <PaymentForm appointment={editedAppointment} onClose={onClose} />
-        )}
-      </div>
-    </div>
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="mt-6 w-full rounded bg-[#1a1a1a] py-2 text-white disabled:opacity-50"
+        >
+          {loading ? 'Salvataggio…' : 'Salva disponibilità'}
+        </button>
+      </DialogContent>
+    </Dialog>
   );
 }
