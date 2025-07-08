@@ -199,7 +199,7 @@ const Layout = () => {
                   <p className="text-xs text-gray-400">Administrator</p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center font-semibold">
-                  P
+                  A
                 </div>
               </div>
             </div>
