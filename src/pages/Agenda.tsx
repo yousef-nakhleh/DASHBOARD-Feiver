@@ -283,22 +283,20 @@ const Agenda = () => {
           onPay={handlePay}
           onEdit={() => setShowEditModal(true)}
           onDelete={handleDelete}
-        />
+        /> 
       )}
 
-      <EditAppointmentModal
-  appointment={selectedAppointment}
-  open={showEditModal}
-  onClose={() => {
-    setShowEditModal(false);
-    setSelectedAppointment(null);
-  }}
-  onUpdated={() => {
-    setShowEditModal(false);
-    setSelectedAppointment(null);
-    fetchAppointments();
-  }}
-/>
+      {showEditModal && selectedAppointment && (
+        <EditAppointmentModal
+          appointment={selectedAppointment}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => {
+            setShowEditModal(false);
+            setSelectedAppointment(null);
+            fetchAppointments();
+          }}
+        />
+      )}
 
       {showCreateModal && (
         <CreateAppointmentModal
