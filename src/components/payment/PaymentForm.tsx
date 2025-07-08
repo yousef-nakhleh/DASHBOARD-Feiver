@@ -10,7 +10,7 @@ const PaymentForm = ({ prefill = {}, onSuccess }) => {
   const [customerName, setCustomerName] = useState('');
   const [price, setPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState(''); 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
