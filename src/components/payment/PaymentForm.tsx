@@ -34,17 +34,18 @@ const PaymentForm = ({ prefill = {}, onSuccess }) => {
 
     // 2. Insert transaction
     await supabase.from('transactions').insert([
-      {
-        appointment_id: prefill.appointment_id,
-        barber_id: prefill.barber_id,
-        service_id: prefill.service_id,
-        price,
-        discount,
-        total,
-        payment_method: paymentMethod,
-        completed_at: new Date().toISOString(),
-      },
-    ]);
+  {
+    appointment_id: prefill.appointment_id,
+    barber_id: prefill.barber_id,
+    service_id: prefill.service_id,
+    price,
+    discount,
+    total,
+    payment_method: paymentMethod,
+    completed_at: new Date().toISOString(),
+    business_id: '268e0ae9-c539-471c-b4c2-1663cf598436', // ✅ hardcoded
+  },
+]);
 
     setLoading(false);
     onSuccess?.();
