@@ -89,7 +89,7 @@ const Agenda = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [selectedDate, viewMode]);
+  }, [selectedDate, viewMode]); 
 
   useEffect(() => {
     fetchBarbers();
@@ -286,16 +286,17 @@ const Agenda = () => {
         />
       )}
 
-      <EditAppointmentModal
-  appointment={selectedAppointment}
-  open={showEditModal}
-  onClose={() => setShowEditModal(false)}
-  onUpdated={() => {
-    setShowEditModal(false);
-    setSelectedAppointment(null);
-    fetchAppointments();
-  }}
-/>
+      {showEditModal && selectedAppointment && (
+        <EditAppointmentModal
+          appointment={selectedAppointment}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => {
+            setShowEditModal(false);
+            setSelectedAppointment(null);
+            fetchAppointments();
+          }}
+        />
+      )}
 
       {showCreateModal && (
         <CreateAppointmentModal
