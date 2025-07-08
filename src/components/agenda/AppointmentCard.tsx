@@ -1,6 +1,5 @@
-// src/components/agenda/AppointmentCard.tsx
 import React from 'react';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, Pencil } from 'lucide-react';
 import { useDrag } from 'react-dnd';
 
 interface AppointmentCardProps {
@@ -9,6 +8,7 @@ interface AppointmentCardProps {
   service: string;
   duration: number; // duration in minutes
   stylist: string;
+  onEdit?: () => void; // <- nuova prop opzionale per aprire il modal
 }
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
@@ -17,6 +17,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   service,
   duration,
   stylist,
+  onEdit,
 }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
@@ -37,7 +38,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   return (
     <div
       ref={drag}
-      className={`bg-blue-100 border-l-4 border-blue-500 rounded-sm cursor-move shadow-sm transition-opacity ${
+      className={`relative bg-blue-100 border-l-4 border-blue-500 rounded-sm shadow-sm transition-opacity ${
         isDragging ? 'opacity-40' : ''
       }`}
       style={{
@@ -52,11 +53,26 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         <span>{time}</span>
         <span>{duration} min</span>
       </div>
+
       <div className="flex items-center text-sm font-medium text-gray-700 truncate mt-1">
         <User size={14} className="mr-1 text-gray-500" />
         <span className="truncate">{clientName}</span>
       </div>
+
       <div className="mt-1 text-gray-600 text-xs truncate">{service}</div>
+
+      {/* ✏️ Pulsante modifica */}
+      {onEdit && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // previene il drag
+            onEdit();
+          }}
+          className="absolute bottom-1 right-1 text-gray-500 hover:text-blue-600"
+        >
+          <Pencil size={14} />
+        </button>
+      )}
     </div>
   );
 };
