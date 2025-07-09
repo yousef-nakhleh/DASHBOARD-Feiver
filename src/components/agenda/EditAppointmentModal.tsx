@@ -12,7 +12,7 @@ interface Props {
 const TIMES: string[] = (() => {
   const t: string[] = [];
   for (let h = 6; h <= 21; h++) {
-    for (let m = 0; m < 60; m += 10) {
+    for (let m = 0; m < 60; m += 5) {
       if (h === 21 && m > 0) break;
       t.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
     }
