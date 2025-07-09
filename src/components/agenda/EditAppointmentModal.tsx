@@ -122,7 +122,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
                 name="customer_name"
                 value={edited.customer_name}
                 onChange={handle}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               />
             </div>
 
@@ -133,7 +133,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
                 name="service_id"
                 value={edited.service_id}
                 onChange={handle}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               >
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -151,7 +151,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
                 name="appointment_date"
                 value={edited.appointment_date}
                 onChange={handle}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               />
             </div>
 
@@ -162,7 +162,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
                 name="appointment_time"
                 value={edited.appointment_time.slice(0, 5)}
                 onChange={handle}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               >
                 {TIMES.map((t) => (
                   <option
@@ -187,7 +187,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
                 step={10}
                 value={edited.duration_min}
                 onChange={handle}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               />
             </div>
 
