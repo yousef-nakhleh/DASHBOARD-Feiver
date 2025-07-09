@@ -183,8 +183,8 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
               <input
                 type="number"
                 name="duration_min"
-                min={10}
-                step={10}
+                min={5}
+                step={5}
                 value={edited.duration_min}
                 onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
