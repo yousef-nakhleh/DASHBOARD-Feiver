@@ -1,51 +1,71 @@
-// src/components/agenda/EditAppointmentModal.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import PaymentForm from '@/components/payment/PaymentForm';
 
 interface Props {
-  /** Oggetto appuntamento selezionato  */
   appointment: any;
-  /** Chiude la modale (senza salvare)  */
   onClose: () => void;
-  /** Callback dopo il salvataggio riuscito */
   onUpdated: () => void;
 }
 
-/* ────────────────────────────────────────────────────────────────────────── */
-/** Genera tutte le ore dalle 06:00 alle 21:00 con step di 15 min */
-const generateTimes = () => {
-  const list: string[] = [];
+/* lista tempi ogni 10′ (06:00-21:00) */
+const TIMES: string[] = (() => {
+  const t: string[] = [];
   for (let h = 6; h <= 21; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += 10) {
       if (h === 21 && m > 0) break;
-      list.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+      t.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
     }
   }
-  return list;
-};
-const TIMES = generateTimes();
-/* ────────────────────────────────────────────────────────────────────────── */
+  return t;
+})();
 
 export default function EditAppointmentModal({ appointment, onClose, onUpdated }: Props) {
   const [tab, setTab] = useState<'edit' | 'payment'>('edit');
   const [edited, setEdited] = useState<any>(appointment);
   const [services, setServices] = useState<any[]>([]);
+  const [busyTimes, setBusyTimes] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
-  /* carica servizi per la tendina */
+  /* servizi */
+  useEffect(() => {
+    supabase
+      .from('services')
+      .select('id,name')
+      .eq('business_id', appointment.business_id)
+      .then(({ data }) => setServices(data ?? []));
+  }, [appointment]);
+
+  /* slot occupati nella stessa data/barbiere (pending|confirmed) */
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from('services')
-        .select('id, name')
-        .eq('business_id', appointment.business_id);
-      setServices(data ?? []);
-    })();
-  }, [appointment]);
+        .from('appointments')
+        .select('appointment_time, duration_min, id')
+        .eq('appointment_date', appointment.appointment_date)
+        .eq('barber_id', appointment.barber_id)
+        .eq('business_id', appointment.business_id)
+        .in('appointment_status', ['pending', 'confirmed']);
 
-  /* handler campi input/select ------------------------------------------- */
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const blocked = new Set<string>();
+
+      (data ?? []).forEach((a) => {
+        if (a.id === appointment.id) return; // ignora sé stesso
+        const start = new Date(`2000-01-01T${a.appointment_time}`);
+        const end   = new Date(start.getTime() + a.duration_min * 60000);
+
+        for (let t of TIMES) {
+          const ts = new Date(`2000-01-01T${t}:00`);
+          const te = new Date(ts.getTime() + edited.duration_min * 60000);
+          if (ts < end && te > start) blocked.add(t);
+        }
+      });
+      setBusyTimes(blocked);
+    })();
+  }, [appointment, edited.duration_min]);
+
+  /* change handler */
+  const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEdited((p: any) => ({
       ...p,
@@ -53,7 +73,6 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
     }));
   };
 
-  /* salvataggio supabase -------------------------------------------------- */
   const handleSave = async () => {
     setSaving(true);
     const { error } = await supabase
@@ -68,21 +87,18 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
       .eq('id', edited.id);
 
     setSaving(false);
-    if (!error) {
+    if (error) alert('Errore: ' + error.message);
+    else {
       onUpdated();
       onClose();
-    } else {
-      // semplice alert – sostituisci con UI custom se preferisci
-      alert('Errore durante il salvataggio: ' + error.message);
     }
   };
 
-  /* ---------------------------------------------------------------------- */
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100]">
       <div className="bg-white w-[600px] rounded-2xl shadow-xl">
-        {/* Tabs header */}
-        <div className="flex p-4 space-x-2 border-b border-gray-100">
+        {/* TABs */}
+        <div className="flex p-4 space-x-2 border-b">
           {(['edit', 'payment'] as const).map((t) => (
             <button
               key={t}
@@ -96,32 +112,27 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
           ))}
         </div>
 
-        {/* TAB : MODIFICA -------------------------------------------------- */}
-        {tab === 'edit' && (
+        {tab === 'edit' ? (
           <div className="p-6 space-y-5">
-            {/* Nome cliente */}
+            {/* nome */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Nome Cliente
-              </label>
+              <label className="block text-sm font-semibold mb-1">Nome Cliente</label>
               <input
                 type="text"
                 name="customer_name"
                 value={edited.customer_name}
-                onChange={handleChange}
+                onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2"
               />
             </div>
 
-            {/* Servizio */}
+            {/* servizio */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Servizio
-              </label>
+              <label className="block text-sm font-semibold mb-1">Servizio</label>
               <select
                 name="service_id"
                 value={edited.service_id}
-                onChange={handleChange}
+                onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2"
               >
                 {services.map((s) => (
@@ -132,76 +143,72 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
               </select>
             </div>
 
-            {/* Data */}
+            {/* data */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Data
-              </label>
+              <label className="block text-sm font-semibold mb-1">Data</label>
               <input
                 type="date"
                 name="appointment_date"
                 value={edited.appointment_date}
-                onChange={handleChange}
+                onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2"
               />
             </div>
 
-            {/* Orario */}
+            {/* orario */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Orario
-              </label>
+              <label className="block text-sm font-semibold mb-1">Orario</label>
               <select
                 name="appointment_time"
-                value={edited.appointment_time?.slice(0, 5)}
-                onChange={handleChange}
+                value={edited.appointment_time.slice(0, 5)}
+                onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2"
               >
                 {TIMES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                  <option
+                    key={t}
+                    value={t}
+                    disabled={busyTimes.has(t)}
+                    className={busyTimes.has(t) ? 'text-gray-400 line-through' : ''}
+                  >
+                    {t} {busyTimes.has(t) ? '(occupato)' : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Durata */}
+            {/* durata */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Durata (minuti)
-              </label>
+              <label className="block text-sm font-semibold mb-1">Durata (minuti)</label>
               <input
                 type="number"
                 name="duration_min"
-                min={5}
-                step={5}
+                min={10}
+                step={10}
                 value={edited.duration_min}
-                onChange={handleChange}
+                onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2"
               />
             </div>
 
-            {/* Bottoni footer */}
+            {/* footer */}
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 onClick={onClose}
-                className="px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                className="px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200"
               >
                 Annulla
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 {saving ? 'Salvataggio…' : 'Salva'}
               </button>
             </div>
           </div>
-        )}
-
-        {/* TAB : PAGAMENTO ------------------------------------------------- */}
-        {tab === 'payment' && (
+        ) : (
           <div className="p-6">
             <PaymentForm
               prefill={{
