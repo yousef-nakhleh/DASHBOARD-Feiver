@@ -41,7 +41,13 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
 
     const { data: newStaff, error: staffError } = await supabase
       .from('barbers')
-      .insert([{ name, phone, email, avatar_url: avatarUrl }])
+      .insert([{ 
+        name, 
+        phone, 
+        email, 
+        avatar_url: avatarUrl, 
+        business_id: '268e0ae9-c539-471c-b4c2-1663cf598436' 
+      }])
       .select()
       .single();
 
