@@ -195,7 +195,7 @@ const Layout = () => {
             <div className="flex items-center space-x-4">
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium">Alket</p>
+                  <p className="text-sm font-medium">Davide</p>
                   <p className="text-xs text-gray-400">Administrator</p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center font-semibold">
