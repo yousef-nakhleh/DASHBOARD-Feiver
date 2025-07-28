@@ -64,7 +64,7 @@ const Layout = () => {
         {/* Desktop Sidebar */}
         <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-black border-r border-gray-800">
           <div className="flex items-center justify-center h-16 px-6 border-b border-gray-800">
-            <h1 className="text-xl font-bold tracking-wider">Feiver</h1>
+            <h1 className="text-xl font-bold tracking-wider">Extro</h1>
           </div>
           
           <nav className="flex-1 px-4 py-6 space-y-1">
@@ -122,7 +122,7 @@ const Layout = () => {
                 className="absolute top-0 left-0 bottom-0 w-64 bg-black border-r border-gray-800"
               >
                 <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
-                  <h1 className="text-xl font-bold tracking-wider">Feiver</h1>
+                  <h1 className="text-xl font-bold tracking-wider">Extro</h1>
                   <button onClick={() => setIsSidebarOpen(false)}>
                     <X size={24} />
                   </button>
