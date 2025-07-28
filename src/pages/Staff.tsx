@@ -23,7 +23,7 @@ const Staff = () => {
   }, []);
 
   const fetchStaff = async () => {
-    const { data, error } = await supabase.from('barbers').select('*');
+    const { data, error } = await supabase.from('barbers').select('*').eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4');
     if (!error) setStaffList(data);
   };
 
