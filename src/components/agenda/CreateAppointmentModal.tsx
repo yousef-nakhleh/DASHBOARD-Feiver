@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
 import { UserRoundSearch, X } from 'lucide-react';
+import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
 
 const BUSINESS_ID = '6ebf5f92-14ff-430e-850c-f147c3dc16f4';
 
@@ -74,7 +75,7 @@ const CreateAppointmentModal = ({
   const handleCreate = async () => {
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
-    const isoDate = new Date(selectedDate).toISOString().split('T')[0];
+    const isoDate = formatDateToYYYYMMDDLocal(new Date(selectedDate));
     const start   = new Date(`${isoDate}T${selectedTime}:00`);
     const end     = new Date(start.getTime() + duration * 60000);
 

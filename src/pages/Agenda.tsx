@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { formatDateToYYYYMMDDLocal } from '../lib/utils';
 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -67,7 +68,7 @@ const Agenda = () => {
 
   const fetchAppointments = async () => {
     const dates = getDatesInView(selectedDate, viewMode);
-    const dateStrings = dates.map((d) => d.toISOString().split('T')[0]);
+    const dateStrings = dates.map((d) => formatDateToYYYYMMDDLocal(d));
     const { data, error } = await supabase
       .from('appointments')
       .select(`*, services ( name, price )`)
