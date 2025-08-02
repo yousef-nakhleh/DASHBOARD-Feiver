@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, User, Phone, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { toLocalFromUTC } from '../lib/timeUtils'; // ✅ Timezone utility
 
 // Hardcoded for now, should come from auth context
 // TODO: Replace with dynamic business_id from user session
@@ -41,7 +42,6 @@ const WaitingList: React.FC = () => {
       const { data, error } = await supabase
         .from('waiting_list')
         .select('id, customer_name, customer_phone, start_time, end_time, date, created_at')
-        .eq('business_id', BUSINESS_ID)
         .eq('business_id', BUSINESS_ID)
         .order('created_at', { ascending: false });
 
@@ -176,7 +176,7 @@ const WaitingList: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-600">
-                        {formatDateTime(item.created_at)}
+                        {formatDateTime(toLocalFromUTC(item.created_at))} {/* ✅ converted */}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
