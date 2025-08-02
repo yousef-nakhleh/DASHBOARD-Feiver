@@ -34,7 +34,7 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
     return {
       ...appointment,
       appointment_date: localTime.toFormat('yyyy-MM-dd'),
-      appointment_time: localTime.toFormat('HH:mm:ss'),
+      appointment_time: localTime.toFormat('HH:mm'),
     };
   });
   const [services, setServices] = useState<any[]>([]);
@@ -200,7 +200,7 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
               <label className="block text-sm font-semibold mb-1">Orario</label>
               <select
                 name="appointment_time"
-                value={edited.appointment_time.slice(0, 5)}
+                value={edited.appointment_time}
                 onChange={handle}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2 text-black"
               >
