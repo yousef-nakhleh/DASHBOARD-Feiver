@@ -61,7 +61,7 @@ function TimeSelect({
           label: d.toLocaleTimeString('it-IT', {
             hour: 'numeric',
             minute: '2-digit',
-            hour12: true,
+            hour12: false,
           }),
         });
       }
@@ -136,7 +136,15 @@ export default function EditStaffAvailabilityModal({
 
   /* helper mutazioni ---------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
-    setState((p) => p.map((d, i) => (i === idx ? { ...d, enabled: val } : d)));
+    setState((p) => p.map((d, i) => {
+      if (i !== idx) return d;
+      
+      if (val && (d.slots.length === 0 || (d.slots.length === 1 && !d.slots[0].start_time && !d.slots[0].end_time))) {
+        return { ...d, enabled: val, slots: [{ start_time: '09:00', end_time: '17:00' }] };
+      }
+      
+      return { ...d, enabled: val };
+    }));
 
   const updateSlot = (
     dIdx: number,
