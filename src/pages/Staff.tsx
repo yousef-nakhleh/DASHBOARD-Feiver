@@ -42,7 +42,8 @@ const Staff = () => {
     const { data, error } = await supabase
       .from('barbers_availabilities')
       .select('*')
-      .eq('barber_id', barberId);
+      .eq('barber_id', barberId)
+      .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4');
 
     if (!error) setAvailabilities(data);
     else setAvailabilities([]);
@@ -207,6 +208,7 @@ const Staff = () => {
       {selectedStaff && isEditAvailabilityOpen && (
         <EditStaffAvailabilityModal
           barberId={selectedStaff.id}
+          businessId="6ebf5f92-14ff-430e-850c-f147c3dc16f4"
           open={isEditAvailabilityOpen}
           onClose={() => setIsEditAvailabilityOpen(false)}
           onUpdated={() => {

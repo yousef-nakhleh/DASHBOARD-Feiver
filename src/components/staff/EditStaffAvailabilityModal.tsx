@@ -28,6 +28,7 @@ type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
 
 interface Props {
   barberId: string;
+  businessId: string;
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
@@ -89,36 +90,23 @@ function TimeSelect({
 /* ------------------------------------------------------------------ */
 export default function EditStaffAvailabilityModal({
   barberId,
+  businessId,
   open,
   onClose,
   onUpdated,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [state, setState]     = useState<Day[]>(defaultState);
-  const [bizId, setBizId]     = useState<string | null>(null);
-
-  /* business_id del barbiere ------------------------------------------- */
-  useEffect(() => {
-    if (!barberId) return;
-    (async () => {
-      const { data } = await supabase
-        .from('barbers')
-        .select('business_id')
-        .eq('id', barberId)
-        .single();
-      setBizId(data?.business_id ?? null);
-    })();
-  }, [barberId]);
 
   /* carica disponibilità ------------------------------------------------ */
   useEffect(() => {
-    if (!barberId || !bizId) return;
+    if (!barberId || !businessId) return;
     (async () => {
       const { data } = await supabase
         .from('barbers_availabilities')
         .select('*')
         .eq('barber_id', barberId)
-        .eq('business_id', bizId);
+        .eq('business_id', businessId);
 
       if (!data) return;
       setState(
@@ -127,12 +115,15 @@ export default function EditStaffAvailabilityModal({
           return {
             weekday: day,
             enabled: !!slots.length,
-            slots: slots.length ? slots : [{ ...emptySlot }],
+            slots: slots.length ? slots.map(slot => ({
+              start_time: slot.start_time.slice(0, 5),
+              end_time: slot.end_time.slice(0, 5)
+            })) : [{ ...emptySlot }],
           };
         }),
       );
     })();
-  }, [barberId, bizId]);
+  }, [barberId, businessId]);
 
   /* helper mutazioni ---------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
@@ -186,7 +177,7 @@ export default function EditStaffAvailabilityModal({
 
   /* salvataggio: cancella/riscrive SOLO il giorno che stai modificando --- */
   const handleSave = async () => {
-    if (!bizId) return;
+    if (!businessId) return;
     setLoading(true);
 
     // costruiamo le promesse di delete & insert per i soli giorni editati
@@ -199,7 +190,7 @@ export default function EditStaffAvailabilityModal({
           .from('barbers_availabilities')
           .delete()
           .eq('barber_id', barberId)
-          .eq('business_id', bizId)
+          .eq('business_id', businessId)
           .eq('weekday', d.weekday),
       );
 
@@ -208,7 +199,7 @@ export default function EditStaffAvailabilityModal({
         const inserts = d.slots
           .filter((s) => s.start_time && s.end_time)
           .map((s) => ({
-            business_id: bizId,
+            business_id: businessId,
             barber_id: barberId,
             weekday: d.weekday,
             ...s, // niente id → lo genera il DB
