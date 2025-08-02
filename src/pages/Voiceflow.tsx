@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, Search, Phone, Mail, User, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { toLocalFromUTC } from '../lib/time.utils';
+import { toLocalFromUTC } from '../lib/timeUtils';
 
 interface VoiceflowData {
   id: string;
