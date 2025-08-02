@@ -1,4 +1,6 @@
+// src/lib/availability.ts
 import { supabase } from './supabase';
+import { toLocalFromUTC } from './timeUtils';
 import { DateTime } from 'luxon';
 
 export async function getAvailableTimeSlots(
@@ -7,23 +9,12 @@ export async function getAvailableTimeSlots(
   serviceDuration: number,
   businessTimezone: string = 'Europe/Rome'
 ) {
-  // Define business hours in the business timezone
-  const startOfDay = DateTime.fromISO(`${date}T06:00:00`, { zone: businessTimezone });
-  const endOfDay   = DateTime.fromISO(`${date}T21:00:00`, { zone: businessTimezone });
-
-  // Convert to UTC range for querying
-  const startUTC = startOfDay.toUTC().toISO();
-  const endUTC   = endOfDay.toUTC().toISO();
-
-  // ✅ Fetch appointments based on appointment_start (in UTC range)
   const { data: appointments, error } = await supabase
     .from('appointments')
     .select('appointment_start, duration_min')
+    .eq('appointment_date', date)
     .eq('barber_id', barberId)
-    .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4') // Replace or inject dynamically if needed
     .in('appointment_status', ['pending', 'confirmed'])
-    .gte('appointment_start', startUTC)
-    .lt('appointment_start', endUTC)
     .order('appointment_start', { ascending: true });
 
   if (error) {
@@ -31,10 +22,15 @@ export async function getAvailableTimeSlots(
     return [];
   }
 
-  // Convert existing appointments to business timezone for overlap checking
+  const startOfDay = DateTime.fromISO(`${date}T06:00:00`, { zone: businessTimezone });
+  const endOfDay = DateTime.fromISO(`${date}T21:00:00`, { zone: businessTimezone });
+
   const appointmentRanges = appointments.map((a) => {
-    const start = DateTime.fromISO(a.appointment_start, { zone: 'utc' }).setZone(businessTimezone);
-    const end   = start.plus({ minutes: a.duration_min });
+    const start = toLocalFromUTC({
+      utcString: a.appointment_start,
+      timezone: businessTimezone,
+    });
+    const end = start.plus({ minutes: a.duration_min });
     return { start, end };
   });
 
