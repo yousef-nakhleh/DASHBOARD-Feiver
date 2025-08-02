@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, Search, Phone, Mail, User, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { toLocalFromUTC } from '../lib/time.utils';
 
 interface VoiceflowData {
   id: string;
@@ -15,6 +16,9 @@ const Voiceflow: React.FC = () => {
   const [data, setData] = useState<VoiceflowData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Assume the timezone is defined somewhere (or fetched)
+  const businessTimezone = 'Europe/Rome';
 
   useEffect(() => {
     fetchVoiceflowData();
@@ -32,7 +36,13 @@ const Voiceflow: React.FC = () => {
       if (error) {
         console.error('Errore nel caricamento dei dati Voiceflow:', error);
       } else {
-        setData(voiceflowData || []);
+        const converted = (voiceflowData || []).map((item) => ({
+          ...item,
+          created_at: item.created_at
+            ? toLocalFromUTC({ utcString: item.created_at, timezone: businessTimezone }).toISO()
+            : undefined,
+        }));
+        setData(converted);
       }
     } catch (error) {
       console.error('Errore nel fetch dei dati:', error);
