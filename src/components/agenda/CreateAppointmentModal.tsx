@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
 import { UserRoundSearch, X } from 'lucide-react';
 import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
+import { toUTCFromLocal } from '../../lib/timeUtils';
 
 const BUSINESS_ID = '6ebf5f92-14ff-430e-850c-f147c3dc16f4';
 
@@ -20,17 +21,25 @@ const CreateAppointmentModal = ({
   const [selectedService, setSelectedService] = useState('');
   const [selectedBarber, setSelectedBarber] = useState(initialBarberId);
   const [selectedDate, setSelectedDate] = useState(
-    initialDate || new Date().toISOString().split('T')[0]
+    initialDate || formatDateToYYYYMMDDLocal(new Date())
   );
   const [selectedTime, setSelectedTime] = useState(initialTime || '07:00');
   const [duration, setDuration] = useState(30);
   const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
 
   /* -------------------------------------------------- */
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch business timezone
+      const { data: businessData } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', BUSINESS_ID)
+        .single();
+
       const { data: servicesData } = await supabase
         .from('services')
         .select('*')
@@ -41,6 +50,7 @@ const CreateAppointmentModal = ({
         .select('*')
         .eq('business_id', BUSINESS_ID);
 
+      setBusinessTimezone(businessData?.timezone || 'Europe/Rome');
       setServices(servicesData || []);
       setBarbers(barbersData || []);
     };
@@ -75,6 +85,16 @@ const CreateAppointmentModal = ({
   const handleCreate = async () => {
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
+    // Convert local business time to UTC for storage
+    const appointmentStartUTC = toUTCFromLocal({
+      date: selectedDate,
+      time: selectedTime,
+      timezone: businessTimezone,
+    });
+
+    // For overlap checking, we still need to compare with existing appointments
+    // This is a simplified check - in a full implementation, you'd want to 
+    // convert all existing appointments to the business timezone for comparison
     const isoDate = formatDateToYYYYMMDDLocal(new Date(selectedDate));
     const start   = new Date(`${isoDate}T${selectedTime}:00`);
     const end     = new Date(start.getTime() + duration * 60000);
@@ -97,6 +117,7 @@ const CreateAppointmentModal = ({
         barber_id:        selectedBarber,
         appointment_date: isoDate,
         appointment_time: selectedTime,
+        appointment_start: appointmentStartUTC,
         duration_min:     duration,
         business_id:      BUSINESS_ID,
       },
