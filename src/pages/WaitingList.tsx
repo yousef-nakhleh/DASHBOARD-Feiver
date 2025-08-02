@@ -42,7 +42,7 @@ const WaitingList: React.FC = () => {
       const { data, error } = await supabase
         .from('waiting_list')
         .select('id, customer_name, customer_phone, start_time, end_time, date, created_at')
-        .eq('business_id', BUSINESS_ID)
+        .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4')
         .order('created_at', { ascending: false });
  
       if (error) {
