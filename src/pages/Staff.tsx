@@ -11,6 +11,17 @@ import { supabase } from '../lib/supabase';
 import NewStaffModal from '../components/staff/NewStaffModal';
 import EditStaffAvailabilityModal from '../components/staff/EditStaffAvailabilityModal';
 
+// Weekday mapping from English (database) to Italian (display)
+const dayMap: Record<string, string> = {
+  monday:    'Lunedì',
+  tuesday:   'Martedì',
+  wednesday: 'Mercoledì',
+  thursday:  'Giovedì',
+  friday:    'Venerdì',
+  saturday:  'Sabato',
+  sunday:    'Domenica',
+};
+
 const Staff = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
@@ -161,7 +172,7 @@ const Staff = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {Object.entries(groupedAvailability).map(([weekday, slots]) => (
                       <div key={weekday} className="p-4 bg-gray-50 rounded-xl">
-                        <p className="font-semibold text-black capitalize mb-2">{weekday}</p>
+                        <p className="font-semibold text-black mb-2">{dayMap[weekday] || weekday}</p>
                         {slots.map((slot, idx) => (
                           <p key={idx} className="text-sm text-gray-700">
                             {slot.start_time} – {slot.end_time}
