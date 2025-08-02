@@ -1,8 +1,18 @@
 import React from 'react';
 import { Pencil, Trash2, DollarSign, X } from 'lucide-react';
+import { toLocalFromUTC } from '../../lib/timeUtils';
 
-const AppointmentSummaryBanner = ({ appointment, onEdit, onPay, onDelete, onClose }) => {
+const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay, onDelete, onClose }) => {
   if (!appointment) return null;
+
+  // Convert UTC appointment_start to local time for display
+  const localTime = toLocalFromUTC({
+    utcString: appointment.appointment_start,
+    timezone: businessTimezone,
+  });
+  
+  const displayDate = localTime.toFormat('yyyy-MM-dd');
+  const displayTime = localTime.toFormat('HH:mm');
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center">
@@ -32,11 +42,11 @@ const AppointmentSummaryBanner = ({ appointment, onEdit, onPay, onDelete, onClos
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Data</span>
-              <p className="text-lg font-semibold text-black mt-1">{appointment.appointment_date}</p>
+              <p className="text-lg font-semibold text-black mt-1">{displayDate}</p>
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Orario</span>
-              <p className="text-lg font-semibold text-black mt-1">{appointment.appointment_time?.slice(0, 5)}</p>
+              <p className="text-lg font-semibold text-black mt-1">{displayTime}</p>
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Durata</span>

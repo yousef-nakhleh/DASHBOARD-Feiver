@@ -9,6 +9,7 @@ import { toUTCFromLocal } from '../../lib/timeUtils';
 const BUSINESS_ID = '6ebf5f92-14ff-430e-850c-f147c3dc16f4';
 
 const CreateAppointmentModal = ({
+  businessTimezone,
   onClose,
   onCreated,
   initialBarberId = '',
@@ -28,18 +29,10 @@ const CreateAppointmentModal = ({
   const [appointments, setAppointments] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
-  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
 
   /* -------------------------------------------------- */
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch business timezone
-      const { data: businessData } = await supabase
-        .from('business')
-        .select('timezone')
-        .eq('id', BUSINESS_ID)
-        .single();
-
       const { data: servicesData } = await supabase
         .from('services')
         .select('*')
@@ -50,7 +43,6 @@ const CreateAppointmentModal = ({
         .select('*')
         .eq('business_id', BUSINESS_ID);
 
-      setBusinessTimezone(businessData?.timezone || 'Europe/Rome');
       setServices(servicesData || []);
       setBarbers(barbersData || []);
     };
@@ -61,18 +53,32 @@ const CreateAppointmentModal = ({
   useEffect(() => {
     const fetchAppointments = async () => {
       if (!selectedDate || !selectedBarber) return;
+      
+      // Get UTC range for the selected date
+      const startOfDay = toUTCFromLocal({
+        date: selectedDate,
+        time: '00:00',
+        timezone: businessTimezone,
+      });
+      const endOfDay = toUTCFromLocal({
+        date: selectedDate,
+        time: '23:59',
+        timezone: businessTimezone,
+      });
+      
       const { data } = await supabase
         .from('appointments')
-        .select('appointment_time, duration_min')
+        .select('appointment_start, duration_min')
         .eq('barber_id', selectedBarber)
-        .eq('appointment_date', selectedDate)
         .eq('business_id', BUSINESS_ID)
+        .gte('appointment_start', startOfDay)
+        .lte('appointment_start', endOfDay)
         .neq('appointment_status', 'cancelled');   // ✅ filter out cancelled
 
       setAppointments(data || []);
     };
     fetchAppointments();
-  }, [selectedDate, selectedBarber, duration]);
+  }, [selectedDate, selectedBarber, duration, businessTimezone]);
   /* ----------------------------------------------- */
 
   const handleServiceChange = (e) => {
@@ -95,12 +101,16 @@ const CreateAppointmentModal = ({
     // For overlap checking, we still need to compare with existing appointments
     // This is a simplified check - in a full implementation, you'd want to 
     // convert all existing appointments to the business timezone for comparison
-    const isoDate = formatDateToYYYYMMDDLocal(new Date(selectedDate));
-    const start   = new Date(`${isoDate}T${selectedTime}:00`);
+    const start   = new Date(`${selectedDate}T${selectedTime}:00`);
     const end     = new Date(start.getTime() + duration * 60000);
 
     const overlap = appointments.some((appt) => {
-      const apptStart = new Date(`${isoDate}T${appt.appointment_time}`);
+      // Convert UTC appointment_start to local time for comparison
+      const localAppt = toLocalFromUTC({
+        utcString: appt.appointment_start,
+        timezone: businessTimezone,
+      });
+      const apptStart = localAppt.toJSDate();
       const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
       return start < apptEnd && end > apptStart;
     });
@@ -115,8 +125,6 @@ const CreateAppointmentModal = ({
         customer_name:    customerName,
         service_id:       selectedService,
         barber_id:        selectedBarber,
-        appointment_date: isoDate,
-        appointment_time: selectedTime,
         appointment_start: appointmentStartUTC,
         duration_min:     duration,
         business_id:      BUSINESS_ID,
@@ -246,7 +254,12 @@ const CreateAppointmentModal = ({
                 const slotEnd   = new Date(slotStart.getTime() + duration * 60000);
 
                 const isOccupied = appointments.some((appt) => {
-                  const apptStart = new Date(`${selectedDate}T${appt.appointment_time}`);
+                  // Convert UTC appointment_start to local time for comparison
+                  const localAppt = toLocalFromUTC({
+                    utcString: appt.appointment_start,
+                    timezone: businessTimezone,
+                  });
+                  const apptStart = localAppt.toJSDate();
                   const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
                   return slotStart < apptEnd && slotEnd > apptStart;
                 });

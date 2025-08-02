@@ -6,6 +6,7 @@ import {
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatDateToYYYYMMDDLocal } from '../lib/utils';
+import { toUTCFromLocal, toLocalFromUTC } from '../lib/timeUtils';
 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -47,6 +48,7 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
@@ -66,15 +68,45 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
+  // Fetch business timezone
+  useEffect(() => {
+    const fetchBusinessTimezone = async () => {
+      const { data, error } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', BUSINESS_ID)
+        .single();
+      
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    fetchBusinessTimezone();
+  }, []);
+
   const fetchAppointments = async () => {
     const dates = getDatesInView(selectedDate, viewMode);
-    const dateStrings = dates.map((d) => formatDateToYYYYMMDDLocal(d));
+    
+    // Calculate UTC range for the dates in view
+    const startOfFirstDay = toUTCFromLocal({
+      date: formatDateToYYYYMMDDLocal(dates[0]),
+      time: '00:00',
+      timezone: businessTimezone,
+    });
+    const endOfLastDay = toUTCFromLocal({
+      date: formatDateToYYYYMMDDLocal(dates[dates.length - 1]),
+      time: '23:59',
+      timezone: businessTimezone,
+    });
+
     const { data, error } = await supabase
       .from('appointments')
-      .select(`*, services ( name, price )`)
+      .select(`id, appointment_start, duration_min, customer_name, barber_id, service_id, appointment_status, paid, services ( name, price )`)
       .eq('business_id', BUSINESS_ID)
-      .in('appointment_date', dateStrings)
-      .in('appointment_status', ['pending', 'confirmed']); // ✅ ONLY change
+      .gte('appointment_start', startOfFirstDay)
+      .lte('appointment_start', endOfLastDay)
+      .in('appointment_status', ['pending', 'confirmed']);
+      
     if (error) console.error('Errore fetch appointments:', error.message);
     setAppointments(data || []);
   };
@@ -90,7 +122,7 @@ const Agenda = () => {
 
   useEffect(() => {
     fetchAppointments();
-  }, [selectedDate, viewMode]); 
+  }, [selectedDate, viewMode, businessTimezone]); 
 
   useEffect(() => {
     fetchBarbers();
@@ -98,11 +130,20 @@ const Agenda = () => {
 
   const updateAppointmentTime = async (
     id: string,
-    { newTime, newDate, newBarberId }
+    { newTime, newDate, newBarberId }: { newTime: string; newDate: string; newBarberId: string }
   ) => {
+    const newAppointmentStart = toUTCFromLocal({
+      date: newDate,
+      time: newTime,
+      timezone: businessTimezone,
+    });
+
     await supabase
       .from('appointments')
-      .update({ appointment_time: newTime, appointment_date: newDate, barber_id: newBarberId })
+      .update({ 
+        appointment_start: newAppointmentStart,
+        barber_id: newBarberId 
+      })
       .eq('id', id);
     fetchAppointments();
   };
@@ -264,6 +305,7 @@ const Agenda = () => {
           <Calendar
             timeSlots={timeSlots}
             appointments={filtered}
+            businessTimezone={businessTimezone}
             barbers={barbers || []}
             selectedBarber={selectedBarber}
             datesInView={getDatesInView(selectedDate, viewMode)}
@@ -280,6 +322,7 @@ const Agenda = () => {
       {selectedAppointment && (
         <AppointmentSummaryBanner
           appointment={selectedAppointment}
+          businessTimezone={businessTimezone}
           onClose={() => setSelectedAppointment(null)}
           onPay={handlePay}
           onEdit={() => setShowEditModal(true)}
@@ -290,6 +333,7 @@ const Agenda = () => {
       {showEditModal && selectedAppointment && (
         <EditAppointmentModal
           appointment={selectedAppointment}
+          businessTimezone={businessTimezone}
           onClose={() => setShowEditModal(false)}
           onUpdated={() => {
             setShowEditModal(false);
@@ -301,6 +345,7 @@ const Agenda = () => {
 
       {showCreateModal && (
         <CreateAppointmentModal
+          businessTimezone={businessTimezone}
           initialBarberId={slotPrefill?.barberId || ''}
           initialDate={slotPrefill?.date || selectedDate.toISOString().split('T')[0]}
           initialTime={slotPrefill?.time || '07:00'}

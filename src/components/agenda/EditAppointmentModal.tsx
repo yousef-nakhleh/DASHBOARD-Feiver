@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import PaymentForm from '@/components/payment/PaymentForm';
+import { toUTCFromLocal, toLocalFromUTC } from '@/lib/timeUtils';
 
 interface Props {
   appointment: any;
+  businessTimezone: string;
   onClose: () => void;
   onUpdated: () => void;
 }
@@ -20,9 +22,21 @@ const TIMES: string[] = (() => {
   return t;
 })();
 
-export default function EditAppointmentModal({ appointment, onClose, onUpdated }: Props) {
+export default function EditAppointmentModal({ appointment, businessTimezone, onClose, onUpdated }: Props) {
   const [tab, setTab] = useState<'edit' | 'payment'>('edit');
-  const [edited, setEdited] = useState<any>(appointment);
+  const [edited, setEdited] = useState<any>(() => {
+    // Convert UTC appointment_start to local time for editing
+    const localTime = toLocalFromUTC({
+      utcString: appointment.appointment_start,
+      timezone: businessTimezone,
+    });
+    
+    return {
+      ...appointment,
+      appointment_date: localTime.toFormat('yyyy-MM-dd'),
+      appointment_time: localTime.toFormat('HH:mm:ss'),
+    };
+  });
   const [services, setServices] = useState<any[]>([]);
   const [busyTimes, setBusyTimes] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -39,19 +53,38 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
   /* slot occupati nella stessa data/barbiere (pending|confirmed) */
   useEffect(() => {
     (async () => {
+      // Get UTC range for the selected date
+      const startOfDay = toUTCFromLocal({
+        date: edited.appointment_date,
+        time: '00:00',
+        timezone: businessTimezone,
+      });
+      const endOfDay = toUTCFromLocal({
+        date: edited.appointment_date,
+        time: '23:59',
+        timezone: businessTimezone,
+      });
+      
       const { data } = await supabase
         .from('appointments')
-        .select('appointment_time, duration_min, id')
-        .eq('appointment_date', appointment.appointment_date)
+        .select('appointment_start, duration_min, id')
         .eq('barber_id', appointment.barber_id)
         .eq('business_id', appointment.business_id)
+        .gte('appointment_start', startOfDay)
+        .lte('appointment_start', endOfDay)
         .in('appointment_status', ['pending', 'confirmed']);
 
       const blocked = new Set<string>();
 
       (data ?? []).forEach((a) => {
         if (a.id === appointment.id) return; // ignora sé stesso
-        const start = new Date(`2000-01-01T${a.appointment_time}`);
+        
+        // Convert UTC appointment_start to local time for comparison
+        const localAppt = toLocalFromUTC({
+          utcString: a.appointment_start,
+          timezone: businessTimezone,
+        });
+        const start = new Date(`2000-01-01T${localAppt.toFormat('HH:mm')}:00`);
         const end   = new Date(start.getTime() + a.duration_min * 60000);
 
         for (let t of TIMES) {
@@ -62,7 +95,7 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
       });
       setBusyTimes(blocked);
     })();
-  }, [appointment, edited.duration_min]);
+  }, [appointment, edited.duration_min, edited.appointment_date, businessTimezone]);
 
   /* change handler */
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -75,13 +108,20 @@ export default function EditAppointmentModal({ appointment, onClose, onUpdated }
 
   const handleSave = async () => {
     setSaving(true);
+    
+    // Convert local time back to UTC for storage
+    const appointmentStartUTC = toUTCFromLocal({
+      date: edited.appointment_date,
+      time: edited.appointment_time,
+      timezone: businessTimezone,
+    });
+    
     const { error } = await supabase
       .from('appointments')
       .update({
         customer_name:    edited.customer_name,
         service_id:       edited.service_id,
-        appointment_date: edited.appointment_date,
-        appointment_time: edited.appointment_time,
+        appointment_start: appointmentStartUTC,
         duration_min:     edited.duration_min,
       })
       .eq('id', edited.id);
