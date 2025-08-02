@@ -189,7 +189,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
       ref={drag}
       onClick={onClick}
       className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move hover:shadow-md transition-shadow ${
-        isDragging ? 'opacity-50' : ''
+        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
