@@ -9,8 +9,6 @@ import Trattamenti from './pages/Trattamenti';
 import Statistiche from './pages/Statistiche';
 import Magazzino from './pages/Magazzino';
 import Staff from './pages/Staff';
-import Spese from './pages/Spese';
-import Promozioni from './pages/Promozioni';
 import Settings from './pages/Settings';
 import PaymentPage from './components/payment/PaymentPage';
 import Voiceflow from './pages/Voiceflow';
@@ -30,8 +28,6 @@ function App() {
           <Route path="statistiche" element={<Statistiche />} />
           <Route path="magazzino" element={<Magazzino />} />
           <Route path="staff" element={<Staff />} />
-          <Route path="spese" element={<Spese />} />
-          <Route path="promozioni" element={<Promozioni />} />
           <Route path="voiceflow" element={<Voiceflow />} />
           <Route path="waiting-list" element={<WaitingList />} />
           <Route path="settings" element={<Settings />} />
