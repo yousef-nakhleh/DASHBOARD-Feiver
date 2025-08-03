@@ -30,7 +30,6 @@ const Voiceflow: React.FC = () => {
       const { data: voiceflowData, error } = await supabase
         .from('voiceflow')
         .select('id, name, phone, email, request, created_at')
-        .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4')
         .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436')
         .order('created_at', { ascending: false });
 
