@@ -6,7 +6,7 @@ import { UserRoundSearch, X } from 'lucide-react';
 import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
 import { toUTCFromLocal } from '../../lib/timeUtils';
 
-const BUSINESS_ID = '6ebf5f92-14ff-430e-850c-f147c3dc16f4';
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
 
 const CreateAppointmentModal = ({
   businessTimezone,

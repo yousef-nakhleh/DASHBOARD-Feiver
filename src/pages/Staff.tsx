@@ -34,7 +34,7 @@ const Staff = () => {
   }, []);
 
   const fetchStaff = async () => {
-    const { data, error } = await supabase.from('barbers').select('*').eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4');
+    const { data, error } = await supabase.from('barbers').select('*').eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436');
     if (!error) setStaffList(data);
   };
 
@@ -43,7 +43,7 @@ const Staff = () => {
       .from('barbers_availabilities')
       .select('*')
       .eq('barber_id', barberId)
-      .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4');
+      .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436');
 
     if (!error) setAvailabilities(data);
     else setAvailabilities([]);
@@ -208,7 +208,7 @@ const Staff = () => {
       {selectedStaff && isEditAvailabilityOpen && (
         <EditStaffAvailabilityModal
           barberId={selectedStaff.id}
-          businessId="6ebf5f92-14ff-430e-850c-f147c3dc16f4"
+          businessId="268e0ae9-c539-471c-b4c2-1663cf598436"
           open={isEditAvailabilityOpen}
           onClose={() => setIsEditAvailabilityOpen(false)}
           onUpdated={() => {

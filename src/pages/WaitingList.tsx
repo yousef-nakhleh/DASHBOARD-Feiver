@@ -5,7 +5,7 @@ import { toLocalFromUTC } from '../lib/timeUtils'; // ✅ Timezone utility
 
 // Hardcoded for now, should come from auth context
 // TODO: Replace with dynamic business_id from user session
-const BUSINESS_ID = '6ebf5f92-14ff-430e-850c-f147c3dc16f4';
+const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
 
 interface WaitingListItem {
   id: string;
@@ -42,7 +42,7 @@ const WaitingList: React.FC = () => {
       const { data, error } = await supabase
         .from('waiting_list')
         .select('id, customer_name, customer_phone, start_time, end_time, date, created_at')
-        .eq('business_id', '6ebf5f92-14ff-430e-850c-f147c3dc16f4')
+        .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436')
         .order('created_at', { ascending: false });
  
       if (error) {
