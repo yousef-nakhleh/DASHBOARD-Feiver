@@ -84,7 +84,7 @@ const Vapi: React.FC = () => {
     <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2">Vapi AI Calls</h1>
+          <h1 className="text-3xl font-bold text-black mb-2">AI Phone Caller</h1>
           <p className="text-gray-600">Gestisci le chiamate dell'assistente AI</p>
         </div>
       </div>
