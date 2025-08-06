@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import PaymentPage from './components/payment/PaymentPage';
 import Voiceflow from './pages/Voiceflow';
 import WaitingList from './pages/WaitingList';
+import Vapi from './pages/Vapi';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="staff" element={<Staff />} />
           <Route path="voiceflow" element={<Voiceflow />} />
           <Route path="waiting-list" element={<WaitingList />} />
+          <Route path="vapi" element={<Vapi />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
