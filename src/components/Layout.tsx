@@ -17,7 +17,8 @@ import {
   Home,
   ChevronRight,
   MessageSquare,
-  Clock
+  Clock,
+  Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
