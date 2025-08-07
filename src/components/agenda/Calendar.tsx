@@ -136,7 +136,7 @@ const DayBarberColumn = ({
 
         const isEmpty = apps.length === 0;
 
-            className={`h-[${slotHeight}px] px-2 relative text-xs ${
+        return (
           <div
             key={slot.time}
             ref={drop}
@@ -152,6 +152,7 @@ const DayBarberColumn = ({
             <span className="absolute top-0 right-2 transform -translate-y-1/2">
               {slot.time}
             </span>
+            {apps.map((app) => (
               <DraggableAppointment
                 key={app.id}
                 app={app}
