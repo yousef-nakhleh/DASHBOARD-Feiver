@@ -30,7 +30,7 @@ export const Calendar = ({
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[${slotHeight}px] px-2 relative ${
+              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
@@ -39,16 +39,6 @@ export const Calendar = ({
               }`}
             >
               {slot.time}
-              <span
-                className={`absolute top-0 right-2 transform -translate-y-1/2 text-xs ${
-                  slot.type === 'hour'
-                    ? 'font-bold text-gray-800'
-                    : slot.type === 'half'
-                    ? 'text-gray-500'
-                    : 'text-gray-300'
-                }`}
-              >
-              </span>
             </div>
           ))}
         </div>
