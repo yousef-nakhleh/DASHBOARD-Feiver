@@ -16,9 +16,9 @@ import Voiceflow from './pages/Voiceflow';
 import WaitingList from './pages/WaitingList';
 import Vapi from './pages/Vapi';
 
-// 🔐 Auth
-import { AuthProvider, useAuth } from './login/AuthContext';
-import LoginPage from './login/LoginPage';
+// 🔐 Auth (moved)
+import { AuthProvider, useAuth } from './components/auth/AuthContext';
+import LoginPage from './components/auth/LoginPage';
 
 // ---------- Route guard ----------
 function RequireAuth() {
