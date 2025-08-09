@@ -1,6 +1,7 @@
 import { Dialog } from "@headlessui/react";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";   // 👈  ri-uso l’istanza già pronta
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/AuthContext";
 
 export default function CreateTreatmentModal({
   onClose,
@@ -9,25 +10,31 @@ export default function CreateTreatmentModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [name, setName]         = useState("");
+  const { profile } = useAuth();
+
+  const [name, setName] = useState("");
   const [duration, setDuration] = useState(30);
-  const [price, setPrice]       = useState(20);
+  const [price, setPrice] = useState(20);
   const [category, setCategory] = useState("");
   const [isPopular, setIsPopular] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async () => {
     if (!name) return alert("Il nome è obbligatorio");
+    if (!profile?.business_id) {
+      alert("Profilo non configurato (manca business_id). Contatta l’amministratore.");
+      return;
+    }
 
     setSaving(true);
     const { error } = await supabase.from("services").insert([
       {
         name,
-        duration_min : duration,
+        duration_min: duration,
         price,
         category,
-        is_popular   : isPopular,
-        business_id  : "268e0ae9-c539-471c-b4c2-1663cf598436", // 👈 mesmo business de default
+        is_popular: isPopular,
+        business_id: profile.business_id, // 👈 dinamico dal profilo
       },
     ]);
 
@@ -39,7 +46,7 @@ export default function CreateTreatmentModal({
       return;
     }
 
-    onCreated();    // ricarica lista in pagina padre
+    onCreated();
   };
 
   return (
