@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase"; // ✅ correct path
+import { supabase } from "../../lib/supabase"; // ✅ path from src/components/auth
 
 // --- Minimal shape of your profiles table ---
 export type Profile = {
-  id: string;              // FK to auth.users.id
+  id: string;                       // FK to auth.users.id
   business_id: string | null;
-  role: "customer" | "owner" | "manager" | "staff" | string | null; // keep flexible
-  // add other columns here if you need them in context (e.g., phone, name, etc.)
+  role: "customer" | "owner" | "manager" | "staff" | string | null;
+  // add other columns if you need them globally (phone, name, etc.)
 };
 
 type AuthContextType = {
@@ -65,35 +65,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(sess);
       setUser(sess?.user ?? null);
 
-      // Load profile when we have a user; otherwise clear it
-      if (sess?.user) {
-        await fetchProfile(sess.user.id);
-      } else {
-        setProfile(null);
-      }
+      if (sess?.user) await fetchProfile(sess.user.id);
+      else setProfile(null);
 
       setLoading(false);
     };
 
     init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession ?? null);
-      const nextUser = newSession?.user ?? null;
-      setUser(nextUser);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        const nextUser = newSession?.user ?? null;
+        setSession(newSession ?? null);
+        setUser(nextUser);
 
-      if (nextUser) {
-        await fetchProfile(nextUser.id);
-      } else {
-        setProfile(null);
+        if (nextUser) await fetchProfile(nextUser.id);
+        else setProfile(null);
+
+        setLoading(false);
       }
-
-      setLoading(false);
-    });
+    );
 
     return () => {
       mounted = false;
-      listener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
