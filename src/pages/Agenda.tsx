@@ -6,7 +6,7 @@ import {
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatDateToYYYYMMDDLocal } from '../lib/utils';
-import { toUTCFromLocal, toLocalFromUTC } from '../lib/timeUtils';
+import { toUTCFromLocal } from '../lib/timeUtils';
 
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -17,7 +17,8 @@ import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
+// 🔐 Auth
+import { useAuth } from '../components/auth/AuthContext';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -45,6 +46,8 @@ const formatShort = (d: Date) =>
   d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
 
 const Agenda = () => {
+  const { profile, loading: authLoading } = useAuth();
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
@@ -68,25 +71,30 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  // Fetch business timezone
+  // Fetch business timezone (after auth/profile is ready)
   useEffect(() => {
     const fetchBusinessTimezone = async () => {
+      if (authLoading) return;
+      if (!profile?.business_id) return;
+
       const { data, error } = await supabase
         .from('business')
         .select('timezone')
-        .eq('id', BUSINESS_ID)
+        .eq('id', profile.business_id)
         .single();
-      
+
       if (!error && data?.timezone) {
         setBusinessTimezone(data.timezone);
       }
     };
     fetchBusinessTimezone();
-  }, []);
+  }, [authLoading, profile?.business_id]);
 
   const fetchAppointments = async () => {
+    if (!profile?.business_id) return;
+
     const dates = getDatesInView(selectedDate, viewMode);
-    
+
     // Calculate UTC range for the dates in view
     const startOfFirstDay = toUTCFromLocal({
       date: formatDateToYYYYMMDDLocal(dates[0]),
@@ -102,31 +110,38 @@ const Agenda = () => {
     const { data, error } = await supabase
       .from('appointments')
       .select(`id, appointment_start, duration_min, customer_name, barber_id, service_id, appointment_status, paid, services ( name, price )`)
-      .eq('business_id', BUSINESS_ID)
+      .eq('business_id', profile.business_id)
       .gte('appointment_start', startOfFirstDay)
       .lte('appointment_start', endOfLastDay)
       .in('appointment_status', ['pending', 'confirmed']);
-      
+
     if (error) console.error('Errore fetch appointments:', error.message);
     setAppointments(data || []);
   };
 
   const fetchBarbers = async () => {
+    if (!profile?.business_id) return;
+
     const { data, error } = await supabase
       .from('barbers')
       .select('*')
-      .eq('business_id', BUSINESS_ID);
+      .eq('business_id', profile.business_id);
+
     if (error) console.error('Errore fetch barbers:', error.message);
     setBarbers(data || []);
   };
 
   useEffect(() => {
+    if (authLoading) return;
     fetchAppointments();
-  }, [selectedDate, viewMode, businessTimezone]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, viewMode, businessTimezone, authLoading, profile?.business_id]);
 
   useEffect(() => {
+    if (authLoading) return;
     fetchBarbers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, profile?.business_id]);
 
   const updateAppointmentTime = async (
     id: string,
@@ -140,11 +155,12 @@ const Agenda = () => {
 
     await supabase
       .from('appointments')
-      .update({ 
+      .update({
         appointment_start: newAppointmentStart,
-        barber_id: newBarberId 
+        barber_id: newBarberId
       })
       .eq('id', id);
+
     fetchAppointments();
   };
 
@@ -189,6 +205,18 @@ const Agenda = () => {
     d.setDate(selectedDate.getDate() + offset);
     return d;
   });
+
+  // Optional: small guard if profile has no business configured
+  if (!authLoading && !profile?.business_id) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-600">
+          Profilo non configurato: nessun <code>business_id</code> collegato.
+          Contatta l’amministratore.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full space-y-6">
@@ -263,7 +291,7 @@ const Agenda = () => {
           {['day', '3day', 'week'].map((mode) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              onClick={() => setViewMode(mode as 'day' | '3day' | 'week')}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 viewMode === mode
                   ? 'bg-black text-white'
