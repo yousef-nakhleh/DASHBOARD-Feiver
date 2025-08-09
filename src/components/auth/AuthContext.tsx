@@ -1,5 +1,3 @@
-this is the auth context
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase"; // ⬅️ updated path
