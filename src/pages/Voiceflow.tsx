@@ -1,7 +1,9 @@
+// src/pages/Voiceflow.tsx
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Search, Phone, Mail, User, FileText } from 'lucide-react';
+import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toLocalFromUTC } from '../lib/timeUtils';
+import { useAuth } from '../components/auth/AuthContext';
 
 interface VoiceflowData {
   id: string;
@@ -13,43 +15,88 @@ interface VoiceflowData {
 }
 
 const Voiceflow: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [data, setData] = useState<VoiceflowData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Assume the timezone is defined somewhere (or fetched)
   const businessTimezone = 'Europe/Rome';
 
+  // 1) Load user's business_id from profiles
   useEffect(() => {
-    fetchVoiceflowData();
-  }, []);
+    const loadBusinessId = async () => {
+      if (authLoading) return;
 
-  const fetchVoiceflowData = async () => {
-    setLoading(true);
-    try {
-      const { data: voiceflowData, error } = await supabase
-        .from('voiceflow')
-        .select('id, name, phone, email, request, created_at')
-        .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436')
-        .order('created_at', { ascending: false });
+      if (!user) {
+        setBusinessId(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setProfileError(null);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('business_id')
+        .eq('id', user.id)
+        .single();
 
       if (error) {
-        console.error('Errore nel caricamento dei dati Voiceflow:', error);
-      } else {
-        const converted = (voiceflowData || []).map((item) => ({
-          ...item,
-          created_at: item.created_at
-            ? toLocalFromUTC({ utcString: item.created_at, timezone: businessTimezone }).toISO()
-            : undefined,
-        }));
-        setData(converted);
+        console.warn('profiles fetch error:', error.message);
+        setProfileError('Profilo non configurato. Contatta l’amministratore.');
+        setBusinessId(null);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Errore nel fetch dei dati:', error);
-    } finally {
+
+      setBusinessId(data?.business_id ?? null);
       setLoading(false);
-    }
-  };
+    };
+
+    loadBusinessId();
+  }, [user, authLoading]);
+
+  // 2) Fetch Voiceflow rows for this business
+  useEffect(() => {
+    const fetchVoiceflowData = async () => {
+      if (!businessId) {
+        setData([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data: voiceflowData, error } = await supabase
+          .from('voiceflow')
+          .select('id, name, phone, email, request, created_at')
+          .eq('business_id', businessId)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Errore nel caricamento dei dati Voiceflow:', error);
+          setData([]);
+        } else {
+          const converted = (voiceflowData || []).map((item) => ({
+            ...item,
+            created_at: item.created_at
+              ? toLocalFromUTC({ utcString: item.created_at, timezone: businessTimezone }).toISO()
+              : undefined,
+          }));
+          setData(converted);
+        }
+      } catch (err) {
+        console.error('Errore nel fetch dei dati:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVoiceflowData();
+  }, [businessId]);
 
   const filteredData = data.filter(
     item =>
@@ -58,6 +105,36 @@ const Voiceflow: React.FC = () => {
       item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.request?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Guard states
+  if (authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-600">Caricamento autenticazione…</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-600">Non autenticato.</p>
+      </div>
+    );
+  }
+
+  if (profileError || !businessId) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <XCircle size={40} className="mx-auto text-red-400 mb-3" />
+          <p className="text-gray-700">
+            {profileError || 'Profilo senza business associato.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full space-y-6">
