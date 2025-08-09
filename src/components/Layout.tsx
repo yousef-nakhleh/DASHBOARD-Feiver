@@ -24,6 +24,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
+// ✅ use the Logout logic component (keeps UI here)
+import Logout from './auth/Logout';
+
 const sidebarItems = [
   { path: '/', name: 'Dashboard', icon: <Home size={20} /> },
   { path: '/agenda', name: 'Agenda', icon: <Calendar size={20} /> },
@@ -43,10 +46,6 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const handleLogout = () => {
-    alert('Logout clicked');
-  };
 
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
@@ -94,13 +93,15 @@ const Layout = () => {
           </nav>
           
           <div className="p-4 border-t border-gray-800">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
-            >
-              <LogOut size={20} className="mr-3" />
-              <span>Logout</span>
-            </button>
+            {/* ✅ Same UI, wrapped with Logout to handle logic */}
+            <Logout>
+              <button
+                className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
+              >
+                <LogOut size={20} className="mr-3" />
+                <span>Logout</span>
+              </button>
+            </Logout>
           </div>
         </div>
 
@@ -158,13 +159,16 @@ const Layout = () => {
                 </nav>
                 
                 <div className="p-4 border-t border-gray-800">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
-                  >
-                    <LogOut size={20} className="mr-3" />
-                    <span>Logout</span>
-                  </button>
+                  {/* ✅ Same mobile UI, wrapped with Logout */}
+                  <Logout>
+                    <button
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <LogOut size={20} className="mr-3" />
+                      <span>Logout</span>
+                    </button>
+                  </Logout>
                 </div>
               </motion.div>
             </motion.div>
