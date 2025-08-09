@@ -1,6 +1,8 @@
+// src/pages/Vapi.tsx
 import React, { useEffect, useState } from 'react';
 import { Phone, Clock, CheckCircle, XCircle, FileText, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/auth/AuthContext'; // 👈 use profile from context
 
 interface VapiCall {
   id: string;
@@ -13,6 +15,7 @@ interface VapiCall {
 }
 
 const Vapi: React.FC = () => {
+  const { loading: authLoading, profile } = useAuth(); // 👈 get profile (has business_id)
   const [calls, setCalls] = useState<VapiCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,25 +23,34 @@ const Vapi: React.FC = () => {
   const [selectedCall, setSelectedCall] = useState<VapiCall | null>(null);
 
   useEffect(() => {
-    fetchVapiCalls();
-  }, []);
+    // wait until auth finished loading AND we know the business_id
+    if (authLoading) return;
+    if (!profile?.business_id) {
+      setCalls([]);
+      setLoading(false);
+      return;
+    }
+    fetchVapiCalls(profile.business_id);
+  }, [authLoading, profile?.business_id]);
 
-  const fetchVapiCalls = async () => {
+  const fetchVapiCalls = async (businessId: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('vapi')
         .select('*')
-        .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436')
+        .eq('business_id', businessId) // 👈 dynamic business scope
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Errore nel caricamento delle chiamate Vapi:', error);
+        setCalls([]);
       } else {
         setCalls(data || []);
       }
     } catch (error) {
       console.error('Errore nel fetch dei dati:', error);
+      setCalls([]);
     } finally {
       setLoading(false);
     }
@@ -61,12 +73,12 @@ const Vapi: React.FC = () => {
   };
 
   const filteredCalls = calls.filter(call => {
-    const matchesSearch = 
-      call.phone_number?.includes(searchQuery) ||
-      call.source?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.transcript?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      (call.phone_number || '').includes(searchQuery) ||
+      (call.source || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (call.transcript || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesFilter = 
+    const matchesFilter =
       filterBookingSuccess === 'all' ||
       (filterBookingSuccess === 'success' && call.booking_success) ||
       (filterBookingSuccess === 'failed' && !call.booking_success);
@@ -76,9 +88,34 @@ const Vapi: React.FC = () => {
 
   const successfulBookings = calls.filter(call => call.booking_success).length;
   const totalCalls = calls.length;
-  const averageDuration = totalCalls > 0 
+  const averageDuration = totalCalls > 0
     ? Math.round(calls.reduce((sum, call) => sum + call.duration_sec, 0) / totalCalls)
     : 0;
+
+  // ---- Auth / profile guard UIs ----
+  if (authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-500">Verifica autenticazione…</p>
+      </div>
+    );
+  }
+
+  if (!profile?.business_id) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <Phone size={48} className="mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-600">
+            Profilo non configurato oppure nessun <code>business_id</code> associato.
+          </p>
+          <p className="text-gray-500 text-sm mt-1">
+            Contatta l’amministratore per associare il tuo account a un business.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full space-y-6">
@@ -212,7 +249,7 @@ const Vapi: React.FC = () => {
                             <Phone size={16} />
                           </div>
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-black">{call.phone_number || 'N/A'}</p>
+                            <p className="text-sm font-medium text-black">{(call.phone_number) || 'N/A'}</p>
                           </div>
                         </div>
                       </td>
@@ -224,8 +261,8 @@ const Vapi: React.FC = () => {
                       </td>
                       <td className="px-4 py-4">
                         <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          call.booking_success 
-                            ? 'bg-green-100 text-green-800' 
+                          call.booking_success
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
                           {call.booking_success ? 'Riuscita' : 'Fallita'}
@@ -252,8 +289,8 @@ const Vapi: React.FC = () => {
               <div className="text-center">
                 <Phone size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
-                  {searchQuery || filterBookingSuccess !== 'all' 
-                    ? 'Nessun risultato trovato' 
+                  {searchQuery || filterBookingSuccess !== 'all'
+                    ? 'Nessun risultato trovato'
                     : 'Nessuna chiamata disponibile'
                   }
                 </p>
@@ -292,8 +329,8 @@ const Vapi: React.FC = () => {
                 <div>
                   <span className="font-semibold text-gray-500">Prenotazione:</span>
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    selectedCall.booking_success 
-                      ? 'bg-green-100 text-green-800' 
+                    selectedCall.booking_success
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
                     {selectedCall.booking_success ? 'Riuscita' : 'Fallita'}
