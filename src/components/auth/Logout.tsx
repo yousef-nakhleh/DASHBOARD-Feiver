@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '../../lib/supabase';
 
 const Logout: React.FC = () => {
   const navigate = useNavigate();
