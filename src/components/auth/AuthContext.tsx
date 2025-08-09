@@ -3,11 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 
-type Profile = {
-  id: string;                 // FK to auth.users.id
-  business_id: string | null;
-  role: string | null;
-};
+type Profile = { id: string; business_id: string | null; role: string | null };
 
 type AuthContextType = {
   user: User | null;
@@ -27,12 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")            // <-- ensure table name is exactly 'profiles'
-      .select("*")
-      .eq("id", userId)
-      .single();
-
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (error) {
       console.warn("profiles fetch error:", error.message);
       setProfile(null);
@@ -43,10 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (!user) {
-      setProfile(null);
-      return;
-    }
+    if (!user) { setProfile(null); return; }
     await fetchProfile(user.id);
   };
 
@@ -62,9 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = sess?.user ?? null;
       setUser(u);
 
-      if (u) await fetchProfile(u.id);
-      else setProfile(null);
-
+      if (u) await fetchProfile(u.id); else setProfile(null);
       setLoading(false);
     })();
 
@@ -73,36 +59,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = newSession?.user ?? null;
         setSession(newSession ?? null);
         setUser(u);
-
-        if (u) await fetchProfile(u.id);
-        else setProfile(null);
-
+        if (u) await fetchProfile(u.id); else setProfile(null);
         setLoading(false);
       }
     );
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();   // <-- correct unsubscribe
-    };
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   const signOut = async () => {
-    // Clear local state first so UI reacts immediately
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      /* ignore */
-    }
+    setUser(null); setSession(null); setProfile(null);
+    try { await supabase.auth.signOut(); } catch {}
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, session, profile, loading, signOut, refreshProfile }}
-    >
+    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
