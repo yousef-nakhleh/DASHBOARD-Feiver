@@ -2,12 +2,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 
 const Logout: React.FC = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    const confirmLogout = window.confirm("Sei sicuro di voler effettuare il logout?");
+    if (!confirmLogout) return;
+
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Errore durante il logout:', error.message);
