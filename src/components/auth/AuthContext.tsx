@@ -1,20 +1,19 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+// src/components/auth/AuthContext.tsx
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase"; // ✅ from src/components/auth → ../../lib/supabase
+import { supabase } from "../../lib/supabase";
 
-// Shape of your profiles table
-export type Profile = {
-  id: string;                    // FK to auth.users.id
+type Profile = {
+  id: string;                 // FK to auth.users.id
   business_id: string | null;
-  role: string | null;           // e.g. 'customer' | 'owner' | 'staff'
-  // add other columns if you need them in context
+  role: string | null;
 };
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  loading: boolean;                  // true until session + (if logged) profile fetched
+  loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -27,10 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- helpers ---
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("profiles")            // <-- ensure table name is exactly 'profiles'
       .select("*")
       .eq("id", userId)
       .single();
@@ -52,60 +50,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchProfile(user.id);
   };
 
-  // --- initial session + listener ---
   useEffect(() => {
-    let active = true;
+    let mounted = true;
 
-    const init = async () => {
-      // 1) get current auth session
+    (async () => {
       const { data } = await supabase.auth.getSession();
-      if (!active) return;
+      if (!mounted) return;
 
       const sess = data.session ?? null;
       setSession(sess);
-      const currentUser = sess?.user ?? null;
-      setUser(currentUser);
+      const u = sess?.user ?? null;
+      setUser(u);
 
-      // 2) if logged in, fetch profile before clearing "loading"
-      if (currentUser) {
-        await fetchProfile(currentUser.id);
-      } else {
-        setProfile(null);
-      }
+      if (u) await fetchProfile(u.id);
+      else setProfile(null);
 
-      if (active) setLoading(false);
-    };
-
-    init();
-
-    // 3) subscribe to auth state changes (sign in / out / token refresh)
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      const nextUser = newSession?.user ?? null;
-      setSession(newSession ?? null);
-      setUser(nextUser);
-
-      // while switching users, keep UI in a loading state briefly
-      setLoading(true);
-      if (nextUser) {
-        await fetchProfile(nextUser.id);
-      } else {
-        setProfile(null);
-      }
       setLoading(false);
-    });
+    })();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        const u = newSession?.user ?? null;
+        setSession(newSession ?? null);
+        setUser(u);
+
+        if (u) await fetchProfile(u.id);
+        else setProfile(null);
+
+        setLoading(false);
+      }
+    );
 
     return () => {
-      active = false;
-      sub.subscription.unsubscribe();
+      mounted = false;
+      subscription.unsubscribe();   // <-- correct unsubscribe
     };
   }, []);
 
   const signOut = async () => {
-    // Clear local state first so UI updates immediately
+    // Clear local state first so UI reacts immediately
     setUser(null);
     setSession(null);
     setProfile(null);
-    await supabase.auth.signOut().catch(() => {});
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
