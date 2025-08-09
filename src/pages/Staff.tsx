@@ -10,6 +10,7 @@ import {
 import { supabase } from '../lib/supabase';
 import NewStaffModal from '../components/staff/NewStaffModal';
 import EditStaffAvailabilityModal from '../components/staff/EditStaffAvailabilityModal';
+import { useAuth } from '../components/auth/AuthContext'; // ⬅️ use AuthContext
 
 // Weekday mapping from English (database) to Italian (display)
 const dayMap: Record<string, string> = {
@@ -23,6 +24,9 @@ const dayMap: Record<string, string> = {
 };
 
 const Staff = () => {
+  const { profile, loading: authLoading } = useAuth(); // ⬅️ grab profile (with business_id)
+  const businessId = profile?.business_id || null;
+
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
   const [isNewStaffModalOpen, setIsNewStaffModalOpen] = useState(false);
@@ -30,28 +34,45 @@ const Staff = () => {
   const [availabilities, setAvailabilities] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchStaff();
-  }, []);
+    if (authLoading) return;
+    if (!businessId) {
+      // No business linked to this profile: clear data
+      setStaffList([]);
+      setSelectedStaff(null);
+      setAvailabilities([]);
+      return;
+    }
+    fetchStaff(businessId);
+  }, [authLoading, businessId]);
 
-  const fetchStaff = async () => {
-    const { data, error } = await supabase.from('barbers').select('*').eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436');
-    if (!error) setStaffList(data);
+  const fetchStaff = async (bizId: string) => {
+    const { data, error } = await supabase
+      .from('barbers')
+      .select('*')
+      .eq('business_id', bizId);
+
+    if (!error && data) setStaffList(data);
+    else setStaffList([]);
   };
 
-  const fetchAvailability = async (barberId: string) => {
+  const fetchAvailability = async (barberId: string, bizId: string) => {
     const { data, error } = await supabase
       .from('barbers_availabilities')
       .select('*')
       .eq('barber_id', barberId)
-      .eq('business_id', '268e0ae9-c539-471c-b4c2-1663cf598436');
+      .eq('business_id', bizId);
 
-    if (!error) setAvailabilities(data);
+    if (!error && data) setAvailabilities(data);
     else setAvailabilities([]);
   };
 
   const handleSelect = async (staff: any) => {
     setSelectedStaff(staff);
-    await fetchAvailability(staff.id);
+    if (businessId) {
+      await fetchAvailability(staff.id, businessId);
+    } else {
+      setAvailabilities([]);
+    }
   };
 
   // Group availability slots by weekday
@@ -71,6 +92,8 @@ const Staff = () => {
         <button
           onClick={() => setIsNewStaffModalOpen(true)}
           className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
+          disabled={!businessId}
+          title={!businessId ? 'Profilo non configurato (business non collegato)' : undefined}
         >
           <Plus size={18} className="mr-2" />
           Nuovo Membro
@@ -87,6 +110,8 @@ const Staff = () => {
                 type="text"
                 placeholder="Cerca staff"
                 className="pl-10 pr-4 py-3 w-full border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                // Searching not implemented in original; keeping UI intact
+                onChange={() => {}}
               />
             </div>
           </div>
@@ -115,6 +140,14 @@ const Staff = () => {
                 </div>
               </div>
             ))}
+            {!authLoading && businessId && staffList.length === 0 && (
+              <div className="p-6 text-sm text-gray-500">Nessun membro dello staff trovato.</div>
+            )}
+            {!authLoading && !businessId && (
+              <div className="p-6 text-sm text-gray-500">
+                Profilo non configurato. Nessun business associato.
+              </div>
+            )}
           </div>
         </div>
 
@@ -208,12 +241,12 @@ const Staff = () => {
       {selectedStaff && isEditAvailabilityOpen && (
         <EditStaffAvailabilityModal
           barberId={selectedStaff.id}
-          businessId="268e0ae9-c539-471c-b4c2-1663cf598436"
+          businessId={businessId || ''} // ⬅️ pass dynamic businessId
           open={isEditAvailabilityOpen}
           onClose={() => setIsEditAvailabilityOpen(false)}
           onUpdated={() => {
             setIsEditAvailabilityOpen(false);
-            fetchAvailability(selectedStaff.id);
+            if (businessId) fetchAvailability(selectedStaff.id, businessId);
           }}
         />
       )}
