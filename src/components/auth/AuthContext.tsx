@@ -1,19 +1,20 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase"; // ⬅️ updated path
+import { supabase } from "../../lib/supabase"; // ✅ from src/components/auth → ../../lib/supabase
 
-type Profile = {
-  id: string;
+// Shape of your profiles table
+export type Profile = {
+  id: string;                    // FK to auth.users.id
   business_id: string | null;
-  role: string | null;
-  // add any extra profile fields you need here
+  role: string | null;           // e.g. 'customer' | 'owner' | 'staff'
+  // add other columns if you need them in context
 };
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
-  loading: boolean;
+  loading: boolean;                  // true until session + (if logged) profile fetched
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // --- helpers ---
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -34,43 +36,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error) {
-      console.warn("Error fetching profile:", error.message);
+      console.warn("profiles fetch error:", error.message);
       setProfile(null);
-      return;
+      return null;
     }
     setProfile(data as Profile);
+    return data as Profile;
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
+    if (!user) {
+      setProfile(null);
+      return;
     }
+    await fetchProfile(user.id);
   };
 
-  // Initial session + listener
+  // --- initial session + listener ---
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!mounted) return;
+    const init = async () => {
+      // 1) get current auth session
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+
       const sess = data.session ?? null;
       setSession(sess);
       const currentUser = sess?.user ?? null;
       setUser(currentUser);
 
+      // 2) if logged in, fetch profile before clearing "loading"
       if (currentUser) {
         await fetchProfile(currentUser.id);
+      } else {
+        setProfile(null);
       }
-      setLoading(false);
-    });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      const currentUser = newSession?.user ?? null;
+      if (active) setLoading(false);
+    };
+
+    init();
+
+    // 3) subscribe to auth state changes (sign in / out / token refresh)
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      const nextUser = newSession?.user ?? null;
       setSession(newSession ?? null);
-      setUser(currentUser);
+      setUser(nextUser);
 
-      if (currentUser) {
-        await fetchProfile(currentUser.id);
+      // while switching users, keep UI in a loading state briefly
+      setLoading(true);
+      if (nextUser) {
+        await fetchProfile(nextUser.id);
       } else {
         setProfile(null);
       }
@@ -78,12 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
+      active = false;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
   const signOut = async () => {
+    // Clear local state first so UI updates immediately
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -91,7 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, session, profile, loading, signOut, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );
