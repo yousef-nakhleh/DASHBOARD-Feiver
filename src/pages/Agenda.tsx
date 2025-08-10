@@ -393,6 +393,7 @@ const Agenda = () => {
         visible={showPaymentPanel}
         prefill={paymentPrefill}
         onClose={() => setShowPaymentPanel(false)}
+        businessId={profile?.business_id}
         onSuccess={() => {
           setShowPaymentPanel(false);
           fetchAppointments();

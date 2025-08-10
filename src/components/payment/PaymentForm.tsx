@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const paymentMethods = ['Contanti', 'Carta', 'POS', 'Satispay', 'Altro'];
 
-const PaymentForm = ({ prefill = {}, onSuccess }) => {
+const PaymentForm = ({ prefill = {}, onSuccess, businessId }) => {
   const navigate = useNavigate();
 
   const [customerName, setCustomerName] = useState('');
@@ -43,7 +43,7 @@ const PaymentForm = ({ prefill = {}, onSuccess }) => {
     total,
     payment_method: paymentMethod,
     completed_at: new Date().toISOString(),
-    business_id: '268e0ae9-c539-471c-b4c2-1663cf598436' // ✅ hardcoded
+    business_id: businessId // ✅ dynamic
   },
 ]);
 

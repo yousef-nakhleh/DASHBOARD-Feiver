@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Receipt, CreditCard, Banknote, Calendar, Search, FileText, Plus } from 'lucide-react';
 import { supabase } from "../lib/supabase";
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import { useAuth } from '../components/auth/AuthContext';
 
 const groupTransactionsByDate = (transactions) => {
   return transactions.reduce((groups, transaction) => {
@@ -35,6 +36,7 @@ const getRomeDateString = (date) => {
 };
 
 const Cassa = () => {
+  const { profile } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -209,6 +211,7 @@ const Cassa = () => {
         visible={panelOpen}
         onClose={() => setPanelOpen(false)}
         prefill={{}}
+        businessId={profile?.business_id}
         onSuccess={() => {
           setPanelOpen(false);
           fetchTransactions();

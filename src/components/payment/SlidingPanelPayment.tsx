@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 import React from 'react';
 import PaymentForm from './PaymentForm';
 
-const SlidingPanelPayment = ({ visible, onClose, prefill, onSuccess }) => {
+const SlidingPanelPayment = ({ visible, onClose, prefill, onSuccess, businessId }) => {
   return (
     <>
       {/* Overlay */}
@@ -30,7 +30,7 @@ const SlidingPanelPayment = ({ visible, onClose, prefill, onSuccess }) => {
         </div>
         
         <div className="p-6 overflow-y-auto h-[calc(100%-88px)]">
-          <PaymentForm prefill={prefill} onSuccess={onSuccess} />
+          <PaymentForm prefill={prefill} onSuccess={onSuccess} businessId={businessId} />
         </div>
       </div>
     </>
