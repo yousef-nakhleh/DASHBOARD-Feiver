@@ -70,6 +70,7 @@ export default function Trattamenti() {
   useEffect(() => {
     const fetchServices = async () => {
       if (!businessId) {
+        console.log("Trattamenti: No business_id available, clearing services");
         setServices([]);
         return;
       }

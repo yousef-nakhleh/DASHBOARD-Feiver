@@ -33,10 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("id", userId)
         .single();
       if (error) {
-        console.warn("profiles fetch error:", error.message);
+        console.error("profiles fetch error:", error.message, error);
         setProfile(null);
         return null;
       }
+      console.log("Profile fetched successfully:", data);
       setProfile(data as Profile);
       return data as Profile;
     } catch (e) {
@@ -57,16 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (!mounted) return;
-        if (error) console.warn("getSession error:", error.message);
+        if (error) {
+          console.error("getSession error:", error.message, error);
+        }
 
         const sess = data?.session ?? null;
+        console.log("Initial session:", sess ? "Found session" : "No session");
         setSession(sess);
         const u = sess?.user ?? null;
+        console.log("Initial user:", u ? `User ID: ${u.id}` : "No user");
         setUser(u);
 
         if (u?.id) {
           // don’t block UI on profile
-          fetchProfile(u.id);
+          console.log("Fetching profile for user:", u.id);
+          await fetchProfile(u.id);
         } else {
           setProfile(null);
         }
@@ -79,11 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log("Auth state change:", _event, newSession ? "Session exists" : "No session");
       setSession(newSession ?? null);
       const nextUser = newSession?.user ?? null;
       setUser(nextUser);
       // fire-and-forget profile load; UI doesn’t hang
-      if (nextUser?.id) fetchProfile(nextUser.id);
+      if (nextUser?.id) {
+        console.log("Auth change: fetching profile for user:", nextUser.id);
+        fetchProfile(nextUser.id);
+      }
       else setProfile(null);
       setLoading(false);
     });

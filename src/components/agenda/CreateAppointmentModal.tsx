@@ -16,7 +16,7 @@ const CreateAppointmentModal = ({
   initialTime = '',
 }) => {
   const { profile } = useAuth();                 // ✅ pull profile from context
-  const businessId = profile?.business_id || ''; // ✅ dynamic business id
+  const businessId = profile?.business_id; // ✅ dynamic business id
 
   const [customerName, setCustomerName] = useState('');
   const [services, setServices] = useState<any[]>([]);
@@ -34,7 +34,10 @@ const CreateAppointmentModal = ({
 
   /* -------------------------------------------------- */
   useEffect(() => {
-    if (!businessId) return; // wait until profile loads
+    if (!businessId) {
+      console.log("CreateAppointmentModal: No business_id available, skipping data fetch");
+      return; // wait until profile loads
+    }
 
     const fetchData = async () => {
       const { data: servicesData } = await supabase
@@ -55,7 +58,10 @@ const CreateAppointmentModal = ({
 
   /* ---------- ONLY CHANGE: exclude cancelled -------- */
   useEffect(() => {
-    if (!businessId) return;
+    if (!businessId) {
+      console.log("CreateAppointmentModal: No business_id for appointments fetch");
+      return;
+    }
 
     const fetchAppointments = async () => {
       if (!selectedDate || !selectedBarber) return;
@@ -96,7 +102,7 @@ const CreateAppointmentModal = ({
 
   const handleCreate = async () => {
     if (!businessId) {
-      setErrorMsg('Profilo non configurato (business mancante).');
+      setErrorMsg('Profilo non configurato: nessun business associato. Contatta l\'amministratore.');
       return;
     }
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
