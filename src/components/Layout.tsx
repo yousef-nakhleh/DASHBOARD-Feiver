@@ -16,6 +16,7 @@ import {
   LogOut,
   Home,
   ChevronRight,
+  ChevronLeft,
   MessageSquare,
   Clock,
   Phone
@@ -46,6 +47,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
 
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
@@ -65,7 +67,9 @@ const Layout = () => {
     <DndProvider backend={HTML5Backend}>
       <div className="flex h-screen bg-black text-white">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-black border-r border-gray-800">
+        <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 bg-black border-r border-gray-800 transition-all duration-300 ${
+          isDesktopSidebarOpen ? 'lg:w-64' : 'lg:w-0 overflow-hidden'
+        }`}>
           <div className="flex items-center justify-center h-16 px-6 border-b border-gray-800">
             <h1 className="text-xl font-bold tracking-wider">Extro</h1>
           </div>
@@ -176,7 +180,9 @@ const Layout = () => {
         </AnimatePresence>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-64">
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${
+          isDesktopSidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
+        }`}>
           {/* Header */}
           <header className="bg-black border-b border-gray-800 h-16 flex items-center justify-between px-6">
             <div className="flex items-center">
@@ -185,6 +191,13 @@ const Layout = () => {
                 className="lg:hidden mr-4 p-2 rounded-lg hover:bg-gray-900 transition-colors"
               >
                 <Menu size={20} />
+              </button>
+              <button 
+                onClick={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)} 
+                className="hidden lg:block mr-4 p-2 rounded-lg hover:bg-gray-900 transition-colors"
+                title={isDesktopSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              >
+                {isDesktopSidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
               </button>
               <div>
                 <h2 className="text-lg font-semibold">
