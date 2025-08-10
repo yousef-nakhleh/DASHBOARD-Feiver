@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
+  const { profile } = useAuth(); // 👈 take business_id from context
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [weeklyAvailability, setWeeklyAvailability] = useState(
     weekdays.map((day) => ({ weekday: day.toLowerCase(), start_time: '', end_time: '' }))
   );
@@ -20,18 +23,24 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
   };
 
   const handleSave = async () => {
-    let avatarUrl = null;
+    if (!profile?.business_id) {
+      alert('Profilo non configurato (manca business_id). Contatta l’amministratore.');
+      return;
+    }
 
-    // Upload avatar to Supabase Storage
+    let avatarUrl: string | null = null;
+
+    // Upload avatar to Supabase Storage (optional)
     if (avatarFile) {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const ext = avatarFile.name.split('.').pop();
+      const fileName = `${profile.business_id}/${Date.now()}.${ext}`; // 👈 bucket path namespaced by business
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, avatarFile);
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
+        alert('Errore durante l’upload dell’avatar.');
         return;
       }
 
@@ -39,26 +48,33 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
       avatarUrl = publicUrlData?.publicUrl || null;
     }
 
+    // Insert barber, tied to current business
     const { data: newStaff, error: staffError } = await supabase
       .from('barbers')
-      .insert([{ 
-        name, 
-        phone, 
-        email, 
-        avatar_url: avatarUrl, 
-        business_id: '268e0ae9-c539-471c-b4c2-1663cf598436' 
+      .insert([{
+        name,
+        phone,
+        email,
+        avatar_url: avatarUrl,
+        business_id: profile.business_id,         // 👈 dynamic
       }])
       .select()
       .single();
 
     if (staffError) {
       console.error('Error saving barber:', staffError);
+      alert('Errore durante il salvataggio dello staff.');
       return;
     }
 
+    // Insert weekly availability (only filled rows), also tied to business
     const availabilityInserts = weeklyAvailability
       .filter((a) => a.start_time && a.end_time)
-      .map((a) => ({ ...a, barber_id: newStaff.id }));
+      .map((a) => ({
+        ...a,
+        barber_id: newStaff.id,
+        business_id: profile.business_id,        // 👈 dynamic
+      }));
 
     if (availabilityInserts.length > 0) {
       const { error: availabilityError } = await supabase
@@ -67,6 +83,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
 
       if (availabilityError) {
         console.error('Error saving availability:', availabilityError);
+        alert('Errore durante il salvataggio delle disponibilità.');
         return;
       }
     }
