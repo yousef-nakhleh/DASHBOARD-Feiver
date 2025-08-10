@@ -4,9 +4,8 @@ import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
 import { UserRoundSearch, X } from 'lucide-react';
 import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
-import { toUTCFromLocal } from '../../lib/timeUtils';
-
-const BUSINESS_ID = '268e0ae9-c539-471c-b4c2-1663cf598436';
+import { toUTCFromLocal, toLocalFromUTC } from '../../lib/timeUtils';
+import { useAuth } from '../auth/AuthContext'; // ✅ get business_id from profile
 
 const CreateAppointmentModal = ({
   businessTimezone,
@@ -16,9 +15,12 @@ const CreateAppointmentModal = ({
   initialDate = '',
   initialTime = '',
 }) => {
+  const { profile } = useAuth();                 // ✅ pull profile from context
+  const businessId = profile?.business_id || ''; // ✅ dynamic business id
+
   const [customerName, setCustomerName] = useState('');
-  const [services, setServices] = useState([]);
-  const [barbers, setBarbers] = useState([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState('');
   const [selectedBarber, setSelectedBarber] = useState(initialBarberId);
   const [selectedDate, setSelectedDate] = useState(
@@ -26,31 +28,35 @@ const CreateAppointmentModal = ({
   );
   const [selectedTime, setSelectedTime] = useState(initialTime || '07:00');
   const [duration, setDuration] = useState(30);
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
 
   /* -------------------------------------------------- */
   useEffect(() => {
+    if (!businessId) return; // wait until profile loads
+
     const fetchData = async () => {
       const { data: servicesData } = await supabase
         .from('services')
         .select('*')
-        .eq('business_id', BUSINESS_ID);
+        .eq('business_id', businessId);
 
       const { data: barbersData } = await supabase
         .from('barbers')
         .select('*')
-        .eq('business_id', BUSINESS_ID);
+        .eq('business_id', businessId);
 
       setServices(servicesData || []);
       setBarbers(barbersData || []);
     };
     fetchData();
-  }, []);
+  }, [businessId]);
 
   /* ---------- ONLY CHANGE: exclude cancelled -------- */
   useEffect(() => {
+    if (!businessId) return;
+
     const fetchAppointments = async () => {
       if (!selectedDate || !selectedBarber) return;
       
@@ -70,7 +76,7 @@ const CreateAppointmentModal = ({
         .from('appointments')
         .select('appointment_start, duration_min')
         .eq('barber_id', selectedBarber)
-        .eq('business_id', BUSINESS_ID)
+        .eq('business_id', businessId)             // ✅ dynamic filter
         .gte('appointment_start', startOfDay)
         .lte('appointment_start', endOfDay)
         .neq('appointment_status', 'cancelled');   // ✅ filter out cancelled
@@ -78,7 +84,7 @@ const CreateAppointmentModal = ({
       setAppointments(data || []);
     };
     fetchAppointments();
-  }, [selectedDate, selectedBarber, duration, businessTimezone]);
+  }, [selectedDate, selectedBarber, duration, businessTimezone, businessId]);
   /* ----------------------------------------------- */
 
   const handleServiceChange = (e) => {
@@ -89,6 +95,10 @@ const CreateAppointmentModal = ({
   };
 
   const handleCreate = async () => {
+    if (!businessId) {
+      setErrorMsg('Profilo non configurato (business mancante).');
+      return;
+    }
     if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
     // Convert local business time to UTC for storage
@@ -99,8 +109,6 @@ const CreateAppointmentModal = ({
     });
 
     // For overlap checking, we still need to compare with existing appointments
-    // This is a simplified check - in a full implementation, you'd want to 
-    // convert all existing appointments to the business timezone for comparison
     const start   = new Date(`${selectedDate}T${selectedTime}:00`);
     const end     = new Date(start.getTime() + duration * 60000);
 
@@ -122,12 +130,12 @@ const CreateAppointmentModal = ({
 
     const { error } = await supabase.from('appointments').insert([
       {
-        customer_name:    customerName,
-        service_id:       selectedService,
-        barber_id:        selectedBarber,
+        customer_name:     customerName,
+        service_id:        selectedService,
+        barber_id:         selectedBarber,
         appointment_start: appointmentStartUTC,
-        duration_min:     duration,
-        business_id:      BUSINESS_ID,
+        duration_min:      duration,
+        business_id:       businessId, // ✅ dynamic business id on insert
       },
     ]);
 
@@ -136,6 +144,7 @@ const CreateAppointmentModal = ({
       onClose();
     } else {
       console.error('Errore creazione:', error.message);
+      setErrorMsg('Errore durante la creazione dell’appuntamento.');
     }
   };
 
