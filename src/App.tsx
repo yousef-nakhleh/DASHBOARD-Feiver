@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation }
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Agenda from './pages/Agenda';
-import Cassa from './pages/Cassa';
+import CashRegister from './pages/CashRegister';
 import Rubrica from './pages/Rubrica';
 import Trattamenti from './pages/Trattamenti';
 import Statistiche from './pages/Statistiche';
@@ -49,7 +49,7 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="agenda" element={<Agenda />} />
-              <Route path="cassa" element={<Cassa />} />
+              <Route path="cassa" element={<CashRegister />} />
               <Route path="cassa/pagamento" element={<PaymentPage />} />
               <Route path="rubrica" element={<Rubrica />} />
               <Route path="trattamenti" element={<Trattamenti />} />
