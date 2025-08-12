@@ -229,7 +229,7 @@ const Layout = () => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-hidden bg-gray-50">
+          <main className="flex-1 overflow-y-auto bg-gray-50">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
