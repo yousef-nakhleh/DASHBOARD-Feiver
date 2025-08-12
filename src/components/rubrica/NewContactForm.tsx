@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../auth/AuthContext';
 
 interface NewContactFormProps {
   onCreated: () => void; 
 }
 
 const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
+  const { profile } = useAuth();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -14,14 +16,25 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
 
   const handleSave = async () => {
     if (!name || !phone) return alert('Nome e telefono sono obbligatori');
+    if (!profile?.business_id) {
+      alert('Profilo non configurato. Contatta l\'amministratore.');
+      return;
+    }
 
     setSaving(true);
 
+    // Split name into first_name and last_name
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     const { error } = await supabase.from('contacts').insert({
-      customer_name: name,
-      customer_phone: phone,
-      customer_email: email,
-      customer_birthdate: birthdate || null,
+      business_id: profile.business_id,
+      first_name: firstName,
+      last_name: lastName,
+      phone_number_e164: phone,
+      email: email || null,
+      birthdate: birthdate || null,
     });
 
     setSaving(false);
