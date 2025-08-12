@@ -130,7 +130,7 @@ const Layout = () => {
                 animate={{ x: 0 }}
                 exit={{ x: -300 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="absolute top-0 left-0 bottom-0 w-64 bg-black border-r border-gray-800"
+                className="absolute top-0 left-0 bottom-0 w-64 bg-black border-r border-gray-800 flex flex-col"
               >
                 <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
                   <h1 className="text-xl font-bold tracking-wider">Extro</h1>
@@ -139,7 +139,7 @@ const Layout = () => {
                   </button>
                 </div>
                 
-                <nav className="flex-1 px-4 py-6 space-y-1">
+                <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
                   {sidebarItems.map((item) => (
                     <button
                       key={item.path}
@@ -164,7 +164,7 @@ const Layout = () => {
                   ))}
                 </nav>
                 
-                <div className="p-4 border-t border-gray-800">
+                <div className="p-4 border-t border-gray-800 flex-shrink-0">
                   {/* ✅ Same mobile UI, wrapped with Logout */}
                   <Logout>
                     <button
