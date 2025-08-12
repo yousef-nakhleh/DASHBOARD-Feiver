@@ -36,7 +36,7 @@ const PAYMENT_METHODS = ["Contanti", "Carta", "Satispay", "Altro"];
 
 // Utility to compute totals
 function computeLineTotal(li: LineItem): number {
-  const base = li.qty * li.unit;
+  const base = (li.qty ?? 1) * li.unit;
   const type = li.discountType || "none";
   const val = li.discountValue || 0;
   if (type === "fixed") return Math.max(base - val, 0);
@@ -104,7 +104,6 @@ export default function CashRegister() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">Cassa</h1>
-          <p className="text-gray-600">Gestisci transazioni e pagamenti</p>
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -240,45 +239,35 @@ export default function CashRegister() {
                 <div className="space-y-4">
                   {items.map((li) => (
                     <div key={li.id} className="rounded-xl border border-gray-200 p-4">
-                      {/* one compact, unified block (no 'Servizio' label) */}
-                      <div className="grid grid-cols-12 gap-3">
-                        {/* Name */}
+                      {/* Row 1: name — barber (equal space) */}
+                      <div className="grid grid-cols-2 gap-3">
                         <input
                           value={li.name}
                           onChange={(e) => updateItem(li.id, { name: e.target.value })}
-                          className="col-span-6 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
-
-                        {/* Barber */}
-                        <select
-                          value={li.barber || ""}
-                          onChange={(e) => updateItem(li.id, { barber: e.target.value })}
-                          className="col-span-3 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-                        >
-                          <option value="">—</option>
-                          <option value="Alket">Alket</option>
-                          <option value="Gino">Gino</option>
-                        </select>
-
-                        {/* Qty */}
-                        <input
-                          type="number"
-                          value={li.qty}
-                          onChange={(e) => updateItem(li.id, { qty: Math.max(1, Number(e.target.value)) })}
-                          className="col-span-1 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-                        />
-
-                        {/* Unit */}
-                        <input
-                          type="number"
-                          value={li.unit}
-                          onChange={(e) => updateItem(li.id, { unit: Number(e.target.value) })}
-                          className="col-span-2 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-                        />
+                        <div className="flex gap-3">
+                          <select
+                            value={li.barber || ""}
+                            onChange={(e) => updateItem(li.id, { barber: e.target.value })}
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+                          >
+                            <option value="">—</option>
+                            <option value="Alket">Alket</option>
+                            <option value="Gino">Gino</option>
+                          </select>
+                          <button
+                            onClick={() => removeItem(li.id)}
+                            className="px-3 py-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            aria-label="Rimuovi riga"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="mt-3 flex items-center gap-3">
-                        {/* Discount (kept, but inside rectangle and subtle) */}
+                      {/* Row 2: sconto type — amount (equal space) */}
+                      <div className="mt-3 grid grid-cols-2 gap-3">
                         <select
                           value={li.discountType || "none"}
                           onChange={(e) => updateItem(li.id, { discountType: e.target.value as any })}
@@ -292,18 +281,13 @@ export default function CashRegister() {
                           type="number"
                           value={li.discountValue || 0}
                           onChange={(e) => updateItem(li.id, { discountValue: Number(e.target.value) })}
-                          className="w-24 border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
+                      </div>
 
-                        <div className="ml-auto text-sm text-black">
-                          Totale riga: <span className="font-semibold">€ {lineTotal(li).toFixed(2)}</span>
-                        </div>
-                        <button
-                          onClick={() => removeItem(li.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      {/* Row 3: centered total */}
+                      <div className="mt-3 flex items-center justify-center text-sm text-black">
+                        Totale riga:&nbsp;<span className="font-semibold">€ {computeLineTotal(li).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
@@ -344,7 +328,7 @@ export default function CashRegister() {
                   {items.map((li) => (
                     <div key={li.id} className="flex items-center justify-between text-sm">
                       <span className="text-gray-700">{li.name}</span>
-                      <span className="text-black font-medium">€ {lineTotal(li).toFixed(2)}</span>
+                      <span className="text-black font-medium">€ {computeLineTotal(li).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
