@@ -13,7 +13,9 @@ const Rubrica: React.FC = () => {
   const [clients, setClients] = useState<any[]>([]);
 
   const fetchClients = useCallback(async () => {
-    const { data: contacts, error } = await supabase.from('contacts').select('*');
+    const { data: contacts, error } = await supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email, phone_number_e164, birthdate, notes');
 
     if (error) {
       console.error('Errore nel caricamento dei contatti:', error);
@@ -41,10 +43,12 @@ const Rubrica: React.FC = () => {
 
         return {
           id: contact.id,
-          name: contact.customer_name || contact.name,
-          phone: contact.customer_phone || contact.phone,
-          email: contact.customer_email || contact.email,
-          birthdate: contact.customer_birthdate || null,
+          name: contact.first_name && contact.last_name 
+            ? `${contact.first_name} ${contact.last_name}` 
+            : contact.first_name || contact.last_name || 'Nome non disponibile',
+          phone: contact.phone_number_e164,
+          email: contact.email,
+          birthdate: contact.birthdate,
           lastVisit,
           visitCount,
           nextVisit,
