@@ -8,28 +8,28 @@ type Appointment = {
   time: string; // "12:30"
   client: string;
   barber: string;
-  service: string; 
+  service: string;
   price: number;
-  confirmed: boolean; // UI meaning: confirmed in calendar
-  paid: boolean; // UI meaning: already paid
+  confirmed: boolean;
+  paid: boolean;
 };
 
 type LineItem = {
   id: string;
   kind: "service" | "product";
   name: string;
-  barber?: string; // attribution
+  barber?: string;
   qty: number;
   unit: number;
   discountType?: "none" | "fixed" | "percent";
-  discountValue?: number; // matches type
+  discountValue?: number;
 };
 
 // --- Demo data ---
 const DEMO_APPTS: Appointment[] = [
   { id: "a1", time: "12:28", client: "Alket", barber: "Alket", service: "Taglio Uomo", price: 20, confirmed: true, paid: false },
   { id: "a2", time: "12:33", client: "Gabriel", barber: "Gino", service: "Taglio + Barba", price: 30, confirmed: false, paid: false },
-  { id: "a3", time: "11:10", client: "Marco", barber: "Alket", service: "Colore", price: 40, confirmed: true, paid: true }, // appears in Confirmed section
+  { id: "a3", time: "11:10", client: "Marco", barber: "Alket", service: "Colore", price: 40, confirmed: true, paid: true },
 ];
 
 const PAYMENT_METHODS = ["Contanti", "Carta", "Satispay", "Altro"];
@@ -49,12 +49,10 @@ export default function CashRegister() {
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedApptId, setSelectedApptId] = useState<string | null>("a1");
   const [paymentMethod, setPaymentMethod] = useState<string>(PAYMENT_METHODS[0]);
-  const [orderDiscountType, setOrderDiscountType] = useState<"none" | "fixed" | "percent">("none");
-  const [orderDiscountValue, setOrderDiscountValue] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<"toPay" | "confirmed">("toPay");
   const [notes, setNotes] = useState("");
 
-  // Build a working "cart" from selected appointment
+  // Build a working "cart"
   const selectedAppt: Appointment | undefined = useMemo(
     () => DEMO_APPTS.find((a) => a.id === selectedApptId || (selectedApptId === null && a.id === "")),
     [selectedApptId]
@@ -88,21 +86,13 @@ export default function CashRegister() {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }
 
-  const subtotal = useMemo(() => items.reduce((s, i) => s + computeLineTotal(i), 0), [items]);
-  const orderLevelDiscount = useMemo(() => {
-    if (orderDiscountType === "fixed") return Math.min(orderDiscountValue, subtotal);
-    if (orderDiscountType === "percent") return Math.min((subtotal * orderDiscountValue) / 100, subtotal);
-    return 0;
-  }, [orderDiscountType, orderDiscountValue, subtotal]);
+  const lineTotal = (li: LineItem) => computeLineTotal(li);
+  const total = useMemo(() => items.reduce((s, i) => s + lineTotal(i), 0), [items]);
 
-  const total = Math.max(subtotal - orderLevelDiscount, 0);
-
-  // Filters for left list
+  // Left list
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return DEMO_APPTS.filter((a) =>
-      !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q)
-    );
+    return DEMO_APPTS.filter((a) => !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q));
   }, [query]);
 
   const toPay = filtered.filter((a) => !a.paid);
@@ -145,7 +135,7 @@ export default function CashRegister() {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              
+
               {/* Tabs */}
               <div className="flex space-x-1 bg-gray-100 rounded-xl p-1">
                 <button
@@ -172,9 +162,7 @@ export default function CashRegister() {
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === "toPay" && (
                 <div className="space-y-3">
-                  {toPay.length === 0 && (
-                    <p className="text-sm text-gray-500">Nessun appuntamento da pagare.</p>
-                  )}
+                  {toPay.length === 0 && <p className="text-sm text-gray-500">Nessun appuntamento da pagare.</p>}
                   {toPay.map((a) => (
                     <button
                       key={a.id}
@@ -208,9 +196,7 @@ export default function CashRegister() {
 
               {activeTab === "confirmed" && (
                 <div className="space-y-3">
-                  {alreadyConfirmedToday.length === 0 && (
-                    <p className="text-sm text-gray-500">Nessun pagamento registrato oggi.</p>
-                  )}
+                  {alreadyConfirmedToday.length === 0 && <p className="text-sm text-gray-500">Nessun pagamento registrato oggi.</p>}
                   {alreadyConfirmedToday.map((a) => (
                     <div key={a.id} className="rounded-xl border px-4 py-3">
                       <div className="flex items-center justify-between">
@@ -241,7 +227,7 @@ export default function CashRegister() {
                   <h2 className="text-xl font-bold text-black">
                     Trattamenti {selectedAppt ? <span className="text-gray-500 font-normal">• {selectedAppt.client}</span> : null}
                   </h2>
-                  <button 
+                  <button
                     onClick={() => setItems([])}
                     className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
@@ -249,46 +235,50 @@ export default function CashRegister() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-4">
                   {items.map((li) => (
                     <div key={li.id} className="rounded-xl border border-gray-200 p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className={cn(
-                          "px-2 py-1 text-xs rounded-full font-medium",
-                          li.kind === "service" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                        )}>
-                          {li.kind === "service" ? "Servizio" : "Prodotto"}
-                        </span>
+                      {/* one compact, unified block (no 'Servizio' label) */}
+                      <div className="grid grid-cols-12 gap-3">
+                        {/* Name */}
                         <input
                           value={li.name}
                           onChange={(e) => updateItem(li.id, { name: e.target.value })}
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="col-span-6 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
+
+                        {/* Barber */}
                         <select
                           value={li.barber || ""}
                           onChange={(e) => updateItem(li.id, { barber: e.target.value })}
-                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+                          className="col-span-3 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                         >
                           <option value="">—</option>
                           <option value="Alket">Alket</option>
                           <option value="Gino">Gino</option>
                         </select>
+
+                        {/* Qty */}
                         <input
                           type="number"
                           value={li.qty}
                           onChange={(e) => updateItem(li.id, { qty: Math.max(1, Number(e.target.value)) })}
-                          className="w-16 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="col-span-1 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
+
+                        {/* Unit */}
                         <input
                           type="number"
                           value={li.unit}
                           onChange={(e) => updateItem(li.id, { unit: Number(e.target.value) })}
-                          className="w-24 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="col-span-2 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
                       </div>
-                      <div className="flex items-center gap-3">
+
+                      <div className="mt-3 flex items-center gap-3">
+                        {/* Discount (kept, but inside rectangle and subtle) */}
                         <select
                           value={li.discountType || "none"}
                           onChange={(e) => updateItem(li.id, { discountType: e.target.value as any })}
@@ -304,10 +294,11 @@ export default function CashRegister() {
                           onChange={(e) => updateItem(li.id, { discountValue: Number(e.target.value) })}
                           className="w-24 border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
+
                         <div className="ml-auto text-sm text-black">
-                          Totale riga: <span className="font-semibold">€ {computeLineTotal(li).toFixed(2)}</span>
+                          Totale riga: <span className="font-semibold">€ {lineTotal(li).toFixed(2)}</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => removeItem(li.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
@@ -321,15 +312,17 @@ export default function CashRegister() {
                   )}
                 </div>
               </div>
-              
-              <div className="p-6 border-t border-gray-100 flex items-center gap-3">
-                <button 
+
+              {/* Bottom bar with exactly two buttons */}
+              <div className="p-6 border-t border-gray-100 flex items-center">
+                <button
                   onClick={addService}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
                 >
                   <Plus size={16} /> Aggiungi servizio
                 </button>
-                <button 
+                <div className="ml-auto" />
+                <button
                   onClick={addProduct}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
                 >
@@ -343,56 +336,48 @@ export default function CashRegister() {
               <div className="p-6 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-black">Riepilogo pagamento</h2>
               </div>
-              
+
               <div className="flex-1 p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-gray-600">Totale parziale</div>
-                  <div className="text-right font-semibold text-black">€ {subtotal.toFixed(2)}</div>
-
-                  <div className="text-gray-600">Sconto sul totale</div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <select
-                        value={orderDiscountType}
-                        onChange={(e) => setOrderDiscountType(e.target.value as any)}
-                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
-                      >
-                        <option value="none">Nessuno</option>
-                        <option value="fixed">€</option>
-                        <option value="percent">%</option>
-                      </select>
-                      <input
-                        type="number"
-                        value={orderDiscountValue}
-                        onChange={(e) => setOrderDiscountValue(Number(e.target.value))}
-                        className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-                      />
+                {/* List of trattamenti with price */}
+                <div className="space-y-2">
+                  {items.length === 0 && <p className="text-sm text-gray-500">Nessun trattamento aggiunto.</p>}
+                  {items.map((li) => (
+                    <div key={li.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{li.name}</span>
+                      <span className="text-black font-medium">€ {lineTotal(li).toFixed(2)}</span>
                     </div>
-                  </div>
-
-                  <div className="text-gray-600">Netto a pagare</div>
-                  <div className="text-right text-xl font-bold text-black">€ {total.toFixed(2)}</div>
+                  ))}
                 </div>
 
-                <div className="border-t border-gray-200 pt-6"></div>
+                <div className="border-t border-gray-200" />
+
+                {/* Totale only */}
+                <div className="flex items-center justify-between text-lg">
+                  <div className="text-gray-700 font-semibold">Totale</div>
+                  <div className="text-black font-bold">€ {total.toFixed(2)}</div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4" />
 
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-black">Metodo di pagamento</label>
-                  <select 
-                    value={paymentMethod} 
+                  <select
+                    value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
                     {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-black">Note</label>
-                  <input 
-                    placeholder="Nota facoltativa per la ricevuta" 
+                  <input
+                    placeholder="Nota facoltativa per la ricevuta"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
