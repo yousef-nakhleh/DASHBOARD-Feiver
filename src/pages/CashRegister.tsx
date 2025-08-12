@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "../lib/utils";
-import { Plus, Search, Check, Trash2 } from "lucide-react";
+import { Plus, Search, Check, Trash2, Minus } from "lucide-react";
 
 // --- Types (UI-only) ---
 type Appointment = {
@@ -44,15 +44,43 @@ function computeLineTotal(li: LineItem): number {
   return base;
 }
 
+// Quick helper for classic currency alignment
+const money = (n: number) => `€ ${n.toFixed(2)}`;
+
 export default function CashRegister() {
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedApptId, setSelectedApptId] = useState<string | null>("a1");
   const [paymentMethod, setPaymentMethod] = useState<string>(PAYMENT_METHODS[0]);
+  const [cashReceived, setCashReceived] = useState<number | "">(""); // visible only when Contanti
   const [orderDiscountType, setOrderDiscountType] = useState<"none" | "fixed" | "percent">("none");
   const [orderDiscountValue, setOrderDiscountValue] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<"toPay" | "confirmed">("toPay");
   const [notes, setNotes] = useState("");
+
+  // Keyboard shortcuts (Cmd/Ctrl+K to quick add, Enter to add service when not typing)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        !!target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || (target as HTMLInputElement).isContentEditable);
+
+      // Cmd/Ctrl + K → open quick add (for now just adds a service quickly)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        addService();
+        return;
+      }
+      // Enter (not typing) → add another service fast
+      if (!isTyping && e.key === "Enter") {
+        e.preventDefault();
+        addService();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Build a working "cart" from selected appointment
   const selectedAppt: Appointment | undefined = useMemo(
@@ -88,6 +116,12 @@ export default function CashRegister() {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }
 
+  function stepQty(id: string, delta: number) {
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, qty: Math.max(1, (i.qty || 1) + delta) } : i))
+    );
+  }
+
   const subtotal = useMemo(() => items.reduce((s, i) => s + computeLineTotal(i), 0), [items]);
   const orderLevelDiscount = useMemo(() => {
     if (orderDiscountType === "fixed") return Math.min(orderDiscountValue, subtotal);
@@ -97,12 +131,14 @@ export default function CashRegister() {
 
   const total = Math.max(subtotal - orderLevelDiscount, 0);
 
+  // Cash: change due
+  const changeDue =
+    paymentMethod === "Contanti" && cashReceived !== "" ? Math.max(Number(cashReceived) - total, 0) : 0;
+
   // Filters for left list
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return DEMO_APPTS.filter((a) =>
-      !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q)
-    );
+    return DEMO_APPTS.filter((a) => !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q));
   }, [query]);
 
   const toPay = filtered.filter((a) => !a.paid);
@@ -110,6 +146,13 @@ export default function CashRegister() {
 
   return (
     <div className="h-full space-y-6">
+      {/* Hide native number spinners (local to this component) */}
+      <style>{`
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+      `}</style>
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -145,7 +188,7 @@ export default function CashRegister() {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              
+
               {/* Tabs */}
               <div className="flex space-x-1 bg-gray-100 rounded-xl p-1">
                 <button
@@ -172,9 +215,7 @@ export default function CashRegister() {
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === "toPay" && (
                 <div className="space-y-3">
-                  {toPay.length === 0 && (
-                    <p className="text-sm text-gray-500">Nessun appuntamento da pagare.</p>
-                  )}
+                  {toPay.length === 0 && <p className="text-sm text-gray-500">Nessun appuntamento da pagare.</p>}
                   {toPay.map((a) => (
                     <button
                       key={a.id}
@@ -192,7 +233,7 @@ export default function CashRegister() {
                         <span>{a.service}</span>
                         <span>•</span>
                         <span>{a.barber}</span>
-                        <span className="ml-auto font-semibold text-black">€ {a.price.toFixed(2)}</span>
+                        <span className="ml-auto font-semibold text-black font-mono tabular-nums">{money(a.price)}</span>
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         {a.confirmed ? (
@@ -236,12 +277,13 @@ export default function CashRegister() {
           <div className="grid grid-cols-12 gap-6">
             {/* Items card */}
             <div className="col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex-col">
-              <div className="p-6 border-b border-gray-100">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-black">
                     Trattamenti {selectedAppt ? <span className="text-gray-500 font-normal">• {selectedAppt.client}</span> : null}
                   </h2>
-                  <button 
+                  <button
                     onClick={() => setItems([])}
                     className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
@@ -249,23 +291,31 @@ export default function CashRegister() {
                   </button>
                 </div>
               </div>
-              
+
+              {/* Scrollable list */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-4">
                   {items.map((li) => (
                     <div key={li.id} className="rounded-xl border border-gray-200 p-4">
+                      {/* Primary row */}
                       <div className="flex items-center gap-3 mb-3">
-                        <span className={cn(
-                          "px-2 py-1 text-xs rounded-full font-medium",
-                          li.kind === "service" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                        )}>
+                        <span
+                          className={cn(
+                            "px-2 py-1 text-xs rounded-full font-medium",
+                            li.kind === "service" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                          )}
+                        >
                           {li.kind === "service" ? "Servizio" : "Prodotto"}
                         </span>
+
+                        {/* Name */}
                         <input
                           value={li.name}
                           onChange={(e) => updateItem(li.id, { name: e.target.value })}
                           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
+
+                        {/* Barber select */}
                         <select
                           value={li.barber || ""}
                           onChange={(e) => updateItem(li.id, { barber: e.target.value })}
@@ -275,19 +325,41 @@ export default function CashRegister() {
                           <option value="Alket">Alket</option>
                           <option value="Gino">Gino</option>
                         </select>
-                        <input
-                          type="number"
-                          value={li.qty}
-                          onChange={(e) => updateItem(li.id, { qty: Math.max(1, Number(e.target.value)) })}
-                          className="w-16 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-                        />
+
+                        {/* Qty with steppers */}
+                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => stepQty(li.id, -1)}
+                            className="px-2 py-2 hover:bg-gray-50"
+                            aria-label="Diminuisci quantità"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <input
+                            type="number"
+                            value={li.qty}
+                            onChange={(e) => updateItem(li.id, { qty: Math.max(1, Number(e.target.value)) })}
+                            className="w-14 text-center px-2 py-2 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => stepQty(li.id, +1)}
+                            className="px-2 py-2 hover:bg-gray-50"
+                            aria-label="Aumenta quantità"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+
+                        {/* Unit price */}
                         <input
                           type="number"
                           value={li.unit}
                           onChange={(e) => updateItem(li.id, { unit: Number(e.target.value) })}
-                          className="w-24 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="w-24 text-right border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black font-mono tabular-nums"
                         />
                       </div>
+
+                      {/* Secondary row */}
                       <div className="flex items-center gap-3">
                         <select
                           value={li.discountType || "none"}
@@ -304,12 +376,14 @@ export default function CashRegister() {
                           onChange={(e) => updateItem(li.id, { discountValue: Number(e.target.value) })}
                           className="w-24 border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
-                        <div className="ml-auto text-sm text-black">
-                          Totale riga: <span className="font-semibold">€ {computeLineTotal(li).toFixed(2)}</span>
+
+                        <div className="ml-auto text-sm text-black font-mono tabular-nums">
+                          Totale riga: <span className="font-semibold">{money(computeLineTotal(li))}</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => removeItem(li.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="Rimuovi riga"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -317,24 +391,42 @@ export default function CashRegister() {
                     </div>
                   ))}
                   {items.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-8">Nessun elemento. Aggiungi un servizio o prodotto.</p>
+                    <p className="text-sm text-gray-500 text-center py-8">
+                      Nessun elemento. Aggiungi un servizio o prodotto.
+                    </p>
                   )}
                 </div>
               </div>
-              
-              <div className="p-6 border-t border-gray-100 flex items-center gap-3">
-                <button 
-                  onClick={addService}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
-                >
-                  <Plus size={16} /> Aggiungi servizio
-                </button>
-                <button 
-                  onClick={addProduct}
-                  className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
-                >
-                  <Plus size={16} /> Aggiungi prodotto
-                </button>
+
+              {/* Sticky Add Bar */}
+              <div className="p-4 border-t border-gray-100 sticky bottom-0 bg-white z-10">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={addService}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
+                  >
+                    <Plus size={16} /> Aggiungi servizio
+                  </button>
+                  <button
+                    onClick={addProduct}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
+                  >
+                    <Plus size={16} /> Aggiungi prodotto
+                  </button>
+
+                  {/* Più usati (placeholders) */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <button className="px-3 py-1.5 rounded-full text-xs bg-gray-100 hover:bg-gray-200">
+                      Taglio
+                    </button>
+                    <button className="px-3 py-1.5 rounded-full text-xs bg-gray-100 hover:bg-gray-200">
+                      Barba
+                    </button>
+                    <button className="px-3 py-1.5 rounded-full text-xs bg-gray-100 hover:bg-gray-200">
+                      Shampoo
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -343,11 +435,11 @@ export default function CashRegister() {
               <div className="p-6 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-black">Riepilogo pagamento</h2>
               </div>
-              
+
               <div className="flex-1 p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="text-gray-600">Totale parziale</div>
-                  <div className="text-right font-semibold text-black">€ {subtotal.toFixed(2)}</div>
+                  <div className="text-right font-semibold text-black font-mono tabular-nums">{money(subtotal)}</div>
 
                   <div className="text-gray-600">Sconto sul totale</div>
                   <div className="text-right">
@@ -371,28 +463,53 @@ export default function CashRegister() {
                   </div>
 
                   <div className="text-gray-600">Netto a pagare</div>
-                  <div className="text-right text-xl font-bold text-black">€ {total.toFixed(2)}</div>
+                  <div className="text-right text-xl font-bold text-black font-mono tabular-nums">{money(total)}</div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-6"></div>
+                <div className="border-t border-gray-200 pt-6" />
 
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-black">Metodo di pagamento</label>
-                  <select 
-                    value={paymentMethod} 
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => {
+                      setPaymentMethod(e.target.value);
+                      setCashReceived(""); // reset cash field if switching methods
+                    }}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
                     {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
                     ))}
                   </select>
+
+                  {/* Cash-only extras */}
+                  {paymentMethod === "Contanti" && (
+                    <div className="grid grid-cols-2 gap-4 items-end">
+                      <div>
+                        <label className="block text-sm font-semibold text-black mb-1">Importo ricevuto</label>
+                        <input
+                          type="number"
+                          value={cashReceived}
+                          onChange={(e) => setCashReceived(e.target.value === "" ? "" : Number(e.target.value))}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600">Resto</div>
+                        <div className="text-xl font-bold font-mono tabular-nums">{money(changeDue)}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-black">Note</label>
-                  <input 
-                    placeholder="Nota facoltativa per la ricevuta" 
+                  <input
+                    placeholder="Nota facoltativa per la ricevuta"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
@@ -400,8 +517,17 @@ export default function CashRegister() {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-100 flex gap-3">
-                <button className="flex-1 bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2">
+              {/* Sticky footer actions */}
+              <div className="p-6 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white">
+                <button
+                  disabled={items.length === 0 || total <= 0}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl transition-colors font-medium flex items-center justify-center gap-2",
+                    items.length === 0 || total <= 0
+                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                      : "bg-black text-white hover:bg-gray-800"
+                  )}
+                >
                   <Check size={16} /> Concludi e stampa
                 </button>
                 <button className="px-6 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-black font-medium">
