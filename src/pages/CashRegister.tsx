@@ -1,42 +1,64 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "../lib/utils";
 import { Plus, Search, Check, Trash2 } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../components/auth/AuthContext";
 
-// --- Types (UI-only) ---
-type Appointment = {
+// ---------- Types ----------
+type DbPaymentMethod = "Cash" | "POS" | "Satispay" | "Other";
+
+type UiPaymentMethod = "Contanti" | "POS" | "Satispay" | "Altro";
+const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
+  Contanti: "Cash",
+  POS: "POS",
+  Satispay: "Satispay",
+  Altro: "Other",
+};
+const DB_TO_UI_PAYMENT: Record<DbPaymentMethod, UiPaymentMethod> = {
+  Cash: "Contanti",
+  POS: "POS",
+  Satispay: "Satispay",
+  Other: "Altro",
+};
+
+type AppointmentRow = {
   id: string;
-  time: string; // "12:30"
+  appointment_start: string; // UTC ISO
+  paid: boolean | null;
+  appointment_status: "pending" | "confirmed" | "cancelled" | null;
+  // Joined fields (via FKs)
+  service?: { id: string; name: string; price: number | null } | null;
+  barber?: { id: string; display_name: string | null } | null;
+  contact?: { id: string; full_name: string | null } | null;
+};
+
+type UiAppointment = {
+  id: string;
+  time: string; // "HH:MM" in business local time
   client: string;
   barber: string;
   service: string;
   price: number;
   confirmed: boolean;
   paid: boolean;
+  raw: AppointmentRow;
 };
 
 type LineItem = {
   id: string;
-  kind: "service" | "product";
+  kind: "service" | "product"; // product reserved for future
   name: string;
-  barber?: string;
+  barberId?: string | null;
   qty: number;
   unit: number;
   discountType?: "none" | "fixed" | "percent";
   discountValue?: number;
+  refServiceId?: string | null;
 };
 
-// --- Demo data ---
-const DEMO_APPTS: Appointment[] = [
-  { id: "a1", time: "12:28", client: "Alket", barber: "Alket", service: "Taglio Uomo", price: 20, confirmed: true, paid: false },
-  { id: "a2", time: "12:33", client: "Gabriel", barber: "Gino", service: "Taglio + Barba", price: 30, confirmed: false, paid: false },
-  { id: "a3", time: "11:10", client: "Marco", barber: "Alket", service: "Colore", price: 40, confirmed: true, paid: true },
-];
-
-const PAYMENT_METHODS = ["Contanti", "Carta", "Satispay", "Altro"];
-
-// Utility to compute totals
+// ---------- Helpers ----------
 function computeLineTotal(li: LineItem): number {
-  const base = (li.qty ?? 1) * li.unit;
+  const base = (li.qty ?? 1) * (li.unit ?? 0);
   const type = li.discountType || "none";
   const val = li.discountValue || 0;
   if (type === "fixed") return Math.max(base - val, 0);
@@ -44,37 +66,208 @@ function computeLineTotal(li: LineItem): number {
   return base;
 }
 
+function startOfLocalDayUTC(dateISO: string, timeZone: string): { fromUTC: string; toUTC: string } {
+  // dateISO is yyyy-mm-dd (selected in the UI). Interpret it in business tz,
+  // then convert the day's [00:00, 23:59:59.999] to UTC ISO strings for the DB filter.
+  const [y, m, d] = dateISO.split("-").map(Number);
+  // Use the Intl API to get the UTC instants for local bounds
+  const localStart = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0));
+  const localEnd = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999));
+
+  // Offset localStart/localEnd from the target timeZone back to UTC by formatting “as if” in tz
+  // Trick: build the actual UTC instants by asking the formatter for the parts in that TZ,
+  // then reconstruct a timestamp and let JS interpret as UTC.
+  const toUTCInstant = (dt: Date) => {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(dt).reduce<Record<string, string>>((acc, p) => {
+      if (p.type !== "literal") acc[p.type] = p.value;
+      return acc;
+    }, {});
+    // parts are the local wall clock in business tz at the given instant.
+    // Construct a UTC Date from those local parts:
+    const isoLocal = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`;
+    return new Date(isoLocal).toISOString();
+  };
+
+  // We want the UTC instants that correspond to the local day's bounds
+  const fromUTC = toUTCInstant(localStart);
+  const toUTC = toUTCInstant(localEnd);
+  return { fromUTC, toUTC };
+}
+
+function toLocalTimeHHMM(utcISO: string, timeZone: string) {
+  const dt = new Date(utcISO);
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(dt);
+}
+
+// ---------- Component ----------
 export default function CashRegister() {
+  const { business } = useAuth(); // must expose { business: { id, timezone }, user, ... }
+  const businessId = business?.id as string | undefined;
+  const businessTz = business?.timezone || "Europe/Rome";
+
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [selectedApptId, setSelectedApptId] = useState<string | null>("a1");
-  const [paymentMethod, setPaymentMethod] = useState<string>(PAYMENT_METHODS[0]);
+  const [selectedApptId, setSelectedApptId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<UiPaymentMethod>("Contanti");
   const [activeTab, setActiveTab] = useState<"toPay" | "confirmed">("toPay");
   const [notes, setNotes] = useState("");
 
-  // Build a working "cart"
-  const selectedAppt: Appointment | undefined = useMemo(
-    () => DEMO_APPTS.find((a) => a.id === selectedApptId || (selectedApptId === null && a.id === "")),
-    [selectedApptId]
-  );
+  const [loading, setLoading] = useState(false);
+  const [appointments, setAppointments] = useState<UiAppointment[]>([]);
+  const [items, setItems] = useState<LineItem[]>([]);
 
-  const [items, setItems] = useState<LineItem[]>([
-    { id: "li1", kind: "service", name: "Taglio Uomo", barber: "Alket", qty: 1, unit: 20, discountType: "none", discountValue: 0 },
-  ]);
+  // -------- Fetch appointments for the business local day --------
+  useEffect(() => {
+    if (!businessId || !date) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
 
+        // Pull appointments and join names/prices via FKs
+        const { data, error } = await supabase
+          .from("appointments")
+          .select(
+            `
+            id,
+            appointment_start,
+            paid,
+            appointment_status,
+            service:service_id ( id, name, price ),
+            barber:barber_id ( id, display_name ),
+            contact:contact_id ( id, full_name )
+          `
+          )
+          .eq("business_id", businessId)
+          .gte("appointment_start", fromUTC)
+          .lte("appointment_start", toUTC)
+          .order("appointment_start", { ascending: true });
+
+        if (error) throw error;
+
+        const mapped: UiAppointment[] =
+          (data as AppointmentRow[] | null)?.map((a) => {
+            const time = toLocalTimeHHMM(a.appointment_start, businessTz);
+            return {
+              id: a.id,
+              time,
+              client: a.contact?.full_name || "—",
+              barber: a.barber?.display_name || "—",
+              service: a.service?.name || "—",
+              price: Number(a.service?.price ?? 0),
+              confirmed: a.appointment_status === "confirmed",
+              paid: Boolean(a.paid),
+              raw: a,
+            };
+          }) ?? [];
+
+        if (!cancelled) {
+          setAppointments(mapped);
+          // Auto-select first unpaid appointment; prefill items
+          const firstUnpaid = mapped.find((x) => !x.paid) || mapped[0] || null;
+          setSelectedApptId(firstUnpaid?.id ?? null);
+          if (firstUnpaid) {
+            setItems([
+              {
+                id: "li" + Math.random().toString(36).slice(2, 8),
+                kind: "service",
+                name: firstUnpaid.service,
+                barberId: firstUnpaid.raw.barber?.id ?? null,
+                qty: 1,
+                unit: firstUnpaid.price,
+                discountType: "none",
+                discountValue: 0,
+                refServiceId: firstUnpaid.raw.service?.id ?? null,
+              },
+            ]);
+          } else {
+            setItems([]);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, date, businessTz]);
+
+  // When user selects another appointment, prefill “Trattamenti” with its booked service
+  useEffect(() => {
+    if (!selectedApptId) return;
+    const appt = appointments.find((a) => a.id === selectedApptId);
+    if (!appt) return;
+    setItems([
+      {
+        id: "li" + Math.random().toString(36).slice(2, 8),
+        kind: "service",
+        name: appt.service,
+        barberId: appt.raw.barber?.id ?? null,
+        qty: 1,
+        unit: appt.price,
+        discountType: "none",
+        discountValue: 0,
+        refServiceId: appt.raw.service?.id ?? null,
+      },
+    ]);
+  }, [selectedApptId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // -------- UI actions for items --------
   function addService() {
+    // Adds a blank service row; in future, hook to a selection modal
+    const appt = selectedApptId ? appointments.find((a) => a.id === selectedApptId) : undefined;
     const id = "li" + Math.random().toString(36).slice(2, 8);
     setItems((prev) => [
       ...prev,
-      { id, kind: "service", name: "Nuovo Servizio", barber: selectedAppt?.barber, qty: 1, unit: 10, discountType: "none", discountValue: 0 },
+      {
+        id,
+        kind: "service",
+        name: "Nuovo Servizio",
+        barberId: appt?.raw.barber?.id ?? null,
+        qty: 1,
+        unit: 0,
+        discountType: "none",
+        discountValue: 0,
+        refServiceId: null,
+      },
     ]);
   }
 
   function addProduct() {
+    // Reserved for future; for now we keep UI behavior but save only services.
     const id = "li" + Math.random().toString(36).slice(2, 8);
     setItems((prev) => [
       ...prev,
-      { id, kind: "product", name: "Shampoo", qty: 1, unit: 8, discountType: "none", discountValue: 0 },
+      {
+        id,
+        kind: "product",
+        name: "Prodotto",
+        barberId: null,
+        qty: 1,
+        unit: 0,
+        discountType: "none",
+        discountValue: 0,
+        refServiceId: null,
+      },
     ]);
   }
 
@@ -86,17 +279,133 @@ export default function CashRegister() {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }
 
-  const lineTotal = (li: LineItem) => computeLineTotal(li);
-  const total = useMemo(() => items.reduce((s, i) => s + lineTotal(i), 0), [items]);
+  const total = useMemo(() => items.reduce((s, i) => s + computeLineTotal(i), 0), [items]);
 
-  // Left list
+  // -------- Left list filtering --------
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return DEMO_APPTS.filter((a) => !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q));
-  }, [query]);
+    return appointments.filter(
+      (a) => !q || a.client.toLowerCase().includes(q) || a.service.toLowerCase().includes(q)
+    );
+  }, [appointments, query]);
 
   const toPay = filtered.filter((a) => !a.paid);
   const alreadyConfirmedToday = filtered.filter((a) => a.paid);
+
+  // -------- Save transaction + items --------
+  async function onCompleteAndPrint() {
+    if (!businessId) return;
+    if (!selectedApptId) return;
+    if (items.length === 0) return;
+
+    const dbMethod: DbPaymentMethod = UI_TO_DB_PAYMENT[paymentMethod];
+    const appt = appointments.find((a) => a.id === selectedApptId);
+    if (!appt) return;
+
+    // 1) Insert transaction (timestamptz stored as UTC by Supabase/PG)
+    const { data: tx, error: txErr } = await supabase
+      .from("transactions")
+      .insert({
+        business_id: businessId,
+        appointment_id: appt.id,
+        payment_method: dbMethod, // enum: 'Cash' | 'POS' | 'Satispay' | 'Other'
+        total: total,
+        status: "succeeded",
+        completed_at: new Date().toISOString(), // UTC
+      })
+      .select("id")
+      .single();
+
+    if (txErr || !tx) {
+      console.error(txErr);
+      return;
+    }
+
+    // 2) Insert transaction_items (service-only for now)
+    const itemRows = items.map((i) => {
+      const base = (i.qty ?? 1) * (i.unit ?? 0);
+      const line_total = computeLineTotal(i);
+      const discount_type =
+        (i.discountType as "none" | "fixed" | "percent" | undefined) ?? "none";
+      const discount_value = Number(i.discountValue ?? 0);
+
+      return {
+        transaction_id: tx.id,
+        item_type: i.kind === "product" ? "product" : "service", // enum item_type_enum
+        item_ref_id: i.refServiceId ?? null,
+        item_name_snapshot: i.name,
+        quantity: i.qty,
+        unit_price: i.unit,
+        discount_type, // enum discount_type_enum
+        discount_value,
+        tax_rate: 0,
+        tax_amount: 0,
+        line_total,
+        barber_id: i.barberId ?? appt.raw.barber?.id ?? null,
+      };
+    });
+
+    const { error: itemsErr } = await supabase.from("transaction_items").insert(itemRows);
+    if (itemsErr) {
+      console.error(itemsErr);
+      return;
+    }
+
+    // 3) Mark appointment as paid (and confirmed for clarity)
+    await supabase
+      .from("appointments")
+      .update({ paid: true, appointment_status: "confirmed" })
+      .eq("id", appt.id);
+
+    // 4) Refresh list to move it to "Confermati oggi"
+    // Trigger the fetch by re-setting date (or call same fetch logic)
+    setDate((d) => d); // noop to keep value; fetch effect depends on [businessId, date, tz], so do manual refresh:
+    // Manual refresh:
+    try {
+      const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(
+          `
+          id,
+          appointment_start,
+          paid,
+          appointment_status,
+          service:service_id ( id, name, price ),
+          barber:barber_id ( id, display_name ),
+          contact:contact_id ( id, full_name )
+        `
+        )
+        .eq("business_id", businessId)
+        .gte("appointment_start", fromUTC)
+        .lte("appointment_start", toUTC)
+        .order("appointment_start", { ascending: true });
+
+      if (error) throw error;
+
+      const mapped: UiAppointment[] =
+        (data as AppointmentRow[] | null)?.map((a) => ({
+          id: a.id,
+          time: toLocalTimeHHMM(a.appointment_start, businessTz),
+          client: a.contact?.full_name || "—",
+          barber: a.barber?.display_name || "—",
+          service: a.service?.name || "—",
+          price: Number(a.service?.price ?? 0),
+          confirmed: a.appointment_status === "confirmed",
+          paid: Boolean(a.paid),
+          raw: a,
+        })) ?? [];
+
+      setAppointments(mapped);
+      setSelectedApptId(null);
+      setItems([]);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // ---------- UI (unchanged visually) ----------
+  const PAYMENT_METHODS_UI: UiPaymentMethod[] = ["Contanti", "POS", "Satispay", "Altro"];
 
   return (
     <div className="h-full space-y-6">
@@ -161,7 +470,7 @@ export default function CashRegister() {
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === "toPay" && (
                 <div className="space-y-3">
-                  {toPay.length === 0 && <p className="text-sm text-gray-500">Nessun appuntamento da pagare.</p>}
+                  {toPay.length === 0 && <p className="text-sm text-gray-500">{loading ? "Caricamento..." : "Nessun appuntamento da pagare."}</p>}
                   {toPay.map((a) => (
                     <button
                       key={a.id}
@@ -195,7 +504,7 @@ export default function CashRegister() {
 
               {activeTab === "confirmed" && (
                 <div className="space-y-3">
-                  {alreadyConfirmedToday.length === 0 && <p className="text-sm text-gray-500">Nessun pagamento registrato oggi.</p>}
+                  {alreadyConfirmedToday.length === 0 && <p className="text-sm text-gray-500">{loading ? "Caricamento..." : "Nessun pagamento registrato oggi."}</p>}
                   {alreadyConfirmedToday.map((a) => (
                     <div key={a.id} className="rounded-xl border px-4 py-3">
                       <div className="flex items-center justify-between">
@@ -224,7 +533,13 @@ export default function CashRegister() {
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-black">
-                    Trattamenti {selectedAppt ? <span className="text-gray-500 font-normal">• {selectedAppt.client}</span> : null}
+                    Trattamenti
+                    {selectedApptId ? (
+                      <span className="text-gray-500 font-normal">
+                        {" "}
+                        • {appointments.find((a) => a.id === selectedApptId)?.client || ""}
+                      </span>
+                    ) : null}
                   </h2>
                   <button
                     onClick={() => setItems([])}
@@ -248,13 +563,14 @@ export default function CashRegister() {
                         />
                         <div className="flex gap-3">
                           <select
-                            value={li.barber || ""}
-                            onChange={(e) => updateItem(li.id, { barber: e.target.value })}
+                            value={li.barberId ?? ""}
+                            onChange={(e) => updateItem(li.id, { barberId: e.target.value || null })}
                             className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                           >
-                            <option value="">—</option>
-                            <option value="Alket">Alket</option>
-                            <option value="Gino">Gino</option>
+                            {/* NOTE: for now we only list the appointment's barber to keep it simple */}
+                            <option value={appointments.find((a) => a.id === selectedApptId)?.raw.barber?.id ?? ""}>
+                              {appointments.find((a) => a.id === selectedApptId)?.barber ?? "—"}
+                            </option>
                           </select>
                           <button
                             onClick={() => removeItem(li.id)}
@@ -279,7 +595,7 @@ export default function CashRegister() {
                         </select>
                         <input
                           type="number"
-                          value={li.discountValue || 0}
+                          value={li.discountValue ?? 0}
                           onChange={(e) => updateItem(li.id, { discountValue: Number(e.target.value) })}
                           className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
@@ -347,11 +663,11 @@ export default function CashRegister() {
                   <label className="block text-sm font-semibold text-black">Metodo di pagamento</label>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
+                    {["Contanti", "POS", "Satispay", "Altro"].map((m) => (
+                      <option key={m} value={m as UiPaymentMethod}>
                         {m}
                       </option>
                     ))}
@@ -370,7 +686,10 @@ export default function CashRegister() {
               </div>
 
               <div className="p-6 border-t border-gray-100 flex gap-3">
-                <button className="flex-1 bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2">
+                <button
+                  onClick={onCompleteAndPrint}
+                  className="flex-1 bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2"
+                >
                   <Check size={16} /> Concludi e stampa
                 </button>
                 <button className="px-6 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-black font-medium">
