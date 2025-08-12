@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   MessageSquare,
   Clock,
-  Phone
+  Phone,
+  CalendarX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
@@ -40,6 +41,7 @@ const sidebarItems = [
   { path: '/Voiceflow', name: 'ChatBot', icon: <MessageSquare size={20} /> },
   { path: '/waiting-list', name: 'Lista d\'Attesa', icon: <Clock size={20} /> },
   { path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> },
+  { path: '/exceptions', name: 'Eccezioni Disponibilità', icon: <CalendarX size={20} /> },
   { path: '/settings', name: 'Impostazioni', icon: <Settings size={20} /> },
 ];
 
