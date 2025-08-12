@@ -237,7 +237,7 @@ const Layout = () => {
                 animate="animate"
                 exit="exit"
                 variants={pageVariants}
-                className="h-full p-6"
+                className="p-6"
               >
                 <Outlet />
               </motion.div>
