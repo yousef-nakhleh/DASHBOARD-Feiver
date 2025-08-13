@@ -20,7 +20,7 @@ import {
   MessageSquare,
   Clock,
   Phone,
-  CalendarX
+  CalendarX,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
