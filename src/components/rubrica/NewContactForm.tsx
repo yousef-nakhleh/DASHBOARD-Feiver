@@ -8,14 +8,16 @@ interface NewContactFormProps {
 
 const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
   const { profile } = useAuth();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phonePrefix, setPhonePrefix] = useState('+39');
+  const [phoneNumberRaw, setPhoneNumberRaw] = useState('');
   const [email, setEmail] = useState('');
   const [birthdate, setBirthdate] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name || !phone) return alert('Nome e telefono sono obbligatori');
+    if (!firstName || !phoneNumberRaw) return alert('Nome e telefono sono obbligatori');
     if (!profile?.business_id) {
       alert('Profilo non configurato. Contatta l\'amministratore.');
       return;
@@ -23,16 +25,12 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
 
     setSaving(true);
 
-    // Split name into first_name and last_name
-    const nameParts = name.trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
     const { error } = await supabase.from('contacts').insert({
       business_id: profile.business_id,
-      first_name: firstName,
-      last_name: lastName,
-      phone_number_e164: phone,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      phone_prefix: phonePrefix,
+      phone_number_raw: phoneNumberRaw.trim(),
       email: email || null,
       birthdate: birthdate || null,
     });
@@ -50,25 +48,49 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-semibold text-black mb-2">Nome Completo</label>
+        <label className="block text-sm font-semibold text-black mb-2">Nome</label>
         <input
           type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
           className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-          placeholder="Inserisci nome completo"
+          placeholder="Inserisci nome"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-black mb-2">Cognome</label>
+        <input
+          type="text"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+          placeholder="Inserisci cognome"
         />
       </div>
 
       <div>
         <label className="block text-sm font-semibold text-black mb-2">Numero di Telefono</label>
-        <input
-          type="text"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
-          placeholder="Inserisci numero di telefono"
-        />
+        <div className="flex gap-3">
+          <select
+            value={phonePrefix}
+            onChange={(e) => setPhonePrefix(e.target.value)}
+            className="border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white w-24"
+          >
+            <option value="+39">+39</option>
+            <option value="+1">+1</option>
+            <option value="+33">+33</option>
+            <option value="+49">+49</option>
+            <option value="+34">+34</option>
+          </select>
+          <input
+            type="tel"
+            value={phoneNumberRaw}
+            onChange={(e) => setPhoneNumberRaw(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+            placeholder="Inserisci numero di telefono"
+          />
+        </div>
       </div>
 
       <div>

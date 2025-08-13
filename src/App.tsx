@@ -5,7 +5,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Agenda from './pages/Agenda';
 import CashRegister from './pages/CashRegister';
-import Rubrica from './pages/Rubrica';
+import Contacts from './pages/Contacts';
 import Trattamenti from './pages/Trattamenti';
 import Statistiche from './pages/Statistiche';
 import Magazzino from './pages/Magazzino';
@@ -53,7 +53,7 @@ function App() {
               <Route path="agenda" element={<Agenda />} />
               <Route path="cassa" element={<CashRegister />} />
               <Route path="cassa/pagamento" element={<PaymentPage />} />
-              <Route path="rubrica" element={<Rubrica />} />
+              <Route path="rubrica" element={<Contacts />} />
               <Route path="trattamenti" element={<Trattamenti />} />
               <Route path="statistiche" element={<Statistiche />} />
               <Route path="magazzino" element={<Magazzino />} />

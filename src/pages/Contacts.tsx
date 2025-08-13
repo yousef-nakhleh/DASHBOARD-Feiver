@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
-import SlidingPanelContact from '../components/rubrica/SlidingPanelContact';
 import NewContactForm from '../components/rubrica/NewContactForm';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 
-const Rubrica: React.FC = () => {
+const Contacts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
-  const [showNewClientPanel, setShowNewClientPanel] = useState(false);
+  const [showCreateContactForm, setShowCreateContactForm] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
@@ -80,7 +79,7 @@ const Rubrica: React.FC = () => {
           <p className="text-gray-600">Gestisci i contatti dei clienti</p>
         </div>
         <button
-          onClick={() => setShowNewClientPanel(true)}
+          onClick={() => setShowCreateContactForm(true)}
           className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
         >
           <Plus size={18} className="mr-2" />
@@ -134,7 +133,25 @@ const Rubrica: React.FC = () => {
         </div>
 
         <div className="md:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          {selectedClientData ? (
+          {showCreateContactForm ? (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-black">Nuovo Cliente</h2>
+                <button
+                  onClick={() => setShowCreateContactForm(false)}
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+              <NewContactForm 
+                onCreated={() => {
+                  setShowCreateContactForm(false);
+                  fetchClients();
+                }} 
+              />
+            </div>
+          ) : selectedClientData ? (
             <div className="p-6">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center">
@@ -215,15 +232,6 @@ const Rubrica: React.FC = () => {
         </div>
       </div>
 
-      <SlidingPanelContact
-        visible={showNewClientPanel}
-        onClose={() => setShowNewClientPanel(false)}
-        onCreated={() => {
-          setShowNewClientPanel(false);
-          fetchClients();
-        }}
-      />
-
       {showCreateModal && (
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
@@ -234,4 +242,4 @@ const Rubrica: React.FC = () => {
   );
 };
 
-export default Rubrica;
+export default Contacts;
