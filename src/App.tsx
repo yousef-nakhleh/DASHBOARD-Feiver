@@ -16,6 +16,7 @@ import Voiceflow from './pages/Voiceflow';
 import WaitingList from './pages/WaitingList';
 import Vapi from './pages/Vapi';
 import ClosingExceptions from './pages/ClosingExceptions';
+import OpeningExceptions from './pages/OpeningExceptions';
 
 // 🔐 Auth (moved)
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
@@ -60,6 +61,7 @@ function App() {
               <Route path="voiceflow" element={<Voiceflow />} />
               <Route path="waiting-list" element={<WaitingList />} />
               <Route path="vapi" element={<Vapi />} />
+              <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
               <Route path="exceptions" element={<ClosingExceptions />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
