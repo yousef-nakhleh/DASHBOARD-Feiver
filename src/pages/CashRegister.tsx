@@ -3,6 +3,7 @@ import { cn } from "../lib/utils";
 import { Plus, Search, Check, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
+import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
 
 // ---------- Types ----------
 type DbPaymentMethod = "Cash" | "POS" | "Satispay" | "Other";
@@ -28,7 +29,7 @@ type AppointmentRow = {
   appointment_status: "pending" | "confirmed" | "cancelled" | null;
   // Joined fields (via FKs)
   service?: { id: string; name: string; price: number | null } | null;
-  barber?: { id: string; display_name: string | null } | null;
+  barber?: { id: string; name: string | null } | null; // <- use name (not display_name)
   contact?: { id: string; full_name: string | null } | null;
 };
 
@@ -39,8 +40,9 @@ type UiAppointment = {
   barber: string;
   service: string;
   price: number;
-  confirmed: boolean;
+  confirmed: boolean; // kept for badge
   paid: boolean;
+  appointment_status: "pending" | "confirmed" | "cancelled" | null;
   raw: AppointmentRow;
 };
 
@@ -66,59 +68,37 @@ function computeLineTotal(li: LineItem): number {
   return base;
 }
 
-function startOfLocalDayUTC(dateISO: string, timeZone: string): { fromUTC: string; toUTC: string } {
-  // dateISO is yyyy-mm-dd (selected in the UI). Interpret it in business tz,
-  // then convert the day's [00:00, 23:59:59.999] to UTC ISO strings for the DB filter.
-  const [y, m, d] = dateISO.split("-").map(Number);
-  // Use the Intl API to get the UTC instants for local bounds
-  const localStart = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0));
-  const localEnd = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999));
-
-  // Offset localStart/localEnd from the target timeZone back to UTC by formatting “as if” in tz
-  // Trick: build the actual UTC instants by asking the formatter for the parts in that TZ,
-  // then reconstruct a timestamp and let JS interpret as UTC.
-  const toUTCInstant = (dt: Date) => {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    const parts = fmt.formatToParts(dt).reduce<Record<string, string>>((acc, p) => {
-      if (p.type !== "literal") acc[p.type] = p.value;
-      return acc;
-    }, {});
-    // parts are the local wall clock in business tz at the given instant.
-    // Construct a UTC Date from those local parts:
-    const isoLocal = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`;
-    return new Date(isoLocal).toISOString();
-  };
-
-  // We want the UTC instants that correspond to the local day's bounds
-  const fromUTC = toUTCInstant(localStart);
-  const toUTC = toUTCInstant(localEnd);
-  return { fromUTC, toUTC };
-}
-
-function toLocalTimeHHMM(utcISO: string, timeZone: string) {
-  const dt = new Date(utcISO);
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(dt);
-}
-
 // ---------- Component ----------
 export default function CashRegister() {
-  const { business } = useAuth(); // must expose { business: { id, timezone }, user, ... }
-  const businessId = business?.id as string | undefined;
-  const businessTz = business?.timezone || "Europe/Rome";
+  // If your AuthContext exposes profile, prefer it; otherwise keep the existing business object.
+  const { profile, loading: authLoading, business } = useAuth() as any;
+
+  // Resolve businessId
+  const businessId: string | undefined =
+    profile?.business_id ?? business?.id ?? undefined;
+
+  // Timezone: default to Europe/Rome, then fetch from DB once we know businessId
+  const [businessTimezone, setBusinessTimezone] = useState<string>(
+    business?.timezone || "Europe/Rome"
+  );
+
+  useEffect(() => {
+    const fetchBusinessTimezone = async () => {
+      if (authLoading || !businessId) return;
+      // NOTE: your FK points to table "business" (singular). If it's actually "businesses", change here.
+      const { data, error } = await supabase
+        .from("business")
+        .select("timezone")
+        .eq("id", businessId)
+        .single();
+
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    // Only fetch if we don't already have it
+    if (!business?.timezone) fetchBusinessTimezone();
+  }, [authLoading, businessId, business?.timezone]);
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -133,12 +113,13 @@ export default function CashRegister() {
 
   // -------- Fetch appointments for the business local day --------
   useEffect(() => {
-    if (!businessId || !date) return;
+    if (!businessId || !date || !businessTimezone) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
+        const fromUTC = toUTCFromLocal({ date, time: "00:00", timezone: businessTimezone });
+        const toUTC = toUTCFromLocal({ date, time: "23:59", timezone: businessTimezone });
 
         // Pull appointments and join names/prices via FKs
         const { data, error } = await supabase
@@ -150,7 +131,7 @@ export default function CashRegister() {
             paid,
             appointment_status,
             service:service_id ( id, name, price ),
-            barber:barber_id ( id, display_name ),
+            barber:barber_id ( id, name ),
             contact:contact_id ( id, full_name )
           `
           )
@@ -163,37 +144,41 @@ export default function CashRegister() {
 
         const mapped: UiAppointment[] =
           (data as AppointmentRow[] | null)?.map((a) => {
-            const time = toLocalTimeHHMM(a.appointment_start, businessTz);
+            const time = toLocalFromUTC({
+              utcString: a.appointment_start,
+              timezone: businessTimezone,
+            }).toFormat("HH:mm");
             return {
               id: a.id,
               time,
               client: a.contact?.full_name || "—",
-              barber: a.barber?.display_name || "—",
+              barber: a.barber?.name || "—",
               service: a.service?.name || "—",
               price: Number(a.service?.price ?? 0),
               confirmed: a.appointment_status === "confirmed",
               paid: Boolean(a.paid),
+              appointment_status: a.appointment_status,
               raw: a,
             };
           }) ?? [];
 
         if (!cancelled) {
           setAppointments(mapped);
-          // Auto-select first unpaid appointment; prefill items
-          const firstUnpaid = mapped.find((x) => !x.paid) || mapped[0] || null;
-          setSelectedApptId(firstUnpaid?.id ?? null);
-          if (firstUnpaid) {
+          // Auto-select first "pending" (unpaid) appointment; else first of list
+          const firstPending = mapped.find((x) => x.appointment_status === "pending") || mapped[0] || null;
+          setSelectedApptId(firstPending?.id ?? null);
+          if (firstPending) {
             setItems([
               {
                 id: "li" + Math.random().toString(36).slice(2, 8),
                 kind: "service",
-                name: firstUnpaid.service,
-                barberId: firstUnpaid.raw.barber?.id ?? null,
+                name: firstPending.service,
+                barberId: firstPending.raw.barber?.id ?? null,
                 qty: 1,
-                unit: firstUnpaid.price,
+                unit: firstPending.price,
                 discountType: "none",
                 discountValue: 0,
-                refServiceId: firstUnpaid.raw.service?.id ?? null,
+                refServiceId: firstPending.raw.service?.id ?? null,
               },
             ]);
           } else {
@@ -209,7 +194,7 @@ export default function CashRegister() {
     return () => {
       cancelled = true;
     };
-  }, [businessId, date, businessTz]);
+  }, [businessId, date, businessTimezone]);
 
   // When user selects another appointment, prefill “Trattamenti” with its booked service
   useEffect(() => {
@@ -233,7 +218,6 @@ export default function CashRegister() {
 
   // -------- UI actions for items --------
   function addService() {
-    // Adds a blank service row; in future, hook to a selection modal
     const appt = selectedApptId ? appointments.find((a) => a.id === selectedApptId) : undefined;
     const id = "li" + Math.random().toString(36).slice(2, 8);
     setItems((prev) => [
@@ -289,8 +273,9 @@ export default function CashRegister() {
     );
   }, [appointments, query]);
 
-  const toPay = filtered.filter((a) => !a.paid);
-  const alreadyConfirmedToday = filtered.filter((a) => a.paid);
+  // Use appointment_status for columns
+  const toPay = filtered.filter((a) => a.appointment_status === "pending");
+  const alreadyConfirmedToday = filtered.filter((a) => a.appointment_status === "confirmed");
 
   // -------- Save transaction + items --------
   async function onCompleteAndPrint() {
@@ -302,7 +287,7 @@ export default function CashRegister() {
     const appt = appointments.find((a) => a.id === selectedApptId);
     if (!appt) return;
 
-    // 1) Insert transaction (timestamptz stored as UTC by Supabase/PG)
+    // 1) Insert transaction
     const { data: tx, error: txErr } = await supabase
       .from("transactions")
       .insert({
@@ -311,7 +296,7 @@ export default function CashRegister() {
         payment_method: dbMethod, // enum: 'Cash' | 'POS' | 'Satispay' | 'Other'
         total: total,
         status: "succeeded",
-        completed_at: new Date().toISOString(), // UTC
+        completed_at: new Date().toISOString(), // UTC (timestamptz)
       })
       .select("id")
       .single();
@@ -323,7 +308,6 @@ export default function CashRegister() {
 
     // 2) Insert transaction_items (service-only for now)
     const itemRows = items.map((i) => {
-      const base = (i.qty ?? 1) * (i.unit ?? 0);
       const line_total = computeLineTotal(i);
       const discount_type =
         (i.discountType as "none" | "fixed" | "percent" | undefined) ?? "none";
@@ -351,18 +335,17 @@ export default function CashRegister() {
       return;
     }
 
-    // 3) Mark appointment as paid (and confirmed for clarity)
+    // 3) Mark appointment as paid + confirmed
     await supabase
       .from("appointments")
       .update({ paid: true, appointment_status: "confirmed" })
       .eq("id", appt.id);
 
-    // 4) Refresh list to move it to "Confermati oggi"
-    // Trigger the fetch by re-setting date (or call same fetch logic)
-    setDate((d) => d); // noop to keep value; fetch effect depends on [businessId, date, tz], so do manual refresh:
-    // Manual refresh:
+    // 4) Refresh
     try {
-      const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
+      const fromUTC = toUTCFromLocal({ date, time: "00:00", timezone: businessTimezone });
+      const toUTC = toUTCFromLocal({ date, time: "23:59", timezone: businessTimezone });
+
       const { data, error } = await supabase
         .from("appointments")
         .select(
@@ -372,7 +355,7 @@ export default function CashRegister() {
           paid,
           appointment_status,
           service:service_id ( id, name, price ),
-          barber:barber_id ( id, display_name ),
+          barber:barber_id ( id, name ),
           contact:contact_id ( id, full_name )
         `
         )
@@ -386,13 +369,14 @@ export default function CashRegister() {
       const mapped: UiAppointment[] =
         (data as AppointmentRow[] | null)?.map((a) => ({
           id: a.id,
-          time: toLocalTimeHHMM(a.appointment_start, businessTz),
+          time: toLocalFromUTC({ utcString: a.appointment_start, timezone: businessTimezone }).toFormat("HH:mm"),
           client: a.contact?.full_name || "—",
-          barber: a.barber?.display_name || "—",
+          barber: a.barber?.name || "—",
           service: a.service?.name || "—",
           price: Number(a.service?.price ?? 0),
           confirmed: a.appointment_status === "confirmed",
           paid: Boolean(a.paid),
+          appointment_status: a.appointment_status,
           raw: a,
         })) ?? [];
 
@@ -567,7 +551,6 @@ export default function CashRegister() {
                             onChange={(e) => updateItem(li.id, { barberId: e.target.value || null })}
                             className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                           >
-                            {/* NOTE: for now we only list the appointment's barber to keep it simple */}
                             <option value={appointments.find((a) => a.id === selectedApptId)?.raw.barber?.id ?? ""}>
                               {appointments.find((a) => a.id === selectedApptId)?.barber ?? "—"}
                             </option>
