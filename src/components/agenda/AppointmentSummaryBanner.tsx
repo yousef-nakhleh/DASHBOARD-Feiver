@@ -34,7 +34,9 @@ const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay
           <div className="grid grid-cols-2 gap-6">
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Cliente</span>
-              <p className="text-lg font-semibold text-black mt-1">{appointment.customer_name || 'Non disponibile'}</p>
+              <p className="text-lg font-semibold text-black mt-1">
+                {`${appointment.contact?.first_name || ''} ${appointment.contact?.last_name || ''}`.trim() || 'Non disponibile'}
+              </p>
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Servizio</span>

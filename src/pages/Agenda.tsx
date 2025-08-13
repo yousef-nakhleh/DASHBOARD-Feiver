@@ -109,7 +109,7 @@ const Agenda = () => {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select(`id, appointment_start, duration_min, customer_name, barber_id, service_id, appointment_status, paid, services ( name, price )`)
+      .select(`id, appointment_start, duration_min, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, services ( name, price )`)
       .eq('business_id', profile.business_id)
       .gte('appointment_start', startOfFirstDay)
       .lte('appointment_start', endOfLastDay)
@@ -181,7 +181,7 @@ const Agenda = () => {
       barber_id: selectedAppointment.barber_id,
       service_id: selectedAppointment.service_id,
       price: selectedAppointment.services?.price || 0,
-      customer_name: selectedAppointment.customer_name,
+      customer_name: `${selectedAppointment.contact?.first_name || ''} ${selectedAppointment.contact?.last_name || ''}`.trim(),
     });
     setShowPaymentPanel(true);
   };
@@ -190,12 +190,12 @@ const Agenda = () => {
     selectedBarber === 'Tutti'
       ? appointments.filter(
           (app) =>
-            app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim().toLowerCase().includes(searchQuery.toLowerCase()) ||
             app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : appointments.filter(
           (app) =>
-            (app.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim().toLowerCase().includes(searchQuery.toLowerCase()) ||
               app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
             app.barber_id === selectedBarber
         );

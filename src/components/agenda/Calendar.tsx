@@ -210,7 +210,9 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
       <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
         <div className="flex items-center">
           <User size={14} className="mr-1 text-gray-500" />
-          <span className="truncate">{app.customer_name}</span>
+          <span className="truncate">
+            {`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente'}
+          </span>
         </div>
         {app.services?.name && (
           <span className="text-xs italic text-gray-500 mt-1 truncate">
