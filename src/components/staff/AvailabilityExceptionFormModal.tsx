@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { toLocalFromUTC, toUTCFromLocal } from '../../lib/timeUtils';
 
 interface Barber {
   id: string;
@@ -8,30 +9,34 @@ interface Barber {
   business_id: string;
 }
 
-interface BarberException {
+interface AvailabilityException {
   id: string;
   barber_id: string;
-  date: string;
-  start_time: string;
-  end_time: string;
+  exception_start: string; // UTC timestamp
+  exception_end: string;   // UTC timestamp
+  type: 'open' | 'closed';
   business_id: string;
 }
 
-interface ExceptionFormModalProps {
+interface AvailabilityExceptionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
   barbers: Barber[];
   businessId: string;
-  defaultValues?: BarberException | null;
+  businessTimezone: string;
+  exceptionType: 'open' | 'closed';
+  defaultValues?: AvailabilityException | null;
 }
 
-const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
+const AvailabilityExceptionFormModal: React.FC<AvailabilityExceptionFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
   barbers,
   businessId,
+  businessTimezone,
+  exceptionType,
   defaultValues,
 }) => {
   const [barberId, setBarberId] = useState('');
@@ -46,9 +51,20 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
   useEffect(() => {
     if (defaultValues) {
       setBarberId(defaultValues.barber_id);
-      setDate(defaultValues.date);
-      setStartTime(defaultValues.start_time.slice(0, 5)); // Remove seconds
-      setEndTime(defaultValues.end_time.slice(0, 5)); // Remove seconds
+      
+      // Convert UTC timestamps to local date and time for editing
+      const localStart = toLocalFromUTC({
+        utcString: defaultValues.exception_start,
+        timezone: businessTimezone,
+      });
+      const localEnd = toLocalFromUTC({
+        utcString: defaultValues.exception_end,
+        timezone: businessTimezone,
+      });
+      
+      setDate(localStart.toFormat('yyyy-MM-dd'));
+      setStartTime(localStart.toFormat('HH:mm'));
+      setEndTime(localEnd.toFormat('HH:mm'));
     } else {
       // Reset form for new exception
       setBarberId('');
@@ -57,7 +73,7 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
       setEndTime('');
     }
     setError('');
-  }, [defaultValues, isOpen]);
+  }, [defaultValues, isOpen, businessTimezone]);
 
   const validateForm = () => {
     if (!barberId) {
@@ -90,11 +106,24 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
     setError('');
 
     try {
+      // Convert local date/time to UTC for storage
+      const exceptionStartUTC = toUTCFromLocal({
+        date,
+        time: startTime,
+        timezone: businessTimezone,
+      });
+      
+      const exceptionEndUTC = toUTCFromLocal({
+        date,
+        time: endTime,
+        timezone: businessTimezone,
+      });
+
       const exceptionData = {
         barber_id: barberId,
-        date,
-        start_time: startTime + ':00', // Add seconds
-        end_time: endTime + ':00', // Add seconds
+        exception_start: exceptionStartUTC,
+        exception_end: exceptionEndUTC,
+        type: exceptionType,
         business_id: businessId,
       };
 
@@ -102,13 +131,13 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
       if (isEditing && defaultValues) {
         // Update existing exception
         result = await supabase
-          .from('barbers_exceptions')
+          .from('availability_exceptions')
           .update(exceptionData)
           .eq('id', defaultValues.id);
       } else {
         // Create new exception
         result = await supabase
-          .from('barbers_exceptions')
+          .from('availability_exceptions')
           .insert([exceptionData]);
       }
 
@@ -127,13 +156,19 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  const modalTitle = exceptionType === 'open' 
+    ? (isEditing ? 'Modifica Apertura Eccezionale' : 'Nuova Apertura Eccezionale')
+    : (isEditing ? 'Modifica Eccezione' : 'Nuova Eccezione');
+
+  const noteText = exceptionType === 'open'
+    ? 'Durante questo periodo, il salone sarà aperto in orario straordinario per servizi speciali.'
+    : 'Durante questo periodo, il barbiere selezionato non sarà disponibile per nuovi appuntamenti. Gli appuntamenti esistenti non verranno modificati automaticamente.';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-black">
-            {isEditing ? 'Modifica Eccezione' : 'Nuova Eccezione'}
-          </h2>
+          <h2 className="text-2xl font-bold text-black">{modalTitle}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
@@ -202,11 +237,20 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <p className="text-yellow-800 text-sm font-medium">Nota:</p>
-            <p className="text-yellow-700 text-sm mt-1">
-              Durante questo periodo, il barbiere selezionato non sarà disponibile per nuovi appuntamenti.
-              Gli appuntamenti esistenti non verranno modificati automaticamente.
+          <div className={`p-4 rounded-xl border ${
+            exceptionType === 'open' 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-yellow-50 border-yellow-200'
+          }`}>
+            <p className={`text-sm font-medium ${
+              exceptionType === 'open' ? 'text-green-800' : 'text-yellow-800'
+            }`}>
+              Nota:
+            </p>
+            <p className={`text-sm mt-1 ${
+              exceptionType === 'open' ? 'text-green-700' : 'text-yellow-700'
+            }`}>
+              {noteText}
             </p>
           </div>
         </div>
@@ -232,4 +276,4 @@ const ExceptionFormModal: React.FC<ExceptionFormModalProps> = ({
   );
 };
 
-export default ExceptionFormModal;
+export default AvailabilityExceptionFormModal;

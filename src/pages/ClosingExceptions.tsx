@@ -10,15 +10,16 @@ import {
   XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import ExceptionFormModal from '../components/staff/ExceptionFormModal';
+import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 import { useAuth } from '../components/auth/AuthContext';
+import { toLocalFromUTC, toUTCFromLocal } from '../lib/timeUtils';
 
-interface BarberException {
+interface AvailabilityException {
   id: string;
   barber_id: string;
-  date: string;
-  start_time: string;
-  end_time: string;
+  exception_start: string; // UTC timestamp
+  exception_end: string;   // UTC timestamp
+  type: 'open' | 'closed';
   business_id: string;
   barber?: {
     name: string;
@@ -31,15 +32,16 @@ interface Barber {
   business_id: string;
 }
 
-const AvailabilityExceptions = () => {
+const ClosingExceptions = () => {
   const { profile, loading: authLoading } = useAuth();
   const businessId = profile?.business_id || null;
+  const businessTimezone = 'Europe/Rome'; // TODO: fetch from business table
 
-  const [exceptions, setExceptions] = useState<BarberException[]>([]);
+  const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
-  const [selectedException, setSelectedException] = useState<BarberException | null>(null);
+  const [selectedException, setSelectedException] = useState<AvailabilityException | null>(null);
   const [isExceptionModalOpen, setIsExceptionModalOpen] = useState(false);
-  const [editingException, setEditingException] = useState<BarberException | null>(null);
+  const [editingException, setEditingException] = useState<AvailabilityException | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -60,9 +62,9 @@ const AvailabilityExceptions = () => {
     
     setLoading(true);
     try {
-      // Fetch exceptions with barber names
+      // Fetch closing exceptions with barber names
       const { data: exceptionsData, error: exceptionsError } = await supabase
-        .from('barbers_exceptions')
+        .from('availability_exceptions')
         .select(`
           *,
           barbers (
@@ -70,7 +72,8 @@ const AvailabilityExceptions = () => {
           )
         `)
         .eq('business_id', businessId)
-        .order('date', { ascending: false });
+        .eq('type', 'closed')
+        .order('exception_start', { ascending: false });
 
       if (exceptionsError) {
         console.error('Error fetching exceptions:', exceptionsError);
@@ -98,7 +101,7 @@ const AvailabilityExceptions = () => {
     }
   };
 
-  const handleSelect = (exception: BarberException) => {
+  const handleSelect = (exception: AvailabilityException) => {
     setSelectedException(exception);
   };
 
@@ -114,7 +117,7 @@ const AvailabilityExceptions = () => {
     
     if (window.confirm('Sei sicuro di voler eliminare questa eccezione?')) {
       const { error } = await supabase
-        .from('barbers_exceptions')
+        .from('availability_exceptions')
         .delete()
         .eq('id', selectedException.id);
 
@@ -140,23 +143,46 @@ const AvailabilityExceptions = () => {
   };
 
   const filteredExceptions = exceptions.filter(exception => {
-    const barberName = exception.barbers?.name || '';
+    const barberName = exception.barber?.name || '';
     const searchLower = searchQuery.toLowerCase();
+    
+    // Convert UTC to local for search
+    const localStart = toLocalFromUTC({
+      utcString: exception.exception_start,
+      timezone: businessTimezone,
+    });
+    const localDate = localStart.toFormat('yyyy-MM-dd');
+    
     return barberName.toLowerCase().includes(searchLower) ||
-           exception.date.includes(searchQuery);
+           localDate.includes(searchQuery);
   });
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('it-IT', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+  const formatDate = (utcString: string) => {
+    const localTime = toLocalFromUTC({
+      utcString,
+      timezone: businessTimezone,
     });
+    return localTime.toFormat('cccc, d LLLL yyyy');
   };
 
-  const formatTime = (timeString: string) => {
-    return timeString.slice(0, 5);
+  const formatTime = (utcString: string) => {
+    const localTime = toLocalFromUTC({
+      utcString,
+      timezone: businessTimezone,
+    });
+    return localTime.toFormat('HH:mm');
+  };
+
+  const formatTimeRange = (startUtc: string, endUtc: string) => {
+    const startLocal = toLocalFromUTC({
+      utcString: startUtc,
+      timezone: businessTimezone,
+    });
+    const endLocal = toLocalFromUTC({
+      utcString: endUtc,
+      timezone: businessTimezone,
+    });
+    return `${startLocal.toFormat('HH:mm')} - ${endLocal.toFormat('HH:mm')}`;
   };
 
   // Auth/profile guard UIs
@@ -235,14 +261,14 @@ const AvailabilityExceptions = () => {
                       <Calendar size={20} className="text-red-600" />
                     </div>
                     <div className="ml-4 flex-1">
-                      <h3 className="font-semibold text-black">{exception.barbers?.name || 'Barbiere sconosciuto'}</h3>
+                      <h3 className="font-semibold text-black">{exception.barber?.name || 'Barbiere sconosciuto'}</h3>
                       <div className="text-sm text-gray-500 flex items-center mt-1">
                         <Calendar size={12} className="mr-1" />
-                        {new Date(exception.date).toLocaleDateString('it-IT')}
+                        {formatDate(exception.exception_start)}
                       </div>
                       <div className="text-sm text-gray-500 flex items-center mt-1">
                         <Clock size={12} className="mr-1" />
-                        {formatTime(exception.start_time)} - {formatTime(exception.end_time)}
+                        {formatTimeRange(exception.exception_start, exception.exception_end)}
                       </div>
                     </div>
                   </div>
@@ -267,7 +293,7 @@ const AvailabilityExceptions = () => {
                   </div>
                   <div className="ml-6">
                     <h2 className="text-2xl font-bold text-black">Eccezione di Disponibilità</h2>
-                    <p className="text-gray-600 mt-1">{selectedException.barbers?.name || 'Barbiere sconosciuto'}</p>
+                    <p className="text-gray-600 mt-1">{selectedException.barber?.name || 'Barbiere sconosciuto'}</p>
                   </div>
                 </div>
                 <div className="flex space-x-2">
@@ -292,16 +318,16 @@ const AvailabilityExceptions = () => {
                   <div className="space-y-4">
                     <div className="flex items-center">
                       <User size={16} className="text-gray-400 mr-3" />
-                      <span className="text-black">{selectedException.barbers?.name || 'Barbiere sconosciuto'}</span>
+                      <span className="text-black">{selectedException.barber?.name || 'Barbiere sconosciuto'}</span>
                     </div>
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
-                      <span className="text-black">{formatDate(selectedException.date)}</span>
+                      <span className="text-black">{formatDate(selectedException.exception_start)}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock size={16} className="text-gray-400 mr-3" />
                       <span className="text-black">
-                        {formatTime(selectedException.start_time)} - {formatTime(selectedException.end_time)}
+                        {formatTimeRange(selectedException.exception_start, selectedException.exception_end)}
                       </span>
                     </div>
                   </div>
@@ -331,12 +357,14 @@ const AvailabilityExceptions = () => {
 
       {/* Exception Form Modal */}
       {isExceptionModalOpen && (
-        <ExceptionFormModal
+        <AvailabilityExceptionFormModal
           isOpen={isExceptionModalOpen}
           onClose={handleModalClose}
           onSave={handleModalSave}
           barbers={barbers}
           businessId={businessId}
+          businessTimezone={businessTimezone}
+          exceptionType="closed"
           defaultValues={editingException}
         />
       )}
@@ -344,4 +372,4 @@ const AvailabilityExceptions = () => {
   );
 };
 
-export default AvailabilityExceptions;
+export default ClosingExceptions;
