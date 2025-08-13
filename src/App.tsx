@@ -9,7 +9,7 @@ import Rubrica from './pages/Rubrica';
 import Trattamenti from './pages/Trattamenti';
 import Statistiche from './pages/Statistiche';
 import Magazzino from './pages/Magazzino';
-import Staff from './pages/Staff';
+import StaffAvailability from './pages/StaffAvailability';
 import Settings from './pages/Settings';
 import PaymentPage from './components/payment/PaymentPage';
 import Voiceflow from './pages/Voiceflow';
@@ -56,7 +56,7 @@ function App() {
               <Route path="trattamenti" element={<Trattamenti />} />
               <Route path="statistiche" element={<Statistiche />} />
               <Route path="magazzino" element={<Magazzino />} />
-              <Route path="staff" element={<Staff />} />
+              <Route path="staff" element={<StaffAvailability />} />
               <Route path="voiceflow" element={<Voiceflow />} />
               <Route path="waiting-list" element={<WaitingList />} />
               <Route path="vapi" element={<Vapi />} />
