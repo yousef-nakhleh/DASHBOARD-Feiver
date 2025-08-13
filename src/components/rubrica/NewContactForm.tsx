@@ -11,10 +11,10 @@ const constraintToMessage = (msg: string) => {
   const m = msg.toLowerCase();
 
   if (m.includes('uniq_contacts_phone_per_business')) {
-    return 'Attenzione: esiste già un contatto con questo numero di telefono per questo negozio.';
+    return 'Attenzione: esiste già un contatto con questo numero di telefono.';
   }
   if (m.includes('uniq_contacts_email_per_business')) {
-    return 'Attenzione: esiste già un contatto con questa email per questo negozio.';
+    return 'Attenzione: esiste già un contatto con questa email.';
   }
   // Fallbacks
   if (m.includes('duplicate key value')) {
