@@ -17,7 +17,7 @@ const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
 
 type AppointmentRow = {
   id: string;
-  appointment_start: string; // UTC ISO
+  appointment_start: string; // DB timestamp (UTC by convention), e.g. "2025-08-13 14:30:00"
   paid: boolean | null;
   appointment_status: "pending" | "confirmed" | "cancelled" | null;
   service?: { id: string; name: string; price: number | null } | null;
@@ -61,12 +61,13 @@ function computeLineTotal(li: LineItem): number {
   return base;
 }
 
-// Convert the local day bounds (business tz) to UTC ISO strings for DB filter
-function startOfLocalDayUTC(dateISO: string, timeZone: string): { fromUTC: string; toUTC: string } {
+// Build business-local day bounds and return *z-less* UTC strings for filtering a `timestamp` column
+function startOfLocalDayUTC_ZLESS(dateISO: string, timeZone: string): { from: string; to: string } {
   const [y, m, d] = dateISO.split("-").map(Number);
   const localStart = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0));
   const localEnd = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999));
-  const toUTCInstant = (dt: Date) => {
+
+  const toUTCInstantISOZ = (dt: Date) => {
     const fmt = new Intl.DateTimeFormat("en-CA", {
       timeZone,
       year: "numeric",
@@ -81,14 +82,19 @@ function startOfLocalDayUTC(dateISO: string, timeZone: string): { fromUTC: strin
       if (p.type !== "literal") acc[p.type] = p.value;
       return acc;
     }, {});
-    const isoLocal = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`;
-    return new Date(isoLocal).toISOString();
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`;
   };
-  return { fromUTC: toUTCInstant(localStart), toUTC: toUTCInstant(localEnd) };
+
+  const isoFromZ = toUTCInstantISOZ(localStart);
+  const isoToZ = toUTCInstantISOZ(localEnd);
+  const zless = (s: string) => s.replace("T", " ").replace("Z", "");
+  return { from: zless(isoFromZ), to: zless(isoToZ) };
 }
 
-function toLocalTimeHHMM(utcISO: string, timeZone: string) {
-  const dt = new Date(utcISO);
+// Treat DB `timestamp` (UTC by convention) as UTC, then format in business tz
+function toLocalTimeHHMM_fromTimestampUTC(dbTimestampNoTZ: string, timeZone: string) {
+  const utcIso = dbTimestampNoTZ.replace(" ", "T") + "Z";
+  const dt = new Date(utcIso);
   return new Intl.DateTimeFormat("it-IT", {
     timeZone,
     hour: "2-digit",
@@ -129,7 +135,7 @@ export default function CashRegister() {
     (async () => {
       setLoading(true);
       try {
-        const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
+        const { from, to } = startOfLocalDayUTC_ZLESS(date, businessTz);
 
         const { data, error } = await supabase
           .from("appointments")
@@ -145,8 +151,8 @@ export default function CashRegister() {
           `
           )
           .eq("business_id", businessId)
-          .gte("appointment_start", fromUTC)
-          .lte("appointment_start", toUTC)
+          .gte("appointment_start", from) // z-less
+          .lte("appointment_start", to)   // z-less
           .order("appointment_start", { ascending: true });
 
         if (error) throw error;
@@ -154,7 +160,7 @@ export default function CashRegister() {
         const mapped: UiAppointment[] =
           (data as AppointmentRow[] | null)?.map((a) => ({
             id: a.id,
-            time: toLocalTimeHHMM(a.appointment_start, businessTz),
+            time: toLocalTimeHHMM_fromTimestampUTC(a.appointment_start, businessTz),
             client: a.contact?.full_name || "—",
             barber: a.barber?.display_name || "—",
             service: a.service?.name || "—",
@@ -291,7 +297,6 @@ export default function CashRegister() {
     );
   }, [appointments, query]);
 
-  // Use appointment_status (as requested)
   const toPay = filtered.filter((a) => a.appointment_status === "pending");
   const confirmedList = filtered.filter((a) => a.appointment_status === "confirmed");
 
@@ -349,7 +354,7 @@ export default function CashRegister() {
 
     // Refresh the list for the same day
     try {
-      const { fromUTC, toUTC } = startOfLocalDayUTC(date, businessTz);
+      const { from, to } = startOfLocalDayUTC_ZLESS(date, businessTz);
       const { data, error } = await supabase
         .from("appointments")
         .select(
@@ -364,8 +369,8 @@ export default function CashRegister() {
         `
         )
         .eq("business_id", businessId)
-        .gte("appointment_start", fromUTC)
-        .lte("appointment_start", toUTC)
+        .gte("appointment_start", from) // z-less
+        .lte("appointment_start", to)   // z-less
         .order("appointment_start", { ascending: true });
 
       if (error) throw error;
@@ -373,7 +378,7 @@ export default function CashRegister() {
       const mapped: UiAppointment[] =
         (data as AppointmentRow[] | null)?.map((a) => ({
           id: a.id,
-          time: toLocalTimeHHMM(a.appointment_start, businessTz),
+          time: toLocalTimeHHMM_fromTimestampUTC(a.appointment_start, businessTz),
           client: a.contact?.full_name || "—",
           barber: a.barber?.display_name || "—",
           service: a.service?.name || "—",
@@ -384,11 +389,10 @@ export default function CashRegister() {
         })) ?? [];
 
       setAppointments(mapped);
-      // Move selection to another pending item if available; otherwise clear
       const nextPending = mapped.find((x) => x.appointment_status === "pending") || null;
       setSelectedApptId(nextPending?.id ?? null);
       setItems([]);
-      setActiveTab("confirmed"); // switch to show it in "Confermati"
+      setActiveTab("confirmed");
     } catch (e) {
       console.error(e);
     }
@@ -712,8 +716,8 @@ export default function CashRegister() {
                     onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
-                    {PAYMENT_METHODS_UI.map((m) => (
-                      <option key={m} value={m}>
+                    {["Contanti", "POS", "Satispay", "Altro"].map((m) => (
+                      <option key={m} value={m as UiPaymentMethod}>
                         {m}
                       </option>
                     ))}
