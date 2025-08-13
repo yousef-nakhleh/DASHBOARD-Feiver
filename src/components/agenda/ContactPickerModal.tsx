@@ -10,8 +10,8 @@ const ContactPickerModal = ({ onSelect, onClose }) => {
     const fetchContacts = async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('customer_name, customer_email, customer_phone')
-        .order('customer_name', { ascending: true });
+        .select('id, first_name, last_name, email, phone_number_e164')
+        .order('first_name', { ascending: true });
 
       if (error) {
         console.error('Errore caricamento contatti:', error.message);
@@ -52,12 +52,17 @@ const ContactPickerModal = ({ onSelect, onClose }) => {
               {contacts.map((contact, idx) => (
                 <div
                   key={idx}
-                  onClick={() => onSelect(contact)}
+                  onClick={() => onSelect({
+                    ...contact,
+                    customer_name: `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
+                  })}
                   className="border border-gray-200 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  <p className="font-semibold text-black">{contact.customer_name}</p>
-                  <p className="text-sm text-gray-500">{contact.customer_email}</p>
-                  <p className="text-sm text-gray-500">{contact.customer_phone}</p>
+                  <p className="font-semibold text-black">
+                    {`${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Nome non disponibile'}
+                  </p>
+                  <p className="text-sm text-gray-500">{contact.email || 'Email non disponibile'}</p>
+                  <p className="text-sm text-gray-500">{contact.phone_number_e164 || 'Telefono non disponibile'}</p>
                 </div>
               ))}
             </div>
