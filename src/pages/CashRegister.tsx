@@ -3,6 +3,7 @@ import { cn } from "../lib/utils";
 import { Plus, Search, Check, Trash2, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
+import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
 
 // ---------- Types ----------
 type DbPaymentMethod = "Cash" | "POS" | "Satispay" | "Other";
@@ -21,7 +22,7 @@ type AppointmentRow = {
   paid: boolean | null;
   appointment_status: "pending" | "confirmed" | "cancelled" | null;
   service?: { id: string; name: string; price: number | null } | null;
-  barber?: { id: string; display_name: string | null } | null;
+  barber?: { id: string; name: string | null } | null;
   contact?: { id: string; full_name: string | null } | null;
 };
 
@@ -61,53 +62,11 @@ function computeLineTotal(li: LineItem): number {
   return base;
 }
 
-// Build business-local day bounds and return *z-less* UTC strings for filtering a `timestamp` column
-function startOfLocalDayUTC_ZLESS(dateISO: string, timeZone: string): { from: string; to: string } {
-  const [y, m, d] = dateISO.split("-").map(Number);
-  const localStart = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0));
-  const localEnd = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999));
-
-  const toUTCInstantISOZ = (dt: Date) => {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    const parts = fmt.formatToParts(dt).reduce<Record<string, string>>((acc, p) => {
-      if (p.type !== "literal") acc[p.type] = p.value;
-      return acc;
-    }, {});
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`;
-  };
-
-  const isoFromZ = toUTCInstantISOZ(localStart);
-  const isoToZ = toUTCInstantISOZ(localEnd);
-  const zless = (s: string) => s.replace("T", " ").replace("Z", "");
-  return { from: zless(isoFromZ), to: zless(isoToZ) };
-}
-
-// Treat DB `timestamp` (UTC by convention) as UTC, then format in business tz
-function toLocalTimeHHMM_fromTimestampUTC(dbTimestampNoTZ: string, timeZone: string) {
-  const utcIso = dbTimestampNoTZ.replace(" ", "T") + "Z";
-  const dt = new Date(utcIso);
-  return new Intl.DateTimeFormat("it-IT", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(dt);
-}
-
 // ---------- Component ----------
 export default function CashRegister() {
-  const { business } = useAuth(); // expects { business: { id, timezone } }
-  const businessId = business?.id as string | undefined;
-  const businessTz = business?.timezone || "Europe/Rome";
+  const { profile, loading: authLoading } = useAuth();
+  const businessId = profile?.business_id;
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -128,14 +87,41 @@ export default function CashRegister() {
   // Confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // -------- Fetch business timezone --------
+  useEffect(() => {
+    const fetchBusinessTimezone = async () => {
+      if (authLoading || !businessId) return;
+
+      const { data, error } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', businessId)
+        .single();
+
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    fetchBusinessTimezone();
+  }, [authLoading, businessId]);
+
   // -------- Fetch appointments for the business local day --------
   useEffect(() => {
-    if (!businessId || !date) return;
+    if (!businessId || !date || !businessTimezone) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const { from, to } = startOfLocalDayUTC_ZLESS(date, businessTz);
+        const fromUTC = toUTCFromLocal({
+          date: date,
+          time: '00:00',
+          timezone: businessTimezone,
+        });
+        const toUTC = toUTCFromLocal({
+          date: date,
+          time: '23:59',
+          timezone: businessTimezone,
+        });
 
         const { data, error } = await supabase
           .from("appointments")
@@ -146,29 +132,36 @@ export default function CashRegister() {
             paid,
             appointment_status,
             service:service_id ( id, name, price ),
-            barber:barber_id ( id, display_name ),
+            barber:barber_id ( id, name ),
             contact:contact_id ( id, full_name )
           `
           )
           .eq("business_id", businessId)
-          .gte("appointment_start", from) // z-less
-          .lte("appointment_start", to)   // z-less
+          .gte("appointment_start", fromUTC)
+          .lte("appointment_start", toUTC)
           .order("appointment_start", { ascending: true });
 
         if (error) throw error;
 
         const mapped: UiAppointment[] =
-          (data as AppointmentRow[] | null)?.map((a) => ({
-            id: a.id,
-            time: toLocalTimeHHMM_fromTimestampUTC(a.appointment_start, businessTz),
-            client: a.contact?.full_name || "—",
-            barber: a.barber?.display_name || "—",
-            service: a.service?.name || "—",
-            price: Number(a.service?.price ?? 0),
-            appointment_status: a.appointment_status,
-            paid: Boolean(a.paid),
-            raw: a,
-          })) ?? [];
+          (data as AppointmentRow[] | null)?.map((a) => {
+            const time = toLocalFromUTC({
+              utcString: a.appointment_start,
+              timezone: businessTimezone,
+            }).toFormat('HH:mm');
+            
+            return {
+              id: a.id,
+              time,
+              client: a.contact?.full_name || "—",
+              barber: a.barber?.name || "—",
+              service: a.service?.name || "—",
+              price: Number(a.service?.price ?? 0),
+              appointment_status: a.appointment_status,
+              paid: Boolean(a.paid),
+              raw: a,
+            };
+          }) ?? [];
 
         if (!cancelled) {
           setAppointments(mapped);
@@ -201,7 +194,7 @@ export default function CashRegister() {
     return () => {
       cancelled = true;
     };
-  }, [businessId, date, businessTz]);
+  }, [businessId, date, businessTimezone]);
 
   // Prefill items when selecting another appointment
   useEffect(() => {
@@ -354,7 +347,17 @@ export default function CashRegister() {
 
     // Refresh the list for the same day
     try {
-      const { from, to } = startOfLocalDayUTC_ZLESS(date, businessTz);
+      const fromUTC = toUTCFromLocal({
+        date: date,
+        time: '00:00',
+        timezone: businessTimezone,
+      });
+      const toUTC = toUTCFromLocal({
+        date: date,
+        time: '23:59',
+        timezone: businessTimezone,
+      });
+
       const { data, error } = await supabase
         .from("appointments")
         .select(
@@ -364,29 +367,36 @@ export default function CashRegister() {
           paid,
           appointment_status,
           service:service_id ( id, name, price ),
-          barber:barber_id ( id, display_name ),
+          barber:barber_id ( id, name ),
           contact:contact_id ( id, full_name )
         `
         )
         .eq("business_id", businessId)
-        .gte("appointment_start", from) // z-less
-        .lte("appointment_start", to)   // z-less
+        .gte("appointment_start", fromUTC)
+        .lte("appointment_start", toUTC)
         .order("appointment_start", { ascending: true });
 
       if (error) throw error;
 
       const mapped: UiAppointment[] =
-        (data as AppointmentRow[] | null)?.map((a) => ({
-          id: a.id,
-          time: toLocalTimeHHMM_fromTimestampUTC(a.appointment_start, businessTz),
-          client: a.contact?.full_name || "—",
-          barber: a.barber?.display_name || "—",
-          service: a.service?.name || "—",
-          price: Number(a.service?.price ?? 0),
-          appointment_status: a.appointment_status,
-          paid: Boolean(a.paid),
-          raw: a,
-        })) ?? [];
+        (data as AppointmentRow[] | null)?.map((a) => {
+          const time = toLocalFromUTC({
+            utcString: a.appointment_start,
+            timezone: businessTimezone,
+          }).toFormat('HH:mm');
+          
+          return {
+            id: a.id,
+            time,
+            client: a.contact?.full_name || "—",
+            barber: a.barber?.name || "—",
+            service: a.service?.name || "—",
+            price: Number(a.service?.price ?? 0),
+            appointment_status: a.appointment_status,
+            paid: Boolean(a.paid),
+            raw: a,
+          };
+        }) ?? [];
 
       setAppointments(mapped);
       const nextPending = mapped.find((x) => x.appointment_status === "pending") || null;
@@ -400,6 +410,30 @@ export default function CashRegister() {
 
   // ---------- UI ----------
   const PAYMENT_METHODS_UI: UiPaymentMethod[] = ["Contanti", "POS", "Satispay", "Altro"];
+
+  // Guard for missing business configuration
+  if (authLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-500">Caricamento autenticazione…</p>
+      </div>
+    );
+  }
+
+  if (!businessId) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">
+            Profilo non configurato oppure nessun <code>business_id</code> associato.
+          </p>
+          <p className="text-gray-500 text-sm mt-1">
+            Contatta l'amministratore per associare il tuo account a un business.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full space-y-6">
