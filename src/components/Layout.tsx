@@ -76,7 +76,8 @@ const Layout = () => {
             <h1 className="text-xl font-bold tracking-wider">Extro</h1>
           </div>
           
-          <nav className="flex-1 px-4 py-6 space-y-1">
+          <div className="flex-1 overflow-y-auto">
+            <nav className="px-4 py-6 space-y-1">
             {sidebarItems.map((item) => (
               <button
                 key={item.path}
@@ -96,7 +97,8 @@ const Layout = () => {
                 )}
               </button>
             ))}
-          </nav>
+            </nav>
+          </div>
           
           <div className="p-4 border-t border-gray-800">
             {/* ✅ Same UI, wrapped with Logout to handle logic */}
