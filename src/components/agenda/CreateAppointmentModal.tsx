@@ -145,7 +145,7 @@ const CreateAppointmentModal = ({
       onClose();
     } else {
       console.error('Errore creazione:', error.message);
-      setErrorMsg('Errore durante la creazione dell'appuntamento.');
+      setErrorMsg("Errore durante la creazione dell'appuntamento.");
     }
   };
 
