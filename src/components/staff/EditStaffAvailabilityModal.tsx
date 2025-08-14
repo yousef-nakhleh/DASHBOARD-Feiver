@@ -103,7 +103,7 @@ export default function EditStaffAvailabilityModal({
     if (!barberId || !businessId) return;
     (async () => {
       const { data } = await supabase
-        .from('barbers_availabilities')
+        .from('availability')
         .select('*')
         .eq('barber_id', barberId)
         .eq('business_id', businessId);
@@ -187,7 +187,7 @@ export default function EditStaffAvailabilityModal({
       // prima: cancelliamo le righe esistenti di QUEL giorno
       ops.push(
         supabase
-          .from('barbers_availabilities')
+          .from('availability')
           .delete()
           .eq('barber_id', barberId)
           .eq('business_id', businessId)
