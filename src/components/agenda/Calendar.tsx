@@ -92,7 +92,7 @@ const DayBarberColumn = ({
           drop: (draggedItem) => {
             // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
-              utcString: draggedItem.appointment_start,
+              utcString: draggedItem.appointment_date,
               timezone: businessTimezone,
             });
             
@@ -124,7 +124,7 @@ const DayBarberColumn = ({
 
           // Convert UTC appointment_start to local time for comparison
           const localAppointment = toLocalFromUTC({
-            utcString: a.appointment_start,
+            utcString: a.appointment_date,
             timezone: businessTimezone,
           });
           
@@ -181,7 +181,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   
   // Convert UTC appointment_start to local time for display
   const localTime = toLocalFromUTC({
-    utcString: app.appointment_start,
+    utcString: app.appointment_date,
     timezone: businessTimezone,
   });
   
@@ -197,7 +197,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
       style={{
-        height: `${(app.duration_min / 15) * slotHeight}px`,
+        height: `${((app.services?.duration_min || 30) / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
@@ -205,7 +205,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{displayTime}</span>
-        <span>{app.duration_min} min</span>
+        <span>{app.services?.duration_min || 30} min</span>
       </div>
       <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
         <div className="flex items-center">

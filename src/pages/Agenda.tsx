@@ -110,10 +110,10 @@ const Agenda = () => {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select(`id, appointment_start, duration_min, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, services ( name, price )`)
+      .select(`id, appointment_date, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, services ( name, price, duration_min )`)
       .eq('business_id', profile.business_id)
-      .gte('appointment_start', startOfFirstDay)
-      .lte('appointment_start', endOfLastDay)
+      .gte('appointment_date', startOfFirstDay)
+      .lte('appointment_date', endOfLastDay)
       .in('appointment_status', ['pending', 'confirmed']);
 
     if (error) console.error('Errore fetch appointments:', error.message);
@@ -157,7 +157,7 @@ const Agenda = () => {
     await supabase
       .from('appointments')
       .update({
-        appointment_start: newAppointmentStart,
+        appointment_date: newAppointmentStart,
         barber_id: newBarberId
       })
       .eq('id', id);
@@ -213,7 +213,7 @@ const Agenda = () => {
       <div className="h-full flex items-center justify-center">
         <p className="text-gray-600">
           Profilo non configurato: nessun <code>business_id</code> collegato.
-          Contatta l’amministratore.
+          Contatta l'amministratore.
         </p>
       </div>
     );
