@@ -57,7 +57,7 @@ const Staff = () => {
 
   const fetchAvailability = async (barberId: string, bizId: string) => {
     const { data, error } = await supabase
-      .from('barbers_availabilities')
+      .from('availability')
       .select('*')
       .eq('barber_id', barberId)
       .eq('business_id', bizId);
