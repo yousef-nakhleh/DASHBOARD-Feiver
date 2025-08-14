@@ -2,8 +2,17 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
+interface NewContact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string | null;
+  phone_number_e164: string | null;
+}
+
 interface NewContactFormProps {
-  onCreated: () => void;
+  onCreated: (newContact: NewContact) => void;
 }
 
 const constraintToMessage = (msg: string) => {
@@ -66,7 +75,7 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
     // - phone_prefix (e.g. "+39")
     // - phone_number_raw (as typed; DB trigger will normalize/build E.164)
     // - email and birthdate are optional
-    const { error } = await supabase.from('contacts').insert({
+    const { data, error } = await supabase.from('contacts').insert({
       business_id: profile.business_id,
       first_name: firstName.trim(),
       last_name: lastName.trim() || null,
@@ -74,7 +83,7 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
       phone_number_raw: raw,
       email: email.trim() || null,
       birthdate: birthdate || null,
-    });
+    }).select('id, first_name, last_name, email, phone_number_e164').single();
 
     setSaving(false);
 
@@ -88,14 +97,23 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
       return;
     }
 
-    // Success → clear form and notify parent
+    // Success → clear form and notify parent with new contact data
+    const newContact: NewContact = {
+      id: data.id,
+      first_name: data.first_name,
+      last_name: data.last_name || '',
+      full_name: `${data.first_name} ${data.last_name || ''}`.trim(),
+      email: data.email,
+      phone_number_e164: data.phone_number_e164,
+    };
+
     setFirstName('');
     setLastName('');
     setPhonePrefix('+39');
     setPhoneNumberRaw('');
     setEmail('');
     setBirthdate('');
-    onCreated();
+    onCreated(newContact);
   };
 
   return (

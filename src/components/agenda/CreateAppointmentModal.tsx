@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import ContactPickerModal from './ContactPickerModal';
-import { UserRoundSearch, X } from 'lucide-react';
+import NewContactForm from '../rubrica/NewContactForm';
+import { UserRoundSearch, X, Plus } from 'lucide-react';
 import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
 import { toUTCFromLocal, toLocalFromUTC } from '../../lib/timeUtils';
 import { useAuth } from '../auth/AuthContext'; // ✅ get business_id from profile
@@ -32,6 +33,7 @@ const CreateAppointmentModal = ({
   const [appointments, setAppointments] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
+  const [showNewContactForm, setShowNewContactForm] = useState(false);
 
   /* -------------------------------------------------- */
   useEffect(() => {
@@ -158,12 +160,27 @@ const CreateAppointmentModal = ({
     setShowContactPicker(false);
   };
 
+  const handleNewContactCreated = (newContact: any) => {
+    setCustomerName(newContact.full_name);
+    setSelectedContactId(newContact.id);
+    setShowNewContactForm(false);
+  };
+
+  const clearSelectedContact = () => {
+    setCustomerName('');
+    setSelectedContactId('');
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto transition-all duration-300 ${
+        showNewContactForm ? 'w-[1000px]' : 'w-[500px]'
+      }`}>
         {/* Header ------------------------------------------------------- */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-black">Nuovo Appuntamento</h2>
+          <h2 className="text-2xl font-bold text-black">
+            {showNewContactForm ? 'Nuovo Appuntamento + Contatto' : 'Nuovo Appuntamento'}
+          </h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
@@ -173,7 +190,9 @@ const CreateAppointmentModal = ({
         </div>
 
         {/* Body --------------------------------------------------------- */}
-        <div className="p-6 space-y-6">
+        <div className={`p-6 ${showNewContactForm ? 'flex gap-6' : 'space-y-6'}`}>
+          {/* Left Column - Appointment Form */}
+          <div className={`${showNewContactForm ? 'flex-1 space-y-6' : 'space-y-6'}`}>
           {/* Nome cliente + picker */}
           <div>
             <label className="block text-sm font-semibold text-black mb-2">Nome Cliente</label>
@@ -188,15 +207,40 @@ const CreateAppointmentModal = ({
                   }
                 }}
                 readOnly={!!selectedContactId}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black placeholder-gray-400"
+                className={`w-full border border-gray-200 rounded-xl px-4 py-3 pr-20 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black placeholder-gray-400 ${
+                  selectedContactId ? 'bg-green-50 border-green-200' : ''
+                }`}
                 placeholder={selectedContactId ? "Contatto selezionato" : "Inserisci nome cliente o seleziona dalla rubrica"}
               />
-              <button
-                onClick={() => setShowContactPicker(true)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-black transition-colors"
-              >
-                <UserRoundSearch size={20} />
-              </button>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                {selectedContactId && (
+                  <button
+                    onClick={clearSelectedContact}
+                    className="text-gray-400 hover:text-red-600 transition-colors"
+                    title="Rimuovi contatto selezionato"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowContactPicker(true)}
+                  className="text-gray-500 hover:text-black transition-colors"
+                  title="Seleziona dalla rubrica"
+                >
+                  <UserRoundSearch size={18} />
+                </button>
+                <button
+                  onClick={() => setShowNewContactForm(!showNewContactForm)}
+                  className={`transition-colors ${
+                    showNewContactForm 
+                      ? 'text-black bg-gray-100 rounded-full p-1' 
+                      : 'text-gray-500 hover:text-black'
+                  }`}
+                  title="Crea nuovo contatto"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
             </div>
             {selectedContactId && (
               <p className="text-xs text-green-600 mt-1">✓ Contatto selezionato dalla rubrica</p>
@@ -307,6 +351,18 @@ const CreateAppointmentModal = ({
           {errorMsg && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
+            </div>
+          )}
+          </div>
+
+          {/* Right Column - New Contact Form */}
+          {showNewContactForm && (
+            <div className="flex-1 border-l border-gray-200 pl-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-black mb-2">Nuovo Contatto</h3>
+                <p className="text-sm text-gray-600">Crea un nuovo contatto che verrà automaticamente selezionato per questo appuntamento.</p>
+              </div>
+              <NewContactForm onCreated={handleNewContactCreated} />
             </div>
           )}
         </div>
