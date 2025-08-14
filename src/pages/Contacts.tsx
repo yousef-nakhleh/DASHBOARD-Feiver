@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
-import NewContactForm from '../components/rubrica/NewContactForm';
-import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
+import NewContactModal from '../components/contacts/NewContactModal';
 import { supabase } from '../lib/supabase';
 
 const Contacts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
-  const [showCreateContactForm, setShowCreateContactForm] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showNewContactModal, setShowNewContactModal] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
   const fetchClients = useCallback(async () => {
@@ -79,7 +77,7 @@ const Contacts: React.FC = () => {
           <p className="text-gray-600">Gestisci i contatti dei clienti</p>
         </div>
         <button
-          onClick={() => setShowCreateContactForm(true)}
+          onClick={() => setShowNewContactModal(true)}
           className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
         >
           <Plus size={18} className="mr-2" />
@@ -133,25 +131,7 @@ const Contacts: React.FC = () => {
         </div>
 
         <div className="md:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          {showCreateContactForm ? (
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-black">Nuovo Cliente</h2>
-                <button
-                  onClick={() => setShowCreateContactForm(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-              <NewContactForm 
-                onCreated={() => {
-                  setShowCreateContactForm(false);
-                  fetchClients();
-                }} 
-              />
-            </div>
-          ) : selectedClientData ? (
+          {selectedClientData ? (
             <div className="p-6">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center">
@@ -206,12 +186,7 @@ const Contacts: React.FC = () => {
                       {selectedClientData.nextVisit ? (
                         <span className="text-black">Prossima visita: {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT')}</span>
                       ) : (
-                        <button
-                          onClick={() => setShowCreateModal(true)}
-                          className="text-sm text-black underline hover:text-gray-600 transition-colors font-medium"
-                        >
-                          Prenota ora →
-                        </button>
+                        <span className="text-black">Nessuna visita programmata</span>
                       )}
                     </div>
                   </div>
@@ -232,12 +207,14 @@ const Contacts: React.FC = () => {
         </div>
       </div>
 
-      {showCreateModal && (
-        <CreateAppointmentModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={fetchClients}
+      <NewContactModal
+        isOpen={showNewContactModal}
+        onClose={() => setShowNewContactModal(false)}
+        onCreated={() => {
+          fetchClients();
+          setShowNewContactModal(false);
+        }}
         />
-      )}
     </div>
   );
 };
