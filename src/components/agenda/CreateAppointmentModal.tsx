@@ -7,7 +7,7 @@ import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
 import { toUTCFromLocal, toLocalFromUTC } from '../../lib/timeUtils';
 import { useAuth } from '../auth/AuthContext'; // ✅ get business_id from profile
 
-const CreateAppointmentModal = ({
+const CreateAppointmentModal = ({ 
   businessTimezone, 
   onClose,
   onCreated,
