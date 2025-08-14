@@ -10,7 +10,6 @@ import Trattamenti from './pages/Trattamenti';
 import Statistiche from './pages/Statistiche';
 import Magazzino from './pages/Magazzino';
 import StaffAvailability from './pages/StaffAvailability';
-import Settings from './pages/Settings';
 import PaymentPage from './components/payment/PaymentPage';
 import Voiceflow from './pages/Voiceflow';
 import WaitingList from './pages/WaitingList';
@@ -63,7 +62,6 @@ function App() {
               <Route path="vapi" element={<Vapi />} />
               <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
               <Route path="exceptions" element={<ClosingExceptions />} />
-              <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route> 

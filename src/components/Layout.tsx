@@ -10,7 +10,6 @@ import {
   Users,
   Wallet,
   Tag,
-  Settings,
   Menu,
   X,
   LogOut,
@@ -52,7 +51,6 @@ const sidebarItems = [
   { path: '/Voiceflow', name: 'ChatBot', icon: <MessageSquare size={20} /> },
   { path: '/waiting-list', name: 'Lista d\'Attesa', icon: <Clock size={20} /> },
   { path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> },
-  { path: '/settings', name: 'Impostazioni', icon: <Settings size={20} /> },
 ];
 
 const Layout = () => {
