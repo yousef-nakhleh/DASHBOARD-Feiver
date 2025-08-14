@@ -158,7 +158,7 @@ const Agenda = () => {
       .from('appointments')
       .update({
         appointment_date: newAppointmentStart,
-        barber_id: newBarberId
+        barber_id: newBarberId,
       })
       .eq('id', id);
 
