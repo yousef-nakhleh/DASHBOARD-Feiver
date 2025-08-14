@@ -19,6 +19,7 @@ const CreateAppointmentModal = ({
   const businessId = profile?.business_id; // ✅ dynamic business id
 
   const [customerName, setCustomerName] = useState('');
+  const [selectedContactId, setSelectedContactId] = useState('');
   const [services, setServices] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
   const [selectedService, setSelectedService] = useState('');
@@ -105,7 +106,10 @@ const CreateAppointmentModal = ({
       setErrorMsg('Profilo non configurato: nessun business associato. Contatta l\'amministratore.');
       return;
     }
-    if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
+    if (!selectedDate || !selectedTime || !selectedService || !selectedBarber || !selectedContactId) {
+      setErrorMsg('Tutti i campi sono obbligatori, inclusa la selezione di un contatto.');
+      return;
+    }
 
     // Convert local business time to UTC for storage
     const appointmentStartUTC = toUTCFromLocal({
@@ -131,7 +135,7 @@ const CreateAppointmentModal = ({
 
     const { error } = await supabase.from('appointments').insert([
       {
-        customer_name:     customerName,
+        contact_id:        selectedContactId,
         service_id:        selectedService,
         barber_id:         selectedBarber,
         appointment_date: appointmentStartUTC,
@@ -151,6 +155,7 @@ const CreateAppointmentModal = ({
 
   const handleSelectContact = (contact) => {
     setCustomerName(contact.customer_name);
+    setSelectedContactId(contact.id);
     setShowContactPicker(false);
   };
 
@@ -177,9 +182,15 @@ const CreateAppointmentModal = ({
               <input
                 type="text"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  if (selectedContactId) {
+                    setSelectedContactId(''); // Clear selected contact if user types manually
+                  }
+                }}
+                readOnly={!!selectedContactId}
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black placeholder-gray-400"
-                placeholder="Inserisci nome cliente"
+                placeholder={selectedContactId ? "Contatto selezionato" : "Inserisci nome cliente o seleziona dalla rubrica"}
               />
               <button
                 onClick={() => setShowContactPicker(true)}
@@ -188,6 +199,9 @@ const CreateAppointmentModal = ({
                 <UserRoundSearch size={20} />
               </button>
             </div>
+            {selectedContactId && (
+              <p className="text-xs text-green-600 mt-1">✓ Contatto selezionato dalla rubrica</p>
+            )}
           </div>
 
           {/* Servizio */}
