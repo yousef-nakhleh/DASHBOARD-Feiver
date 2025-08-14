@@ -344,7 +344,7 @@ const Agenda = () => {
           onClose={handlePanelClose}
           onUpdated={handlePanelUpdated}
         />
-      />
+      )}
     </div>
   );
 };
