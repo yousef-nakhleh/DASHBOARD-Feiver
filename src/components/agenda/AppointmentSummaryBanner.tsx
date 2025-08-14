@@ -5,12 +5,12 @@ import { toLocalFromUTC } from '../../lib/timeUtils';
 const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay, onDelete, onClose }) => {
   if (!appointment) return null;
 
-  // Convert UTC appointment_start to local time for display
+  // Convert appointment_date (timestamptz) to local time for display
   const localTime = toLocalFromUTC({
-    utcString: appointment.appointment_start,
+    utcString: appointment.appointment_date,
     timezone: businessTimezone,
   });
-  
+
   const displayDate = localTime.toFormat('yyyy-MM-dd');
   const displayTime = localTime.toFormat('HH:mm');
 
@@ -52,7 +52,11 @@ const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Durata</span>
-              <p className="text-lg font-semibold text-black mt-1">{appointment.duration_min} minuti</p>
+              <p className="text-lg font-semibold text-black mt-1">
+                {appointment.services?.duration_min
+                  ? `${appointment.services.duration_min} minuti`
+                  : 'Non disponibile'}
+              </p>
             </div>
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Pagamento</span>
