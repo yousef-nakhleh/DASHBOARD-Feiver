@@ -13,6 +13,7 @@ import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal'
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import Dropdown from '../components/ui/Dropdown';
 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -219,22 +220,11 @@ const Agenda = () => {
   }
 
   return (
-    <div className="h-full space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-black mb-2">Agenda</h1>
-          <p className="text-gray-600">Gestisci gli appuntamenti del salone</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
-        >
-          <Plus size={18} className="mr-2" /> Nuovo Appuntamento
-        </button>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+    <div className="h-full flex flex-col">
+      {/* Consolidated Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left side: Date navigation */}
           <div className="flex items-center gap-3">
             {dateButtons.map((date, i) => (
               <button
@@ -272,6 +262,57 @@ const Agenda = () => {
             </div>
           </div>
 
+          {/* Center: Search, Staff, View Mode */}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder="Cerca cliente o servizio"
+                className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <Dropdown
+              value={selectedBarber}
+              onChange={setSelectedBarber}
+              options={[
+                { value: 'Tutti', label: 'Tutti' },
+                ...barbers.map(barber => ({ value: barber.id, label: barber.name }))
+              ]}
+              className="w-40"
+            />
+            
+            <Dropdown
+              value={viewMode}
+              onChange={(value) => setViewMode(value as 'day' | '3day' | 'week')}
+              options={[
+                { value: 'day', label: 'Giorno' },
+                { value: '3day', label: '3 Giorni' },
+                { value: 'week', label: 'Settimana' }
+              ]}
+              className="w-32"
+            />
+          </div>
+          
+          {/* Right side: New Appointment button */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
+          >
+            <Plus size={18} className="mr-2" /> Nuovo Appuntamento
+          </button>
+        </div>
+      </div>
+
+      {/* Main Calendar Container */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <div className="relative">
             <Search
               size={18}
@@ -285,48 +326,6 @@ const Agenda = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
-
-        <div className="flex space-x-2 px-6 pt-4">
-          {['day', '3day', 'week'].map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode as 'day' | '3day' | 'week')}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                viewMode === mode
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {mode === 'day' ? 'Giorno' : mode === '3day' ? '3 Giorni' : 'Settimana'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex space-x-2 overflow-x-auto p-6 border-b border-gray-100">
-          <button
-            onClick={() => setSelectedBarber('Tutti')}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-              selectedBarber === 'Tutti'
-                ? 'bg-black text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Tutti
-          </button>
-          {barbers.map((barber) => (
-            <button
-              key={barber.id}
-              onClick={() => setSelectedBarber(barber.id)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                selectedBarber === barber.id
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {barber.name}
-            </button>
-          ))}
         </div>
 
         <div className="flex-1 overflow-hidden">
