@@ -1,4 +1,10 @@
-// [...] (imports unchanged)
+// src/components/staff/EditStaffAvailabilityModal.tsx
+import React from 'react';
+import { useDrop, useDrag } from 'react-dnd';
+import { User } from 'lucide-react';
+import { toLocalFromUTC } from '../../lib/timeUtils';
+
+const slotHeight = 40;
 
 export const Calendar = ({
   timeSlots,
@@ -6,10 +12,10 @@ export const Calendar = ({
   businessTimezone,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,
+  onEmptySlotClick,      // ✅ nuova prop
   barbers,
   selectedBarber,
-  datesInView = [],
+  datesInView = [], 
 }) => {
   const barbersToRender =
     selectedBarber === 'Tutti'
@@ -41,7 +47,7 @@ export const Calendar = ({
         <div className="flex-1 overflow-x-auto bg-white">
           <div className="flex min-w-full">
             {datesInView.map((date) => {
-              const dateStr = date.toISOString().split('T')[0];
+              const dateStr = date.toISOString().split('T')[0]; 
               return barbersToRender.map((barber) => (
                 <DayBarberColumn
                   key={`${dateStr}-${barber.id}`}
@@ -84,19 +90,17 @@ const DayBarberColumn = ({
         const [, drop] = useDrop({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
+            // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
-              utcString: draggedItem.appointment_date, // ✅ updated field
+              utcString: draggedItem.appointment_start,
               timezone: businessTimezone,
             });
-
+            
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
-
-            if (
-              currentTime !== slot.time ||
-              currentDate !== date ||
-              draggedItem.barber_id !== barber.id
-            ) {
+            
+            // Only update if something actually changed
+            if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
               onDrop(draggedItem.id, {
                 newTime: `${slot.time}:00`,
                 newDate: date,
@@ -106,8 +110,9 @@ const DayBarberColumn = ({
           },
         });
 
+        // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
-        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000);
+        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
 
         const apps = appointments.filter((a) => {
           if (
@@ -117,19 +122,16 @@ const DayBarberColumn = ({
             return false;
           }
 
+          // Convert UTC appointment_start to local time for comparison
           const localAppointment = toLocalFromUTC({
-            utcString: a.appointment_date, // ✅ updated field
+            utcString: a.appointment_start,
             timezone: businessTimezone,
           });
-
+          
           const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
           const appointmentStart = localAppointment.toJSDate();
-
-          return (
-            appointmentDate === date &&
-            appointmentStart >= slotStart &&
-            appointmentStart < slotEnd
-          );
+          
+          return appointmentDate === date && appointmentStart >= slotStart && appointmentStart < slotEnd;
         });
 
         const isEmpty = apps.length === 0;
@@ -176,12 +178,13 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   });
 
   const isPaid = app.paid === true;
-
+  
+  // Convert UTC appointment_start to local time for display
   const localTime = toLocalFromUTC({
-    utcString: app.appointment_date, // ✅ updated field
+    utcString: app.appointment_start,
     timezone: businessTimezone,
   });
-
+  
   const displayTime = localTime.toFormat('HH:mm');
 
   return (
@@ -219,4 +222,4 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
       </div>
     </div>
   );
-};
+}; 
