@@ -9,10 +9,7 @@ import { formatDateToYYYYMMDDLocal } from '../lib/utils';
 import { toUTCFromLocal } from '../lib/timeUtils';
 
 import { Calendar } from '../components/agenda/Calendar';
-import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
-import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
-import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
-import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import AppointmentDetailsPanel from '../components/agenda/AppointmentDetailsPanel';
 import Dropdown from '../components/ui/Dropdown';
 
 import DatePicker from 'react-datepicker';
@@ -55,20 +52,18 @@ const Agenda = () => {
   const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
-  const [paymentPrefill, setPaymentPrefill] = useState({});
+  // Panel state
+  const [showDetailsPanel, setShowDetailsPanel] = useState(false);
+  const [panelAppointment, setPanelAppointment] = useState<any | null>(null);
+  const [panelInitialData, setPanelInitialData] = useState<{
+    barberId?: string;
+    date?: string;
+    time?: string;
+  }>({});
+  
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [slotPrefill, setSlotPrefill] = useState<{
-    date: string;
-    time: string;
-    barberId: string;
-  } | null>(null);
 
   const timeSlots = generateTimeSlots();
 
@@ -110,7 +105,7 @@ const Agenda = () => {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select(`id, appointment_date, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, services ( name, price, duration_min )`)
+      .select(`id, appointment_date, contact:contact_id ( id, first_name, last_name ), barber_id, service_id, appointment_status, paid, business_id, services ( name, price, duration_min )`)
       .eq('business_id', profile.business_id)
       .gte('appointment_date', startOfFirstDay)
       .lte('appointment_date', endOfLastDay)
@@ -165,26 +160,36 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  const handleDelete = async () => {
-    if (!selectedAppointment) return;
-    await supabase
-      .from('appointments')
-      .update({ appointment_status: 'cancelled' })
-      .eq('id', selectedAppointment.id);
-    setSelectedAppointment(null);
-    fetchAppointments();
+  const handleClickAppointment = (appointment: any) => {
+    setPanelAppointment(appointment);
+    setPanelInitialData({});
+    setShowDetailsPanel(true);
   };
 
-  const handlePay = () => {
-    if (!selectedAppointment) return;
-    setPaymentPrefill({
-      appointment_id: selectedAppointment.id,
-      barber_id: selectedAppointment.barber_id,
-      service_id: selectedAppointment.service_id,
-      price: selectedAppointment.services?.price || 0,
-      customer_name: `${selectedAppointment.contact?.first_name || ''} ${selectedAppointment.contact?.last_name || ''}`.trim(),
+  const handleEmptySlotClick = (barberId: string, date: string, time: string) => {
+    setPanelAppointment(null);
+    setPanelInitialData({ barberId, date, time });
+    setShowDetailsPanel(true);
+  };
+
+  const handleNewAppointment = () => {
+    setPanelAppointment(null);
+    setPanelInitialData({
+      date: formatDateToYYYYMMDDLocal(selectedDate),
+      time: '07:00'
     });
-    setShowPaymentPanel(true);
+    setShowDetailsPanel(true);
+  };
+
+  const handlePanelUpdated = () => {
+    fetchAppointments();
+    setShowDetailsPanel(false);
+  };
+
+  const handlePanelClose = () => {
+    setShowDetailsPanel(false);
+    setPanelAppointment(null);
+    setPanelInitialData({});
   };
 
   const filtered =
@@ -288,7 +293,7 @@ const Agenda = () => {
           
           {/* Right side: New Appointment button */}
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={handleNewAppointment}
             className="bg-black text-white px-6 py-2 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
           >
             <Plus size={18} className="mr-2" /> Nuovo Appuntamento
@@ -323,66 +328,22 @@ const Agenda = () => {
             selectedBarber={selectedBarber}
             datesInView={getDatesInView(selectedDate, viewMode)}
             onDrop={updateAppointmentTime}
-            onClickAppointment={(app) => setSelectedAppointment(app)}
-            onEmptySlotClick={(barberId, date, time) => {
-              setSlotPrefill({ barberId, date, time });
-              setShowCreateModal(true);
-            }}
+            onClickAppointment={handleClickAppointment}
+            onEmptySlotClick={handleEmptySlotClick}
           />
         </div>
       </div>
 
-      {selectedAppointment && (
-        <AppointmentSummaryBanner
-          appointment={selectedAppointment}
+      {showDetailsPanel && (
+        <AppointmentDetailsPanel
+          appointment={panelAppointment}
+          initialBarberId={panelInitialData.barberId}
+          initialDate={panelInitialData.date}
+          initialTime={panelInitialData.time}
           businessTimezone={businessTimezone}
-          onClose={() => setSelectedAppointment(null)}
-          onPay={handlePay}
-          onEdit={() => setShowEditModal(true)}
-          onDelete={handleDelete}
-        /> 
-      )}
-
-      {showEditModal && selectedAppointment && (
-        <EditAppointmentModal
-          appointment={selectedAppointment}
-          businessTimezone={businessTimezone}
-          onClose={() => setShowEditModal(false)}
-          onUpdated={() => {
-            setShowEditModal(false);
-            setSelectedAppointment(null);
-            fetchAppointments();
-          }}
+          onClose={handlePanelClose}
+          onUpdated={handlePanelUpdated}
         />
-      )}
-
-      {showCreateModal && (
-        <CreateAppointmentModal
-          businessTimezone={businessTimezone}
-          initialBarberId={slotPrefill?.barberId || ''}
-          initialDate={slotPrefill?.date || selectedDate.toISOString().split('T')[0]}
-          initialTime={slotPrefill?.time || '07:00'}
-          onClose={() => {
-            setShowCreateModal(false);
-            setSlotPrefill(null);
-          }}
-          onCreated={() => {
-            setShowCreateModal(false);
-            setSlotPrefill(null);
-            fetchAppointments();
-          }}
-        />
-      )}
-
-      <SlidingPanelPayment
-        visible={showPaymentPanel}
-        prefill={paymentPrefill}
-        onClose={() => setShowPaymentPanel(false)}
-        businessId={profile?.business_id}
-        onSuccess={() => {
-          setShowPaymentPanel(false);
-          fetchAppointments();
-        }}
       />
     </div>
   );
