@@ -1,110 +1,328 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { TimePicker } from '@/components/ui/time-picker';
-import { toUTCFromLocal } from '@/lib/timeUtils';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { format, set } from 'date-fns';
+// src/components/agenda/CreateAppointmentModal.tsx
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import ContactPickerModal from './ContactPickerModal';
+import { UserRoundSearch, X } from 'lucide-react';
+import { formatDateToYYYYMMDDLocal } from '../../lib/utils';
+import { toUTCFromLocal, toLocalFromUTC } from '../../lib/timeUtils';
+import { useAuth } from '../auth/AuthContext'; // ✅ get business_id from profile
+ 
+const CreateAppointmentModal = ({ 
+  businessTimezone, 
+  onClose,
+  onCreated,
+  initialBarberId = '',
+  initialDate = '',
+  initialTime = '',
+}) => {
+  const { profile } = useAuth();                 // ✅ pull profile from context
+  const businessId = profile?.business_id; // ✅ dynamic business id
 
-const CreateAppointmentModal = ({ isOpen, onClose, businessTimezone, selectedDate, barbers, services, onAppointmentCreated }) => {
-  const supabase = useSupabaseClient();
   const [customerName, setCustomerName] = useState('');
-  const [selectedService, setSelectedService] = useState(null);
-  const [selectedBarber, setSelectedBarber] = useState(null);
-  const [date, setDate] = useState(selectedDate || new Date());
-  const [time, setTime] = useState('12:00');
+  const [services, setServices] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedBarber, setSelectedBarber] = useState(initialBarberId);
+  const [selectedDate, setSelectedDate] = useState(
+    initialDate || formatDateToYYYYMMDDLocal(new Date())
+  );
+  const [selectedTime, setSelectedTime] = useState(initialTime || '07:00');
+  const [duration, setDuration] = useState(30);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showContactPicker, setShowContactPicker] = useState(false);
 
+  /* -------------------------------------------------- */
   useEffect(() => {
-    if (selectedDate) setDate(selectedDate);
-  }, [selectedDate]);
+    if (!businessId) {
+      console.log("CreateAppointmentModal: No business_id available, skipping data fetch");
+      return; // wait until profile loads
+    }
+
+    const fetchData = async () => {
+      const { data: servicesData } = await supabase
+        .from('services')
+        .select('*')
+        .eq('business_id', businessId);
+
+      const { data: barbersData } = await supabase
+        .from('barbers')
+        .select('*')
+        .eq('business_id', businessId);
+
+      setServices(servicesData || []);
+      setBarbers(barbersData || []);
+    };
+    fetchData();
+  }, [businessId]);
+
+  /* ---------- ONLY CHANGE: exclude cancelled -------- */
+  useEffect(() => {
+    if (!businessId) {
+      console.log("CreateAppointmentModal: No business_id for appointments fetch");
+      return;
+    }
+
+    const fetchAppointments = async () => {
+      if (!selectedDate || !selectedBarber) return;
+      
+      // Get UTC range for the selected date
+      const startOfDay = toUTCFromLocal({
+        date: selectedDate,
+        time: '00:00',
+        timezone: businessTimezone,
+      });
+      const endOfDay = toUTCFromLocal({
+        date: selectedDate,
+        time: '23:59',
+        timezone: businessTimezone,
+      });
+      
+      const { data } = await supabase
+        .from('appointments')
+        .select('appointment_start, duration_min')
+        .eq('barber_id', selectedBarber)
+        .eq('business_id', businessId)             // ✅ dynamic filter
+        .gte('appointment_start', startOfDay)
+        .lte('appointment_start', endOfDay)
+        .or('appointment_status.is.null,appointment_status.neq.cancelled');   // ✅ include NULL + exclude cancelled
+
+      setAppointments(data || []);
+    };
+    fetchAppointments();
+  }, [selectedDate, selectedBarber, businessTimezone, businessId]);
+  /* ----------------------------------------------- */
+
+  const handleServiceChange = (e) => {
+    const selectedId = e.target.value;
+    setSelectedService(selectedId);
+    const matchedService = services.find((s) => s.id === selectedId);
+    if (matchedService) setDuration(matchedService.duration_min);
+  };
 
   const handleCreate = async () => {
-    if (!customerName || !selectedService || !selectedBarber || !time) return;
+    if (!businessId) {
+      setErrorMsg('Profilo non configurato: nessun business associato. Contatta l\'amministratore.');
+      return;
+    }
+    if (!selectedDate || !selectedTime || !selectedService || !selectedBarber) return;
 
-    const [hours, minutes] = time.split(':').map(Number);
-    const localDateTime = set(date, { hours, minutes });
+    // Convert local business time to UTC for storage
+    const appointmentStartUTC = toUTCFromLocal({
+      date: selectedDate,
+      time: selectedTime,
+      timezone: businessTimezone,
+    });
 
-    const appointmentDateUTC = toUTCFromLocal({ localDateTime, timezone: businessTimezone });
+    // For overlap checking, compare entirely in UTC
+    const start = new Date(appointmentStartUTC);
+    const end   = new Date(start.getTime() + duration * 60000);
+
+    const overlap = appointments.some((appt) => {
+      const apptStart = new Date(appt.appointment_start);
+      const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
+      return start < apptEnd && end > apptStart;
+    });
+
+    if (overlap) {
+      setErrorMsg('Questo orario è già occupato.');
+      return;
+    }
 
     const { error } = await supabase.from('appointments').insert([
       {
-        contact_name: customerName,
-        service_id: selectedService,
-        barber_id: selectedBarber,
-        appointment_date: appointmentDateUTC.toISO(),
+        customer_name:     customerName,
+        service_id:        selectedService,
+        barber_id:         selectedBarber,
+        appointment_start: appointmentStartUTC,
+        duration_min:      duration,
+        business_id:       businessId, // ✅ dynamic business id on insert
       },
     ]);
 
     if (!error) {
-      onAppointmentCreated();
+      onCreated();
       onClose();
     } else {
-      console.error('Errore nella creazione:', error.message);
+      console.error('Errore creazione:', error.message);
+      setErrorMsg('Errore durante la creazione dell’appuntamento.');
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <h2 className="text-xl font-bold mb-4">Nuovo Appuntamento</h2>
+  const handleSelectContact = (contact) => {
+    setCustomerName(contact.customer_name);
+    setShowContactPicker(false);
+  };
 
-        <div className="space-y-3">
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+        {/* Header ------------------------------------------------------- */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-black">Nuovo Appuntamento</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X size={20} className="text-black" />
+          </button>
+        </div>
+
+        {/* Body --------------------------------------------------------- */}
+        <div className="p-6 space-y-6">
+          {/* Nome cliente + picker */}
           <div>
-            <Label>Nome Cliente</Label>
-            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <label className="block text-sm font-semibold text-black mb-2">Nome Cliente</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black placeholder-gray-400"
+                placeholder="Inserisci nome cliente"
+              />
+              <button
+                onClick={() => setShowContactPicker(true)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-black transition-colors"
+              >
+                <UserRoundSearch size={20} />
+              </button>
+            </div>
           </div>
 
+          {/* Servizio */}
           <div>
-            <Label>Servizio</Label>
+            <label className="block text-sm font-semibold text-black mb-2">Servizio</label>
             <select
-              className="w-full border rounded px-2 py-1"
-              value={selectedService || ''}
-              onChange={(e) => setSelectedService(e.target.value)}
+              value={selectedService}
+              onChange={handleServiceChange}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
-              <option value="">Seleziona un servizio</option>
+              <option value="" className="text-gray-400">Seleziona servizio</option>
               {services.map((service) => (
-                <option key={service.uuid} value={service.uuid}>
-                  {service.name} ({service.duration_min} min)
+                <option key={service.id} value={service.id} className="text-black">
+                  {service.name}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Barbiere */}
           <div>
-            <Label>Barbiere</Label>
+            <label className="block text-sm font-semibold text-black mb-2">Barbiere</label>
             <select
-              className="w-full border rounded px-2 py-1"
-              value={selectedBarber || ''}
-              onChange={(e) => setSelectedBarber(e.target.value)}
+              value={selectedBarber}
+             onChange={(e) => setSelectedBarber(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
-              <option value="">Seleziona un barbiere</option>
+              <option value="" className="text-gray-400">Seleziona barbiere</option>
               {barbers.map((barber) => (
-                <option key={barber.uuid} value={barber.uuid}>
+                <option key={barber.id} value={barber.id} className="text-black">
                   {barber.name}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <Label>Data</Label>
-            <Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md border" />
+          {/* Data & Durata */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Data</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-black mb-2">Durata (minuti)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+              />
+            </div>
           </div>
 
+          {/* Orario */}
           <div>
-            <Label>Orario</Label>
-            <TimePicker value={time} onChange={setTime} />
+            <label className="block text-sm font-semibold text-black mb-2">Orario</label>
+            <select
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+            >
+              {Array.from({ length: 90 }, (_, i) => {
+                const hour   = 6 + Math.floor(i / 6);
+                const minute = (i % 6) * 10;
+                const time   = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+                // Build candidate slot in UTC using business timezone
+                const candidateStartUTC = toUTCFromLocal({
+                  date: selectedDate,
+                  time,
+                  timezone: businessTimezone,
+                });
+                const slotStart = new Date(candidateStartUTC);
+                const slotEnd   = new Date(slotStart.getTime() + duration * 60000);
+
+                const isOccupied = appointments.some((appt) => {
+                  // Compare entirely in UTC
+                  const apptStart = new Date(appt.appointment_start);
+                  const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                  return slotStart < apptEnd && slotEnd > apptStart;
+                });
+
+                return (
+                  <option
+                    key={time}
+                    value={time}
+                    disabled={isOccupied}
+                    className={isOccupied ? 'text-gray-400 line-through' : 'text-black'}
+                  >
+                    {time} {isOccupied ? '(occupato)' : ''}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          <Button className="w-full mt-4" onClick={handleCreate}>
-            Crea Appuntamento
-          </Button>
+          {/* Error */}
+          {errorMsg && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
+            </div>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* Footer -------------------------------------------------------- */}
+        <div className="flex justify-end space-x-3 p-6 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+          >
+            Annulla
+          </button>
+          <button
+            onClick={handleCreate}
+            className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 font-medium transition-colors"
+          >
+            Crea Appuntamento
+          </button>
+        </div>
+
+        {/* Picker Modal */}
+        {showContactPicker && (
+          <ContactPickerModal
+            onSelect={handleSelectContact}
+            onClose={() => setShowContactPicker(false)}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 
