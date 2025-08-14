@@ -29,7 +29,7 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
   const [edited, setEdited] = useState<any>(() => {
     // Convert UTC appointment_start to local time for editing
     const localTime = toLocalFromUTC({
-      utcString: appointment.appointment_start,
+      utcString: appointment.appointment_date,
       timezone: businessTimezone,
     });
     
@@ -69,11 +69,11 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
       
       const { data } = await supabase
         .from('appointments')
-        .select('appointment_start, duration_min, id')
+        .select('appointment_date, services(duration_min), id')
         .eq('barber_id', appointment.barber_id)
         .eq('business_id', appointment.business_id)
-        .gte('appointment_start', startOfDay)
-        .lte('appointment_start', endOfDay)
+        .gte('appointment_date', startOfDay)
+        .lte('appointment_date', endOfDay)
         .in('appointment_status', ['pending', 'confirmed']);
 
       const blocked = new Set<string>();
@@ -83,11 +83,11 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
         
         // Convert UTC appointment_start to local time for comparison
         const localAppt = toLocalFromUTC({
-          utcString: a.appointment_start,
+          utcString: a.appointment_date,
           timezone: businessTimezone,
         });
         const start = new Date(`2000-01-01T${localAppt.toFormat('HH:mm')}:00`);
-        const end   = new Date(start.getTime() + a.duration_min * 60000);
+        const end   = new Date(start.getTime() + (a.services?.duration_min || 30) * 60000);
 
         for (let t of TIMES) {
           const ts = new Date(`2000-01-01T${t}:00`);
@@ -123,7 +123,7 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
       .update({
         customer_name:    edited.customer_name,
         service_id:       edited.service_id,
-        appointment_start: appointmentStartUTC,
+        appointment_date: appointmentStartUTC,
         duration_min:     edited.duration_min,
       })
       .eq('id', edited.id);

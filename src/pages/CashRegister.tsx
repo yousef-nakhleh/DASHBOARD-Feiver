@@ -18,10 +18,10 @@ const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
 
 type AppointmentRow = {
   id: string;
-  appointment_start: string; // DB timestamp (UTC by convention), e.g. "2025-08-13 14:30:00"
+  appointment_date: string; // DB timestamp (UTC by convention), e.g. "2025-08-13 14:30:00"
   paid: boolean | null;
   appointment_status: "pending" | "confirmed" | "cancelled" | null;
-  service?: { id: string; name: string; price: number | null } | null;
+  service?: { id: string; name: string; price: number | null; duration_min: number | null } | null;
   barber?: { id: string; name: string | null } | null;
   contact?: { id: string; full_name: string | null } | null;
 };
@@ -128,17 +128,17 @@ export default function CashRegister() {
           .select(
             `
             id,
-            appointment_start,
+            appointment_date,
             paid,
             appointment_status,
-            service:service_id ( id, name, price ),
+            service:service_id ( id, name, price, duration_min ),
             barber:barber_id ( id, name ),
             contact:contact_id ( id, full_name )
           `
           )
           .eq("business_id", businessId)
-          .gte("appointment_start", fromUTC)
-          .lte("appointment_start", toUTC)
+          .gte("appointment_date", fromUTC)
+          .lte("appointment_date", toUTC)
           .order("appointment_start", { ascending: true });
 
         if (error) throw error;
@@ -146,7 +146,7 @@ export default function CashRegister() {
         const mapped: UiAppointment[] =
           (data as AppointmentRow[] | null)?.map((a) => {
             const time = toLocalFromUTC({
-              utcString: a.appointment_start,
+              utcString: a.appointment_date,
               timezone: businessTimezone,
             }).toFormat('HH:mm');
             
@@ -363,17 +363,17 @@ export default function CashRegister() {
         .select(
           `
           id,
-          appointment_start,
+          appointment_date,
           paid,
           appointment_status,
-          service:service_id ( id, name, price ),
+          service:service_id ( id, name, price, duration_min ),
           barber:barber_id ( id, name ),
           contact:contact_id ( id, full_name )
         `
         )
         .eq("business_id", businessId)
-        .gte("appointment_start", fromUTC)
-        .lte("appointment_start", toUTC)
+          .gte("appointment_date", fromUTC)
+          .lte("appointment_date", toUTC)
         .order("appointment_start", { ascending: true });
 
       if (error) throw error;

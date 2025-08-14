@@ -80,11 +80,11 @@ const CreateAppointmentModal = ({
       
       const { data } = await supabase
         .from('appointments')
-        .select('appointment_start, duration_min')
+        .select('appointment_date, services(duration_min)')
         .eq('barber_id', selectedBarber)
         .eq('business_id', businessId)             // ✅ dynamic filter
-        .gte('appointment_start', startOfDay)
-        .lte('appointment_start', endOfDay)
+        .gte('appointment_date', startOfDay)
+        .lte('appointment_date', endOfDay)
         .or('appointment_status.is.null,appointment_status.neq.cancelled');   // ✅ include NULL + exclude cancelled
 
       setAppointments(data || []);
@@ -119,8 +119,8 @@ const CreateAppointmentModal = ({
     const end   = new Date(start.getTime() + duration * 60000);
 
     const overlap = appointments.some((appt) => {
-      const apptStart = new Date(appt.appointment_start);
-      const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
+      const apptStart = new Date(appt.appointment_date);
+      const apptEnd   = new Date(apptStart.getTime() + (appt.services?.duration_min || 30) * 60000);
       return start < apptEnd && end > apptStart;
     });
 
@@ -134,7 +134,7 @@ const CreateAppointmentModal = ({
         customer_name:     customerName,
         service_id:        selectedService,
         barber_id:         selectedBarber,
-        appointment_start: appointmentStartUTC,
+        appointment_date: appointmentStartUTC,
         duration_min:      duration,
         business_id:       businessId, // ✅ dynamic business id on insert
       },
@@ -145,7 +145,7 @@ const CreateAppointmentModal = ({
       onClose();
     } else {
       console.error('Errore creazione:', error.message);
-      setErrorMsg('Errore durante la creazione dell’appuntamento.');
+      setErrorMsg('Errore durante la creazione dell'appuntamento.');
     }
   };
 
@@ -271,8 +271,8 @@ const CreateAppointmentModal = ({
 
                 const isOccupied = appointments.some((appt) => {
                   // Compare entirely in UTC
-                  const apptStart = new Date(appt.appointment_start);
-                  const apptEnd   = new Date(apptStart.getTime() + appt.duration_min * 60000);
+                  const apptStart = new Date(appt.appointment_date);
+                  const apptEnd   = new Date(apptStart.getTime() + (appt.services?.duration_min || 30) * 60000);
                   return slotStart < apptEnd && slotEnd > apptStart;
                 });
 

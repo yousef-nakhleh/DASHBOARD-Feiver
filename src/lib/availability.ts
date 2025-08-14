@@ -11,11 +11,11 @@ export async function getAvailableTimeSlots(
 ) {
   const { data: appointments, error } = await supabase
     .from('appointments')
-    .select('appointment_start, duration_min')
+    .select('appointment_date, services(duration_min)')
     .eq('appointment_date', date)
     .eq('barber_id', barberId)
     .in('appointment_status', ['pending', 'confirmed'])
-    .order('appointment_start', { ascending: true });
+    .order('appointment_date', { ascending: true });
 
   if (error) {
     console.error('Failed to fetch appointments:', error);
@@ -27,10 +27,10 @@ export async function getAvailableTimeSlots(
 
   const appointmentRanges = appointments.map((a) => {
     const start = toLocalFromUTC({
-      utcString: a.appointment_start,
+      utcString: a.appointment_date,
       timezone: businessTimezone,
     });
-    const end = start.plus({ minutes: a.duration_min });
+    const end = start.plus({ minutes: a.services?.duration_min || 30 });
     return { start, end };
   });
 

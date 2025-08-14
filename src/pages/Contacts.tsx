@@ -25,8 +25,8 @@ const Contacts: React.FC = () => {
       (contacts || []).map(async (contact) => {
         const { data: appointments } = await supabase
           .from('appointments')
-          .select('appointment_date, service_id, services(name)')
-          .eq('customer_id', contact.id);
+          .select('appointment_date, service_id, services(name, duration_min)')
+          .eq('contact_id', contact.id);
 
         const lastVisit = appointments?.length
           ? appointments.sort((a, b) =>
