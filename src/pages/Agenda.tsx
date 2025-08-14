@@ -264,20 +264,6 @@ const Agenda = () => {
 
           {/* Center: Search, Staff, View Mode */}
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Cerca cliente o servizio"
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent w-64"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
             <Dropdown
               value={selectedBarber}
               onChange={setSelectedBarber}
@@ -303,7 +289,7 @@ const Agenda = () => {
           {/* Right side: New Appointment button */}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-black text-white px-6 py-3 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
+            className="bg-black text-white px-6 py-2 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
           >
             <Plus size={18} className="mr-2" /> Nuovo Appuntamento
           </button>
