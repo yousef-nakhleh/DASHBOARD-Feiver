@@ -205,7 +205,7 @@ export default function EditStaffAvailabilityModal({
             ...s, // niente id → lo genera il DB
           }));
         if (inserts.length) {
-          ops.push(supabase.from('barbers_availabilities').insert(inserts));
+          ops.push(supabase.from('availability').insert(inserts));
         }
       }
     });
