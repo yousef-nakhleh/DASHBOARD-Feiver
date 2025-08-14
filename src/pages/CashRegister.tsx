@@ -18,17 +18,17 @@ const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
 
 type AppointmentRow = {
   id: string;
-  appointment_date: string; // DB timestamp (UTC by convention), e.g. "2025-08-13 14:30:00"
+  appointment_date: string; // timestamptz in DB (UTC)
   paid: boolean | null;
   appointment_status: "pending" | "confirmed" | "cancelled" | null;
-  service?: { id: string; name: string; price: number | null; duration_min: number | null } | null;
+  service?: { id: string; name: string; price: number | null } | null;
   barber?: { id: string; name: string | null } | null;
   contact?: { id: string; full_name: string | null } | null;
 };
 
 type UiAppointment = {
   id: string;
-  time: string; // "HH:MM" local
+  time: string; // "HH:MM" in business local time
   client: string;
   barber: string;
   service: string;
@@ -66,7 +66,7 @@ function computeLineTotal(li: LineItem): number {
 export default function CashRegister() {
   const { profile, loading: authLoading } = useAuth();
   const businessId = profile?.business_id;
-  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
+  const [businessTimezone, setBusinessTimezone] = useState("Europe/Rome");
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -93,9 +93,9 @@ export default function CashRegister() {
       if (authLoading || !businessId) return;
 
       const { data, error } = await supabase
-        .from('business')
-        .select('timezone')
-        .eq('id', businessId)
+        .from("business")
+        .select("timezone")
+        .eq("id", businessId)
         .single();
 
       if (!error && data?.timezone) {
@@ -105,23 +105,15 @@ export default function CashRegister() {
     fetchBusinessTimezone();
   }, [authLoading, businessId]);
 
-  // -------- Fetch appointments for the business local day --------
+  // -------- Fetch appointments for the business local day (using appointment_date timestamptz) --------
   useEffect(() => {
     if (!businessId || !date || !businessTimezone) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const fromUTC = toUTCFromLocal({
-          date: date,
-          time: '00:00',
-          timezone: businessTimezone,
-        });
-        const toUTC = toUTCFromLocal({
-          date: date,
-          time: '23:59',
-          timezone: businessTimezone,
-        });
+        const fromUTC = toUTCFromLocal({ date, time: "00:00", timezone: businessTimezone });
+        const toUTC = toUTCFromLocal({ date, time: "23:59", timezone: businessTimezone });
 
         const { data, error } = await supabase
           .from("appointments")
@@ -131,15 +123,16 @@ export default function CashRegister() {
             appointment_date,
             paid,
             appointment_status,
-            service:service_id ( id, name, price, duration_min ),
+            service:service_id ( id, name, price ),
             barber:barber_id ( id, name ),
             contact:contact_id ( id, full_name )
           `
           )
           .eq("business_id", businessId)
+          .neq("appointment_status", "cancelled")
           .gte("appointment_date", fromUTC)
           .lte("appointment_date", toUTC)
-          .order("appointment_start", { ascending: true });
+          .order("appointment_date", { ascending: true });
 
         if (error) throw error;
 
@@ -148,8 +141,8 @@ export default function CashRegister() {
             const time = toLocalFromUTC({
               utcString: a.appointment_date,
               timezone: businessTimezone,
-            }).toFormat('HH:mm');
-            
+            }).toFormat("HH:mm");
+
             return {
               id: a.id,
               time,
@@ -165,20 +158,22 @@ export default function CashRegister() {
 
         if (!cancelled) {
           setAppointments(mapped);
-          const firstPending = mapped.find((x) => x.appointment_status === "pending") || mapped[0] || null;
-          setSelectedApptId(firstPending?.id ?? null);
-          if (firstPending) {
+
+          // Auto-select first unpaid appointment; prefill items with its booked service
+          const firstUnpaid = mapped.find((x) => !x.paid) || mapped[0] || null;
+          setSelectedApptId(firstUnpaid?.id ?? null);
+          if (firstUnpaid) {
             setItems([
               {
                 id: "li" + Math.random().toString(36).slice(2, 8),
                 kind: "service",
-                name: firstPending.service,
-                barberId: firstPending.raw.barber?.id ?? null,
+                name: firstUnpaid.service,
+                barberId: firstUnpaid.raw.barber?.id ?? null,
                 qty: 1,
-                unit: firstPending.price,
+                unit: firstUnpaid.price,
                 discountType: "none",
                 discountValue: 0,
-                refServiceId: firstPending.raw.service?.id ?? null,
+                refServiceId: firstUnpaid.raw.service?.id ?? null,
               },
             ]);
           } else {
@@ -290,8 +285,9 @@ export default function CashRegister() {
     );
   }, [appointments, query]);
 
-  const toPay = filtered.filter((a) => a.appointment_status === "pending");
-  const confirmedList = filtered.filter((a) => a.appointment_status === "confirmed");
+  // NEW: buckets by PAID flag (and cancelled already excluded at fetch)
+  const toPay = filtered.filter((a) => !a.paid);
+  const confirmedList = filtered.filter((a) => a.paid);
 
   // -------- Save transaction + items --------
   async function completePayment() {
@@ -301,6 +297,7 @@ export default function CashRegister() {
     const appt = appointments.find((a) => a.id === selectedApptId);
     if (!appt) return;
 
+    // Insert transaction
     const { data: tx, error: txErr } = await supabase
       .from("transactions")
       .insert({
@@ -309,7 +306,7 @@ export default function CashRegister() {
         payment_method: dbMethod,
         total: total,
         status: "succeeded",
-        completed_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(), // UTC
       })
       .select("id")
       .single();
@@ -319,6 +316,7 @@ export default function CashRegister() {
       return;
     }
 
+    // Insert transaction items
     const itemRows = items.map((i) => ({
       transaction_id: tx.id,
       item_type: i.kind === "product" ? "product" : "service",
@@ -340,23 +338,13 @@ export default function CashRegister() {
       return;
     }
 
-    await supabase
-      .from("appointments")
-      .update({ paid: true, appointment_status: "confirmed" })
-      .eq("id", appt.id);
+    // Mark appointment as paid (do NOT change appointment_status here)
+    await supabase.from("appointments").update({ paid: true }).eq("id", appt.id);
 
-    // Refresh the list for the same day
+    // Refresh the list for the same day (using appointment_date timestamptz)
     try {
-      const fromUTC = toUTCFromLocal({
-        date: date,
-        time: '00:00',
-        timezone: businessTimezone,
-      });
-      const toUTC = toUTCFromLocal({
-        date: date,
-        time: '23:59',
-        timezone: businessTimezone,
-      });
+      const fromUTC = toUTCFromLocal({ date, time: "00:00", timezone: businessTimezone });
+      const toUTC = toUTCFromLocal({ date, time: "23:59", timezone: businessTimezone });
 
       const { data, error } = await supabase
         .from("appointments")
@@ -366,43 +354,37 @@ export default function CashRegister() {
           appointment_date,
           paid,
           appointment_status,
-          service:service_id ( id, name, price, duration_min ),
+          service:service_id ( id, name, price ),
           barber:barber_id ( id, name ),
           contact:contact_id ( id, full_name )
         `
         )
         .eq("business_id", businessId)
-          .gte("appointment_date", fromUTC)
-          .lte("appointment_date", toUTC)
-        .order("appointment_start", { ascending: true });
+        .neq("appointment_status", "cancelled")
+        .gte("appointment_date", fromUTC)
+        .lte("appointment_date", toUTC)
+        .order("appointment_date", { ascending: true });
 
       if (error) throw error;
 
       const mapped: UiAppointment[] =
-        (data as AppointmentRow[] | null)?.map((a) => {
-          const time = toLocalFromUTC({
-            utcString: a.appointment_start,
-            timezone: businessTimezone,
-          }).toFormat('HH:mm');
-          
-          return {
-            id: a.id,
-            time,
-            client: a.contact?.full_name || "—",
-            barber: a.barber?.name || "—",
-            service: a.service?.name || "—",
-            price: Number(a.service?.price ?? 0),
-            appointment_status: a.appointment_status,
-            paid: Boolean(a.paid),
-            raw: a,
-          };
-        }) ?? [];
+        (data as AppointmentRow[] | null)?.map((a) => ({
+          id: a.id,
+          time: toLocalFromUTC({ utcString: a.appointment_date, timezone: businessTimezone }).toFormat("HH:mm"),
+          client: a.contact?.full_name || "—",
+          barber: a.barber?.name || "—",
+          service: a.service?.name || "—",
+          price: Number(a.service?.price ?? 0),
+          appointment_status: a.appointment_status,
+          paid: Boolean(a.paid),
+          raw: a,
+        })) ?? [];
 
       setAppointments(mapped);
-      const nextPending = mapped.find((x) => x.appointment_status === "pending") || null;
-      setSelectedApptId(nextPending?.id ?? null);
+      const nextUnpaid = mapped.find((x) => !x.paid) || null;
+      setSelectedApptId(nextUnpaid?.id ?? null);
       setItems([]);
-      setActiveTab("confirmed");
+      setActiveTab("confirmed"); // show it in the right bucket after confirmation
     } catch (e) {
       console.error(e);
     }
@@ -499,7 +481,9 @@ export default function CashRegister() {
               {activeTab === "toPay" && (
                 <div className="space-y-3">
                   {toPay.length === 0 && (
-                    <p className="text-sm text-gray-500">{loading ? "Caricamento..." : "Nessun appuntamento da pagare."}</p>
+                    <p className="text-sm text-gray-500">
+                      {loading ? "Caricamento..." : "Nessun appuntamento da pagare."}
+                    </p>
                   )}
                   {toPay.map((a) => (
                     <button
@@ -522,7 +506,7 @@ export default function CashRegister() {
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                          Non confermato
+                          Non pagato
                         </span>
                       </div>
                     </button>
@@ -533,7 +517,9 @@ export default function CashRegister() {
               {activeTab === "confirmed" && (
                 <div className="space-y-3">
                   {confirmedList.length === 0 && (
-                    <p className="text-sm text-gray-500">{loading ? "Caricamento..." : "Nessun pagamento confermato."}</p>
+                    <p className="text-sm text-gray-500">
+                      {loading ? "Caricamento..." : "Nessun pagamento confermato."}
+                    </p>
                   )}
                   {confirmedList.map((a) => (
                     <div key={a.id} className="rounded-xl border px-4 py-3">
@@ -639,7 +625,9 @@ export default function CashRegister() {
                     </div>
                   ))}
                   {items.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-8">Nessun elemento. Aggiungi un servizio o prodotto.</p>
+                    <p className="text-sm text-gray-500 text-center py-8">
+                      Nessun elemento. Aggiungi un servizio o prodotto.
+                    </p>
                   )}
                 </div>
               </div>
@@ -693,10 +681,7 @@ export default function CashRegister() {
                           : true
                       )
                       .map((s) => (
-                        <div
-                          key={s.id}
-                          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                        >
+                        <div key={s.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
                           <div className="flex flex-col">
                             <span className="font-medium text-black">{s.name}</span>
                             <span className="text-sm text-gray-600">€ {Number(s.price ?? 0).toFixed(2)}</span>
@@ -796,9 +781,7 @@ export default function CashRegister() {
             <div className="p-5 border-b">
               <div className="text-lg font-semibold">Conferma pagamento</div>
             </div>
-            <div className="p-5">
-              Sei sicuro di voler confermare il pagamento?
-            </div>
+            <div className="p-5">Sei sicuro di voler confermare il pagamento?</div>
             <div className="p-5 flex justify-end gap-2 border-t">
               <button
                 onClick={() => setConfirmOpen(false)}
