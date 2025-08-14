@@ -78,7 +78,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
 
     if (availabilityInserts.length > 0) {
       const { error: availabilityError } = await supabase
-        .from('barbers_availabilities')
+        .from('availability')
         .insert(availabilityInserts);
 
       if (availabilityError) {
