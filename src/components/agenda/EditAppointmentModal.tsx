@@ -44,62 +44,80 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
   const [busyTimes, setBusyTimes] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
-  /* servizi */
-  useEffect(() => {
-    supabase
-      .from('services')
-      .select('id,name')
+ /* servizi */
+useEffect(() => {
+  if (!appointment?.business_id) return; // guard condition
+
+  supabase
+    .from('services')
+    .select('id,name')
+    .eq('business_id', appointment.business_id)
+    .then(({ data }) => setServices(data ?? []));
+}, [appointment]);
+
+/* slot occupati nella stessa data/barbiere (pending|confirmed) */
+useEffect(() => {
+  if (
+    !appointment?.business_id ||
+    !appointment?.barber_id ||
+    !appointment?.id ||
+    !edited.appointment_date
+  ) return;
+
+  (async () => {
+    const startOfDay = toUTCFromLocal({
+      date: edited.appointment_date,
+      time: '00:00',
+      timezone: businessTimezone,
+    });
+    const endOfDay = toUTCFromLocal({
+      date: edited.appointment_date,
+      time: '23:59',
+      timezone: businessTimezone,
+    });
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('appointment_date, services(duration_min), id')
+      .eq('barber_id', appointment.barber_id)
       .eq('business_id', appointment.business_id)
-      .then(({ data }) => setServices(data ?? []));
-  }, [appointment]);
+      .gte('appointment_date', startOfDay)
+      .lte('appointment_date', endOfDay)
+      .in('appointment_status', ['pending', 'confirmed']);
 
-  /* slot occupati nella stessa data/barbiere (pending|confirmed) */
-  useEffect(() => {
-    (async () => {
-      // Get UTC range for the selected date
-      const startOfDay = toUTCFromLocal({
-        date: edited.appointment_date,
-        time: '00:00',
+    if (error) {
+      console.error('Errore nel caricamento degli appuntamenti:', error.message);
+      return;
+    }
+
+    const blocked = new Set<string>();
+    (data ?? []).forEach((a) => {
+      if (a.id === appointment.id) return;
+
+      const localAppt = toLocalFromUTC({
+        utcString: a.appointment_date,
         timezone: businessTimezone,
       });
-      const endOfDay = toUTCFromLocal({
-        date: edited.appointment_date,
-        time: '23:59',
-        timezone: businessTimezone,
-      });
-      
-      const { data } = await supabase
-        .from('appointments')
-        .select('appointment_date, services(duration_min), id')
-        .eq('barber_id', appointment.barber_id)
-        .eq('business_id', appointment.business_id)
-        .gte('appointment_date', startOfDay)
-        .lte('appointment_date', endOfDay)
-        .in('appointment_status', ['pending', 'confirmed']);
+      const start = new Date(`2000-01-01T${localAppt.toFormat('HH:mm')}:00`);
+      const end = new Date(start.getTime() + (a.services?.duration_min || 30) * 60000);
 
-      const blocked = new Set<string>();
+      for (let t of TIMES) {
+        const ts = new Date(`2000-01-01T${t}:00`);
+        const te = new Date(ts.getTime() + edited.duration_min * 60000);
+        if (ts < end && te > start) blocked.add(t);
+      }
+    });
 
-      (data ?? []).forEach((a) => {
-        if (a.id === appointment.id) return; // ignora sé stesso
-        
-        // Convert UTC appointment_start to local time for comparison
-        const localAppt = toLocalFromUTC({
-          utcString: a.appointment_date,
-          timezone: businessTimezone,
-        });
-        const start = new Date(`2000-01-01T${localAppt.toFormat('HH:mm')}:00`);
-        const end   = new Date(start.getTime() + (a.services?.duration_min || 30) * 60000);
-
-        for (let t of TIMES) {
-          const ts = new Date(`2000-01-01T${t}:00`);
-          const te = new Date(ts.getTime() + edited.duration_min * 60000);
-          if (ts < end && te > start) blocked.add(t);
-        }
-      });
-      setBusyTimes(blocked);
-    })();
-  }, [appointment, edited.duration_min, edited.appointment_date, businessTimezone]);
-
+    setBusyTimes(blocked);
+  })();
+}, [
+  appointment?.business_id,
+  appointment?.barber_id,
+  appointment?.id,
+  edited.appointment_date,
+  edited.duration_min,
+  businessTimezone,
+]);
   /* change handler */
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
