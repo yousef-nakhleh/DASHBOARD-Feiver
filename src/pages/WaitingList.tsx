@@ -7,32 +7,34 @@ import { useAuth } from '../components/auth/AuthContext';
 interface WaitingListItem {
   id: string;
   customer_name: string;
-  customer_phone: string;
-  start_time: string;
-  end_time: string;
-  date: string;
-  created_at: string;
+  phone_number_e164: string | null;
+  start_time: string;   // timestamptz (UTC) from DB
+  end_time: string;     // timestamptz (UTC) from DB
+  created_at: string;   // timestamptz (UTC)
 }
 
-const formatDateTime = (dateString: string): string => {
-  const date = new Date(dateString);
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${month}/${day} ${hours}:${minutes}`;
-};
-
-const formatTimeRange = (startTime: string, endTime: string): string => {
-  return `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}`;
-};
-
 const WaitingList: React.FC = () => {
-  const { profile } = useAuth(); // 👈 dynamic business scope
+  const { profile } = useAuth(); // business scope
   const [waitingList, setWaitingList] = useState<WaitingListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ business timezone (fallback to Europe/Rome)
+  const [businessTimezone, setBusinessTimezone] = useState<string>('Europe/Rome');
+
+  // Fetch business timezone when business_id is available
+  useEffect(() => {
+    (async () => {
+      if (!profile?.business_id) return;
+      const { data, error } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', profile.business_id)
+        .single();
+      if (!error && data?.timezone) setBusinessTimezone(data.timezone);
+    })();
+  }, [profile?.business_id]);
 
   const fetchWaitingList = async () => {
     if (!profile?.business_id) {
@@ -45,15 +47,13 @@ const WaitingList: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('waiting_list')
-        .select('id, customer_name, customer_phone, start_time, end_time, date, created_at')
+        .select('id, customer_name, phone_number_e164, start_time, end_time, created_at')
         .eq('business_id', profile.business_id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      setWaitingList(data || []);
+      setWaitingList((data as WaitingListItem[]) || []);
     } catch (err) {
       console.error("Errore nel caricamento della lista d'attesa:", err);
       setError('Errore nel caricamento dei dati');
@@ -67,10 +67,35 @@ const WaitingList: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.business_id]);
 
+  // ---- format helpers (use business timezone) -------------------------
+  const fmtTime = (utc: string) => {
+    try {
+      return toLocalFromUTC({ utcString: utc, timezone: businessTimezone }).toFormat('HH:mm');
+    } catch {
+      return '';
+    }
+  };
+
+  const fmtDate = (utc: string) => {
+    try {
+      return toLocalFromUTC({ utcString: utc, timezone: businessTimezone }).toFormat('dd/LL/yyyy');
+    } catch {
+      return '';
+    }
+  };
+
+  const fmtCreated = (utc: string) => {
+    try {
+      return toLocalFromUTC({ utcString: utc, timezone: businessTimezone }).toFormat('dd/LL HH:mm');
+    } catch {
+      return '';
+    }
+  };
+
   const filteredWaitingList = waitingList.filter(
     (item) =>
       item.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.customer_phone?.includes(searchQuery)
+      (item.phone_number_e164 ?? '').includes(searchQuery)
   );
 
   return (
@@ -166,25 +191,25 @@ const WaitingList: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Phone size={16} className="text-gray-400 mr-2" />
-                        <span className="text-sm text-black">{item.customer_phone}</span>
+                        <span className="text-sm text-black">{item.phone_number_e164 ?? '—'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Clock size={16} className="text-gray-400 mr-2" />
                         <span className="text-sm text-black">
-                          {formatTimeRange(item.start_time, item.end_time)}
+                          {fmtTime(item.start_time)} - {fmtTime(item.end_time)}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-black">
-                        {new Date(item.date).toLocaleDateString('it-IT')}
+                        {fmtDate(item.start_time)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-600">
-                        {formatDateTime(toLocalFromUTC(item.created_at))}
+                        {fmtCreated(item.created_at)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
