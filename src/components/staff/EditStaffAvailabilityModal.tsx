@@ -1,4 +1,3 @@
-// src/components/staff/EditStaffAvailabilityModal.tsx
 import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
@@ -23,8 +22,15 @@ const dayMap: Record<string, string> = {
 };
 const daysOfWeek = Object.keys(dayMap);
 
-type Slot = { start_time: string; end_time: string };
+type Slot = { id?: number | null; start_time: string; end_time: string };
 type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
+
+interface SlotWithDay {
+  id: number;
+  weekday: string;
+  start_time: string;
+  end_time: string;
+}
 
 interface Props {
   barberId: string;
@@ -34,7 +40,7 @@ interface Props {
   onUpdated: () => void;
 }
 
-const emptySlot: Slot = { start_time: '', end_time: '' };
+const emptySlot: Slot = { id: null, start_time: '', end_time: '' };
 const defaultState: Day[] = daysOfWeek.map((d) => ({
   weekday: d,
   enabled: false,
@@ -97,6 +103,7 @@ export default function EditStaffAvailabilityModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [state, setState]     = useState<Day[]>(defaultState);
+  const [originalAvailability, setOriginalAvailability] = useState<SlotWithDay[]>([]);
 
   /* carica disponibilità ------------------------------------------------ */
   useEffect(() => {
@@ -109,16 +116,22 @@ export default function EditStaffAvailabilityModal({
         .eq('business_id', businessId);
 
       if (!data) return;
+
+      setOriginalAvailability(data);
+
       setState(
         daysOfWeek.map((day) => {
           const slots = data.filter((s) => s.weekday === day);
           return {
             weekday: day,
             enabled: !!slots.length,
-            slots: slots.length ? slots.map(slot => ({
-              start_time: slot.start_time.slice(0, 5),
-              end_time: slot.end_time.slice(0, 5)
-            })) : [{ ...emptySlot }],
+            slots: slots.length
+              ? slots.map((slot) => ({
+                  id: slot.id,
+                  start_time: slot.start_time.slice(0, 5),
+                  end_time: slot.end_time.slice(0, 5),
+                }))
+              : [{ ...emptySlot }],
           };
         }),
       );
@@ -129,11 +142,9 @@ export default function EditStaffAvailabilityModal({
   const toggleDay = (idx: number, val: boolean) =>
     setState((p) => p.map((d, i) => {
       if (i !== idx) return d;
-      
       if (val && (d.slots.length === 0 || (d.slots.length === 1 && !d.slots[0].start_time && !d.slots[0].end_time))) {
         return { ...d, enabled: val, slots: [{ start_time: '09:00', end_time: '17:00' }] };
       }
-      
       return { ...d, enabled: val };
     }));
 
@@ -175,44 +186,94 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio: cancella/riscrive SOLO il giorno che stai modificando --- */
+  /* salvataggio diffing ------------------------------------------------- */
   const handleSave = async () => {
     if (!businessId) return;
     setLoading(true);
 
-    // costruiamo le promesse di delete & insert per i soli giorni editati
-    const ops: Promise<any>[] = [];
+    const inserts: any[] = [];
+    const updates: any[] = [];
+    const deletions: number[] = [];
 
-    state.forEach((d) => {
-      // prima: cancelliamo le righe esistenti di QUEL giorno
-      ops.push(
-        supabase
-          .from('availability')
-          .delete()
-          .eq('barber_id', barberId)
-          .eq('business_id', businessId)
-          .eq('weekday', d.weekday),
-      );
+    const newFlat: SlotWithDay[] = [];
 
-      // poi: se il giorno è abilitato inseriamo gli slot
-      if (d.enabled) {
-        const inserts = d.slots
-          .filter((s) => s.start_time && s.end_time)
-          .map((s) => ({
-            business_id: businessId,
-            barber_id: barberId,
-            weekday: d.weekday,
-            ...s, // niente id → lo genera il DB
-          }));
-        if (inserts.length) {
-          ops.push(supabase.from('availability').insert(inserts));
-        }
-      }
+    state.forEach((day) => {
+      if (!day.enabled) return;
+
+      day.slots.forEach((slot) => {
+        if (!slot.start_time || !slot.end_time) return;
+        newFlat.push({
+          id: slot.id ?? null,
+          weekday: day.weekday,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        });
+      });
     });
 
-    // eseguiamo tutto in parallelo
-    await Promise.all(ops);
+    // find deletions (in original but not in new)
+    for (const orig of originalAvailability) {
+      const stillExists = newFlat.find(
+        (s) =>
+          s.id === orig.id ||
+          (s.weekday === orig.weekday &&
+            s.start_time === orig.start_time.slice(0, 5) &&
+            s.end_time === orig.end_time.slice(0, 5))
+      );
+      if (!stillExists) deletions.push(orig.id);
+    }
 
+    // find inserts and updates
+    for (const slot of newFlat) {
+      if (!slot.id) {
+        inserts.push({
+          business_id: businessId,
+          barber_id: barberId,
+          weekday: slot.weekday,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        });
+      } else {
+        const orig = originalAvailability.find((s) => s.id === slot.id);
+        if (
+          orig &&
+          (orig.start_time.slice(0, 5) !== slot.start_time ||
+            orig.end_time.slice(0, 5) !== slot.end_time)
+        ) {
+          updates.push({
+            id: slot.id,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+          });
+        }
+      }
+    }
+
+    const ops: Promise<any>[] = [];
+
+    if (deletions.length) {
+      ops.push(supabase.from('availability').delete().in('id', deletions));
+    }
+
+    if (inserts.length) {
+      ops.push(supabase.from('availability').insert(inserts));
+    }
+
+    if (updates.length) {
+      for (const upd of updates) {
+        ops.push(
+          supabase
+            .from('availability')
+            .update({
+              start_time: upd.start_time,
+              end_time: upd.end_time,
+            })
+            .eq('id', upd.id)
+        );
+      }
+    }
+
+    await Promise.all(ops);
     setLoading(false);
     onUpdated();
   };
@@ -228,7 +289,6 @@ export default function EditStaffAvailabilityModal({
         <div className="space-y-3">
           {state.map((d, dIdx) => (
             <div key={d.weekday} className="flex items-center gap-4">
-              {/* col.1: switch + etichetta (italiano) */}
               <div className="flex items-center gap-3 w-32">
                 <Switch
                   checked={d.enabled}
@@ -237,7 +297,6 @@ export default function EditStaffAvailabilityModal({
                 <span className="text-sm">{dayMap[d.weekday]}</span>
               </div>
 
-              {/* col.2-3-4: slot */}
               <div className="flex flex-col gap-2 flex-1">
                 {d.slots.map((s, sIdx) => (
                   <div key={sIdx} className="flex items-center gap-2">
