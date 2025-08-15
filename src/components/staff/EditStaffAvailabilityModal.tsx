@@ -10,23 +10,22 @@ import { supabase } from '@/lib/supabase';
 import { Plus, X } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-// UI label (Italiano)  ◀▶  valore per il DB (inglese, lowercase)
 const dayMap: Record<string, string> = {
-  monday:    'Lunedì',
-  tuesday:   'Martedì',
+  monday: 'Lunedì',
+  tuesday: 'Martedì',
   wednesday: 'Mercoledì',
-  thursday:  'Giovedì',
-  friday:    'Venerdì',
-  saturday:  'Sabato',
-  sunday:    'Domenica',
+  thursday: 'Giovedì',
+  friday: 'Venerdì',
+  saturday: 'Sabato',
+  sunday: 'Domenica',
 };
 const daysOfWeek = Object.keys(dayMap);
 
-type Slot = { id?: number | null; start_time: string; end_time: string };
-type Day  = { weekday: string; enabled: boolean; slots: Slot[] };
+type Slot = { id?: string | null; start_time: string; end_time: string };
+type Day = { weekday: string; enabled: boolean; slots: Slot[] };
 
 interface SlotWithDay {
-  id: number;
+  id: string;
   weekday: string;
   start_time: string;
   end_time: string;
@@ -102,10 +101,9 @@ export default function EditStaffAvailabilityModal({
   onUpdated,
 }: Props) {
   const [loading, setLoading] = useState(false);
-  const [state, setState]     = useState<Day[]>(defaultState);
+  const [state, setState] = useState<Day[]>(defaultState);
   const [originalAvailability, setOriginalAvailability] = useState<SlotWithDay[]>([]);
 
-  /* carica disponibilità ------------------------------------------------ */
   useEffect(() => {
     if (!barberId || !businessId) return;
     (async () => {
@@ -138,15 +136,16 @@ export default function EditStaffAvailabilityModal({
     })();
   }, [barberId, businessId]);
 
-  /* helper mutazioni ---------------------------------------------------- */
   const toggleDay = (idx: number, val: boolean) =>
-    setState((p) => p.map((d, i) => {
-      if (i !== idx) return d;
-      if (val && (d.slots.length === 0 || (d.slots.length === 1 && !d.slots[0].start_time && !d.slots[0].end_time))) {
-        return { ...d, enabled: val, slots: [{ start_time: '09:00', end_time: '17:00' }] };
-      }
-      return { ...d, enabled: val };
-    }));
+    setState((p) =>
+      p.map((d, i) => {
+        if (i !== idx) return d;
+        if (val && (d.slots.length === 0 || (d.slots.length === 1 && !d.slots[0].start_time && !d.slots[0].end_time))) {
+          return { ...d, enabled: val, slots: [{ start_time: '09:00', end_time: '17:00' }] };
+        }
+        return { ...d, enabled: val };
+      }),
+    );
 
   const updateSlot = (
     dIdx: number,
@@ -186,14 +185,13 @@ export default function EditStaffAvailabilityModal({
       ),
     );
 
-  /* salvataggio diffing ------------------------------------------------- */
   const handleSave = async () => {
     if (!businessId) return;
     setLoading(true);
 
     const inserts: any[] = [];
     const updates: any[] = [];
-    const deletions: number[] = [];
+    const deletions: string[] = [];
 
     const newFlat: SlotWithDay[] = [];
 
@@ -211,7 +209,6 @@ export default function EditStaffAvailabilityModal({
       });
     });
 
-    // find deletions (in original but not in new)
     for (const orig of originalAvailability) {
       const stillExists = newFlat.find(
         (s) =>
@@ -223,7 +220,6 @@ export default function EditStaffAvailabilityModal({
       if (!stillExists) deletions.push(orig.id);
     }
 
-    // find inserts and updates
     for (const slot of newFlat) {
       if (!slot.id) {
         inserts.push({
@@ -278,7 +274,6 @@ export default function EditStaffAvailabilityModal({
     onUpdated();
   };
 
-  /* -------------------------------------------------------------------- */
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[540px] px-6 py-5">
