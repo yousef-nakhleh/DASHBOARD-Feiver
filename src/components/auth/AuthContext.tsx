@@ -37,8 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
         return null;
       }
+      console.log("Profile data from Supabase (raw):", data);
       console.log("Profile fetched successfully:", data);
       setProfile(data as Profile);
+      console.log("Profile set in AuthContext:", data);
       return data as Profile;
     } catch (e) {
       console.error("profiles fetch exception:", e);

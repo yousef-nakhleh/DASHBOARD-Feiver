@@ -92,6 +92,12 @@ const Agenda = () => {
   }, [authLoading, profile?.business_id]);
 
   const fetchAppointments = async () => {
+    if (typeof profile?.business_id !== 'string' || !profile.business_id) {
+      console.log("Skipping fetchAppointments: Invalid business_id type or value", profile?.business_id);
+      return;
+    }
+    console.log("Fetching appointments for business_id:", profile.business_id);
+
     if (!profile?.business_id) return;
 
     const dates = getDatesInView(selectedDate, viewMode);
