@@ -3,18 +3,23 @@ import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide
 import NewContactForm from '../components/rubrica/NewContactForm';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/auth/AuthContext';
 
 const Contacts: React.FC = () => {
+  const { profile, authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showCreateContactForm, setShowCreateContactForm] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  const fetchClients = useCallback(async () => {
+  const fetchClients = useCallback(async (businessId: string) => {
+    if (!businessId) return;
+
     const { data: contacts, error } = await supabase
       .from('contacts')
-      .select('id, first_name, last_name, email, phone_number_e164, birthdate, notes');
+      .select('id, first_name, last_name, email, phone_number_e164, birthdate, notes')
+      .eq('business_id', businessId);
 
     if (error) {
       console.error('Errore nel caricamento dei contatti:', error);
@@ -59,8 +64,10 @@ const Contacts: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+    if (profile?.business_id) {
+      fetchClients(profile.business_id);
+    }
+  }, [fetchClients, profile?.business_id]);
 
   const filteredClients = clients.filter(
     client =>
@@ -70,6 +77,10 @@ const Contacts: React.FC = () => {
   );
 
   const selectedClientData = clients.find(client => client.id === selectedClient);
+
+  if (authLoading || !profile?.business_id) {
+    return <div className="p-6 text-gray-500">Caricamento contatti…</div>;
+  }
 
   return (
     <div className="h-full space-y-6">
@@ -147,7 +158,7 @@ const Contacts: React.FC = () => {
               <NewContactForm 
                 onCreated={() => {
                   setShowCreateContactForm(false);
-                  fetchClients();
+                  fetchClients(profile.business_id);
                 }} 
               />
             </div>
@@ -235,7 +246,7 @@ const Contacts: React.FC = () => {
       {showCreateModal && (
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={fetchClients}
+          onCreated={() => fetchClients(profile.business_id)}
         />
       )}
     </div>
