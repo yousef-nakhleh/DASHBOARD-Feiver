@@ -164,6 +164,27 @@ export default function CashRegister() {
 
         if (error) throw error;
 
+        // Fetch transactions data for the same date range
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from("transactions")
+          .select("appointment_id, barber_id")
+          .eq("business_id", businessId)
+          .gte("completed_at", fromUTC)
+          .lte("completed_at", toUTC);
+
+        if (transactionsError) {
+          console.error("Error fetching transactions:", transactionsError);
+        }
+
+        // Create a lookup map for transaction barber_ids by appointment_id
+        const transactionBarberMap = new Map<string, string>();
+        if (transactionsData) {
+          transactionsData.forEach((tx) => {
+            if (tx.appointment_id && tx.barber_id) {
+              transactionBarberMap.set(tx.appointment_id, tx.barber_id);
+            }
+          });
+        }
         const mapped: UiAppointment[] =
           (data as AppointmentRow[] | null)?.map((a) => {
             const time = toLocalFromUTC({
@@ -171,11 +192,20 @@ export default function CashRegister() {
               timezone: businessTimezone,
             }).toFormat("HH:mm");
 
+            // For paid appointments, try to get barber from transaction data
+            let barberName = a.barber?.name || "—";
+            if (a.paid && transactionBarberMap.has(a.id)) {
+              const transactionBarberId = transactionBarberMap.get(a.id);
+              const transactionBarber = allBarbers.find(b => b.id === transactionBarberId);
+              if (transactionBarber) {
+                barberName = transactionBarber.name || "—";
+              }
+            }
             return {
               id: a.id,
               time,
               client: a.contact?.full_name || "—",
-              barber: a.barber?.name || "—",
+              barber: barberName,
               service: a.service?.name || "—",
               price: Number(a.service?.price ?? 0),
               appointment_status: a.appointment_status,
@@ -217,7 +247,7 @@ export default function CashRegister() {
     return () => {
       cancelled = true;
     };
-  }, [businessId, date, businessTimezone]);
+  }, [businessId, date, businessTimezone, allBarbers]);
 
   // Prefill items when selecting another appointment
   useEffect(() => {
