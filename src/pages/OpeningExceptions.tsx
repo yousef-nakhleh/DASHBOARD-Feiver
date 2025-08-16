@@ -358,7 +358,7 @@ const OpeningExceptions = () => {
             </div>
           )}
         </div>
-      </div>
+      </div> 
 
       {/* Exception Form Modal */}
       {isExceptionModalOpen && (
