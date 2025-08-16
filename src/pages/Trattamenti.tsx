@@ -72,6 +72,7 @@ export default function Trattamenti() {
       if (!businessId) {
         console.log("Trattamenti: No business_id available, clearing services");
         setServices([]);
+        setLoading(false);
         return;
       }
       setLoading(true);

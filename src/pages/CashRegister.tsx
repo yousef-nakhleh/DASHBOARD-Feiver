@@ -317,6 +317,7 @@ export default function CashRegister() {
       .insert({
         business_id: businessId,
         appointment_id: appt.id,
+        barber_id: items[0].barberId || appt.raw.barber?.id || null,
         payment_method: dbMethod,
         total: total,
         status: "succeeded",
