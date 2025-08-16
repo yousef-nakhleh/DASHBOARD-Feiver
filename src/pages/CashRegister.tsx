@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "../lib/utils";
-import { Plus, Search, Check, Trash2, X } from "lucide-react";
+import { Plus, Search, Check, Trash2, X, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
 import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
@@ -52,6 +52,8 @@ type LineItem = {
 
 type ServiceRow = { id: string; name: string; price: number | null };
 
+type BarberRow = { id: string; name: string | null };
+
 // ---------- Helpers ----------
 function computeLineTotal(li: LineItem): number {
   const base = (li.qty ?? 1) * (li.unit ?? 0);
@@ -78,6 +80,7 @@ export default function CashRegister() {
   const [loading, setLoading] = useState(false);
   const [appointments, setAppointments] = useState<UiAppointment[]>([]);
   const [items, setItems] = useState<LineItem[]>([]);
+  const [allBarbers, setAllBarbers] = useState<BarberRow[]>([]);
 
   // Service picker state
   const [servicePanelOpen, setServicePanelOpen] = useState(false);
@@ -104,6 +107,31 @@ export default function CashRegister() {
     };
     fetchBusinessTimezone();
   }, [authLoading, businessId]);
+
+  // -------- Fetch all barbers for the dropdown --------
+  useEffect(() => {
+    const fetchAllBarbers = async () => {
+      if (!businessId) {
+        setAllBarbers([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("barbers")
+        .select("id, name")
+        .eq("business_id", businessId)
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching barbers:", error);
+        setAllBarbers([]);
+      } else {
+        setAllBarbers((data as BarberRow[]) || []);
+      }
+    };
+
+    fetchAllBarbers();
+  }, [businessId]);
 
   // -------- Fetch appointments for the business local day (using appointment_date timestamptz) --------
   useEffect(() => {
@@ -250,21 +278,7 @@ export default function CashRegister() {
 
   function addProduct() {
     // Placeholder for future products; keeps UI parity.
-    const id = "li" + Math.random().toString(36).slice(2, 8);
-    setItems((prev) => [
-      ...prev,
-      {
-        id,
-        kind: "product",
-        name: "Prodotto",
-        barberId: null,
-        qty: 1,
-        unit: 0,
-        discountType: "none",
-        discountValue: 0,
-        refServiceId: null,
-      },
-    ]);
+    // Disabled for now - future integration
   }
 
   function removeItem(id: string) {
@@ -584,9 +598,11 @@ export default function CashRegister() {
                           onChange={(e) => updateItem(li.id, { barberId: e.target.value || null })}
                           className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                         >
-                          <option value={appointments.find((a) => a.id === selectedApptId)?.raw.barber?.id ?? ""}>
-                            {appointments.find((a) => a.id === selectedApptId)?.barber ?? "—"}
-                          </option>
+                          {allBarbers.map((barber) => (
+                            <option key={barber.id} value={barber.id}>
+                              {barber.name || "—"}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -643,7 +659,9 @@ export default function CashRegister() {
                 <div className="ml-auto" />
                 <button
                   onClick={addProduct}
+                  disabled={true}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-black"
+                  title="Funzionalità in arrivo"
                 >
                   <Plus size={16} /> Aggiungi prodotto
                 </button>
@@ -688,7 +706,7 @@ export default function CashRegister() {
                           </div>
                           <button
                             onClick={() => addServiceFromPicker(s)}
-                            className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm"
+                            className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm text-black"
                           >
                             + Aggiungi
                           </button>
@@ -779,13 +797,21 @@ export default function CashRegister() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-2xl shadow-xl w-[95%] max-w-md">
             <div className="p-5 border-b">
-              <div className="text-lg font-semibold">Conferma pagamento</div>
+              <div className="flex justify-between items-center">
+                <div className="text-lg font-semibold text-black">Conferma pagamento</div>
+                <button
+                  onClick={() => setConfirmOpen(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XCircle size={20} className="text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5">Sei sicuro di voler confermare il pagamento?</div>
+            <div className="p-5 text-gray-700">Sei sicuro di voler confermare il pagamento?</div>
             <div className="p-5 flex justify-end gap-2 border-t">
               <button
                 onClick={() => setConfirmOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                className="px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-black"
               >
                 Annulla
               </button>
