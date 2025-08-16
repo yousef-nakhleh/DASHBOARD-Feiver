@@ -287,6 +287,17 @@ export default function CashRegister() {
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    
+    // 🐛 DEBUG: Log the item update
+    console.log('🔧 updateItem called:', { id, patch });
+    setItems((prev) => {
+      const updated = prev.map((i) => (i.id === id ? { ...i, ...patch } : i));
+      console.log('🔧 Updated items array:', updated);
+      if (updated[0]) {
+        console.log('🔧 First item barberId after update:', updated[0].barberId);
+      }
+      return updated;
+    });
   }
 
   const total = useMemo(() => items.reduce((s, i) => s + computeLineTotal(i), 0), [items]);
@@ -305,11 +316,28 @@ export default function CashRegister() {
 
   // -------- Save transaction + items --------
   async function completePayment() {
+    // 🐛 DEBUG: Log the state at the start of completePayment
+    console.log('💰 completePayment called');
+    console.log('💰 Current items array:', items);
+    console.log('💰 items[0]:', items[0]);
+    console.log('💰 items[0].barberId:', items[0]?.barberId);
+    console.log('💰 Selected appointment:', selectedApptId);
+    const appt = appointments.find((a) => a.id === selectedApptId);
+    console.log('💰 Appointment details:', appt);
+    console.log('💰 Appointment barber_id:', appt?.raw.barber?.id);
+    
     if (!businessId || !selectedApptId || items.length === 0) return;
 
     const dbMethod: DbPaymentMethod = UI_TO_DB_PAYMENT[paymentMethod];
-    const appt = appointments.find((a) => a.id === selectedApptId);
     if (!appt) return;
+
+    // 🐛 DEBUG: Log the barber_id that will be sent to the database
+    const finalBarberId = items[0].barberId || appt.raw.barber?.id || null;
+    console.log('💰 Final barber_id for transaction:', finalBarberId);
+    console.log('💰 Logic breakdown:');
+    console.log('  - items[0].barberId:', items[0].barberId);
+    console.log('  - appt.raw.barber?.id:', appt.raw.barber?.id);
+    console.log('  - final result:', finalBarberId);
 
     // Insert transaction
     const { data: tx, error: txErr } = await supabase
@@ -317,7 +345,7 @@ export default function CashRegister() {
       .insert({
         business_id: businessId,
         appointment_id: appt.id,
-        barber_id: items[0].barberId || appt.raw.barber?.id || null,
+        barber_id: finalBarberId,
         payment_method: dbMethod,
         total: total,
         status: "succeeded",
@@ -325,6 +353,9 @@ export default function CashRegister() {
       })
       .select("id")
       .single();
+
+    // 🐛 DEBUG: Log the transaction result
+    console.log('💰 Transaction insert result:', { data: tx, error: txErr });
 
     if (txErr || !tx) {
       console.error(txErr);
