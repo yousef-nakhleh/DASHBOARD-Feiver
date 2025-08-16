@@ -62,12 +62,17 @@ const OpeningExceptions = () => {
     
     setLoading(true);
     try {
-      // Fetch opening exceptions with barber names
+      // ✅ Fetch opening exceptions with barber relation aliased to "barber"
       const { data: exceptionsData, error: exceptionsError } = await supabase
         .from('availability_exceptions')
         .select(`
-          *,
-          barbers (
+          id,
+          barber_id,
+          exception_start,
+          exception_end,
+          type,
+          business_id,
+          barber:barbers (
             name
           )
         `)
