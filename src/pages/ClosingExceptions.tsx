@@ -12,7 +12,7 @@ import {
 import { supabase } from '../lib/supabase';
 import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 import { useAuth } from '../components/auth/AuthContext';
-import { toLocalFromUTC, toUTCFromLocal } from '../lib/timeUtils';
+import { toLocalFromUTC } from '../lib/timeUtils';
 
 interface AvailabilityException {
   id: string;
@@ -22,8 +22,9 @@ interface AvailabilityException {
   type: 'open' | 'closed';
   business_id: string;
   barber?: {
-    name: string;
-  };
+    id?: string;
+    name: string | null;
+  } | null;
 }
 
 interface Barber {
@@ -59,15 +60,20 @@ const ClosingExceptions = () => {
 
   const fetchData = async () => {
     if (!businessId) return;
-    
     setLoading(true);
     try {
-      // Fetch closing exceptions with barber names
+      // ✅ Fetch exceptions with the barber relation aliased to "barber"
       const { data: exceptionsData, error: exceptionsError } = await supabase
         .from('availability_exceptions')
         .select(`
-          *,
-          barbers (
+          id,
+          barber_id,
+          exception_start,
+          exception_end,
+          type,
+          business_id,
+          barber:barbers (
+            id,
             name
           )
         `)
@@ -79,20 +85,20 @@ const ClosingExceptions = () => {
         console.error('Error fetching exceptions:', exceptionsError);
         setExceptions([]);
       } else {
-        setExceptions(exceptionsData || []);
+        setExceptions((exceptionsData as AvailabilityException[]) || []);
       }
 
-      // Fetch barbers
+      // Fetch barbers for the modal select
       const { data: barbersData, error: barbersError } = await supabase
         .from('barbers')
-        .select('*')
+        .select('id,name,business_id')
         .eq('business_id', businessId);
 
       if (barbersError) {
         console.error('Error fetching barbers:', barbersError);
         setBarbers([]);
       } else {
-        setBarbers(barbersData || []);
+        setBarbers((barbersData as Barber[]) || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -114,7 +120,6 @@ const ClosingExceptions = () => {
 
   const handleDelete = async () => {
     if (!selectedException) return;
-    
     if (window.confirm('Sei sicuro di voler eliminare questa eccezione?')) {
       const { error } = await supabase
         .from('availability_exceptions')
@@ -123,7 +128,7 @@ const ClosingExceptions = () => {
 
       if (error) {
         console.error('Error deleting exception:', error);
-        alert('Errore durante l\'eliminazione dell\'eccezione.');
+        alert("Errore durante l'eliminazione dell'eccezione.");
       } else {
         setSelectedException(null);
         fetchData();
@@ -145,43 +150,29 @@ const ClosingExceptions = () => {
   const filteredExceptions = exceptions.filter(exception => {
     const barberName = exception.barber?.name || '';
     const searchLower = searchQuery.toLowerCase();
-    
-    // Convert UTC to local for search
+
     const localStart = toLocalFromUTC({
       utcString: exception.exception_start,
       timezone: businessTimezone,
     });
     const localDate = localStart.toFormat('yyyy-MM-dd');
-    
-    return barberName.toLowerCase().includes(searchLower) ||
-           localDate.includes(searchQuery);
+
+    return barberName.toLowerCase().includes(searchLower) || localDate.includes(searchQuery);
   });
 
   const formatDate = (utcString: string) => {
-    const localTime = toLocalFromUTC({
-      utcString,
-      timezone: businessTimezone,
-    });
+    const localTime = toLocalFromUTC({ utcString, timezone: businessTimezone });
     return localTime.toFormat('cccc, d LLLL yyyy');
   };
 
   const formatTime = (utcString: string) => {
-    const localTime = toLocalFromUTC({
-      utcString,
-      timezone: businessTimezone,
-    });
+    const localTime = toLocalFromUTC({ utcString, timezone: businessTimezone });
     return localTime.toFormat('HH:mm');
   };
 
   const formatTimeRange = (startUtc: string, endUtc: string) => {
-    const startLocal = toLocalFromUTC({
-      utcString: startUtc,
-      timezone: businessTimezone,
-    });
-    const endLocal = toLocalFromUTC({
-      utcString: endUtc,
-      timezone: businessTimezone,
-    });
+    const startLocal = toLocalFromUTC({ utcString: startUtc, timezone: businessTimezone });
+    const endLocal = toLocalFromUTC({ utcString: endUtc, timezone: businessTimezone });
     return `${startLocal.toFormat('HH:mm')} - ${endLocal.toFormat('HH:mm')}`;
   };
 
@@ -261,7 +252,9 @@ const ClosingExceptions = () => {
                       <Calendar size={20} className="text-red-600" />
                     </div>
                     <div className="ml-4 flex-1">
-                      <h3 className="font-semibold text-black">{exception.barber?.name || 'Barbiere sconosciuto'}</h3>
+                      <h3 className="font-semibold text-black">
+                        {exception.barber?.name || 'Barbiere sconosciuto'}
+                      </h3>
                       <div className="text-sm text-gray-500 flex items-center mt-1">
                         <Calendar size={12} className="mr-1" />
                         {formatDate(exception.exception_start)}
