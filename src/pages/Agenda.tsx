@@ -14,6 +14,7 @@ import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBan
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import Dropdown from '../components/ui/Dropdown';
+import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -60,6 +61,8 @@ const Agenda = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [showHeaderExceptionModal, setShowHeaderExceptionModal] = useState(false);
+  const [headerExceptionType, setHeaderExceptionType] = useState<'open' | 'closed'>('closed');
   const [paymentPrefill, setPaymentPrefill] = useState({});
   const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -149,6 +152,25 @@ const Agenda = () => {
     fetchBarbers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, profile?.business_id]);
+
+  const handleExceptionSelect = (value: string) => {
+    if (value === 'apertura') {
+      setHeaderExceptionType('open');
+      setShowHeaderExceptionModal(true);
+    } else if (value === 'chiusura') {
+      setHeaderExceptionType('closed');
+      setShowHeaderExceptionModal(true);
+    }
+  };
+
+  const handleExceptionModalClose = () => {
+    setShowHeaderExceptionModal(false);
+  };
+
+  const handleExceptionModalSave = () => {
+    setShowHeaderExceptionModal(false);
+    fetchAppointments();
+  };
 
   const updateAppointmentTime = async (
     id: string,
@@ -290,6 +312,17 @@ const Agenda = () => {
               ]}
               className="w-32"
             />
+            
+            <Dropdown
+              value=""
+              onChange={handleExceptionSelect}
+              options={[
+                { value: '', label: 'Eccezione' },
+                { value: 'apertura', label: 'Apertura' },
+                { value: 'chiusura', label: 'Chiusura' }
+              ]}
+              className="w-32"
+            />
           </div>
           
           {/* Right side: New Appointment button */}
@@ -390,6 +423,19 @@ const Agenda = () => {
           fetchAppointments();
         }}
       />
+
+      {showHeaderExceptionModal && (
+        <AvailabilityExceptionFormModal
+          isOpen={showHeaderExceptionModal}
+          onClose={handleExceptionModalClose}
+          onSave={handleExceptionModalSave}
+          barbers={barbers}
+          businessId={profile?.business_id || ''}
+          businessTimezone={businessTimezone}
+          exceptionType={headerExceptionType}
+          defaultValues={null}
+        />
+      )}
     </div>
   );
 };
