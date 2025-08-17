@@ -151,6 +151,7 @@ export default function CashRegister() {
             appointment_date,
             paid,
             appointment_status,
+            duration_min,
             service:service_id ( id, name, price ),
             barber:barber_id ( id, name ),
             contact:contact_id ( id, first_name, last_name )
@@ -430,6 +431,7 @@ export default function CashRegister() {
           appointment_date,
           paid,
           appointment_status,
+          duration_min,
           service:service_id ( id, name, price ),
           barber:barber_id ( id, name ),
           contact:contact_id ( id, full_name )

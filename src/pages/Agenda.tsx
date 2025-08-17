@@ -119,7 +119,7 @@ const Agenda = () => {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select(`id, appointment_date, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, services ( name, price, duration_min )`)
+      .select(`id, appointment_date, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, duration_min, services ( name, price, duration_min )`)
       .eq('business_id', profile.business_id)
       .gte('appointment_date', startOfFirstDay)
       .lte('appointment_date', endOfLastDay)

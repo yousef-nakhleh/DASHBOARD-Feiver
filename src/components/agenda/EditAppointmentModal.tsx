@@ -37,7 +37,7 @@ export default function EditAppointmentModal({ appointment, businessTimezone, on
       ...appointment,
       appointment_date: localTime.toFormat('yyyy-MM-dd'),
       appointment_time: localTime.toFormat('HH:mm'),
-      duration_min: appointment.services?.duration_min || 30,
+      duration_min: appointment.duration_min || appointment.services?.duration_min || 30,
     };
   });
   const [services, setServices] = useState<any[]>([]);
@@ -143,6 +143,7 @@ useEffect(() => {
         customer_name:    edited.customer_name,
         service_id:       edited.service_id,
         appointment_date: appointmentStartUTC,
+        duration_min:     edited.duration_min,
       })
       .eq('id', edited.id);
 

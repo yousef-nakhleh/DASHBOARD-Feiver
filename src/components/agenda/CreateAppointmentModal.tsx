@@ -141,6 +141,7 @@ const CreateAppointmentModal = ({
         service_id:        selectedService,
         barber_id:         selectedBarber,
         appointment_date: appointmentStartUTC,
+        duration_min:      duration,
         business_id:       businessId, // ✅ dynamic business id on insert
       },
     ]);

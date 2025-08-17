@@ -53,8 +53,8 @@ const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay
             <div>
               <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Durata</span>
               <p className="text-lg font-semibold text-black mt-1">
-                {appointment.services?.duration_min
-                  ? `${appointment.services.duration_min} minuti`
+                {(appointment.duration_min || appointment.services?.duration_min)
+                  ? `${appointment.duration_min || appointment.services?.duration_min} minuti`
                   : 'Non disponibile'}
               </p>
             </div>

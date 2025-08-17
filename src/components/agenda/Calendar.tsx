@@ -187,6 +187,9 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   
   const displayTime = localTime.toFormat('HH:mm');
 
+  // Use appointment-specific duration if available, otherwise fall back to service duration
+  const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
+
   return (
     <div
       ref={drag}
@@ -197,7 +200,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
       style={{
-        height: `${((app.services?.duration_min || 30) / 15) * slotHeight}px`,
+        height: `${(appointmentDuration / 15) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
@@ -205,7 +208,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{displayTime}</span>
-        <span>{app.services?.duration_min || 30} min</span>
+        <span>{appointmentDuration} min</span>
       </div>
       <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
         <div className="flex items-center">
