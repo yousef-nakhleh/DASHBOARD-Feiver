@@ -153,7 +153,7 @@ export default function CashRegister() {
             appointment_status,
             service:service_id ( id, name, price ),
             barber:barber_id ( id, name ),
-            contact:contact_id ( id, full_name )
+            contact:contact_id ( id, first_name, last_name )
           `
           )
           .eq("business_id", businessId)
@@ -204,7 +204,7 @@ export default function CashRegister() {
             return {
               id: a.id,
               time,
-              client: a.contact?.full_name || "—",
+              client: `${a.contact?.first_name || ''} ${a.contact?.last_name || ''}`.trim() || "—",
               barber: barberName,
               service: a.service?.name || "—",
               price: Number(a.service?.price ?? 0),
@@ -628,12 +628,6 @@ export default function CashRegister() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-black">
                     Trattamenti
-                    {selectedApptId ? (
-                      <span className="text-gray-500 font-normal">
-                        {" "}
-                        • {appointments.find((a) => a.id === selectedApptId)?.client || ""}
-                      </span>
-                    ) : null}
                   </h2>
                   <button
                     onClick={() => setItems([])}
