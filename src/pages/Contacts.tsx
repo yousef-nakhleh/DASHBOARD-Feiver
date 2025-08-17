@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import NewContactForm from '../components/rubrica/NewContactForm';
+import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
@@ -11,6 +12,8 @@ const Contacts: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showCreateContactForm, setShowCreateContactForm] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditContactModal, setShowEditContactModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
   const [clients, setClients] = useState<any[]>([]);
 
   const fetchClients = useCallback(async (businessId: string) => {
@@ -18,7 +21,7 @@ const Contacts: React.FC = () => {
 
     const { data: contacts, error } = await supabase
       .from('contacts')
-      .select('id, first_name, last_name, email, phone_number_e164, birthdate, notes')
+      .select('id, first_name, last_name, email, phone_number_e164, phone_prefix, phone_number_raw, birthdate, notes')
       .eq('business_id', businessId);
 
     if (error) {
@@ -51,8 +54,11 @@ const Contacts: React.FC = () => {
             ? `${contact.first_name} ${contact.last_name}` 
             : contact.first_name || contact.last_name || 'Nome non disponibile',
           phone: contact.phone_number_e164,
+          phone_prefix: contact.phone_prefix,
+          phone_number_raw: contact.phone_number_raw,
           email: contact.email,
           birthdate: contact.birthdate,
+          notes: contact.notes,
           lastVisit,
           visitCount,
           nextVisit,
@@ -77,6 +83,28 @@ const Contacts: React.FC = () => {
   );
 
   const selectedClientData = clients.find(client => client.id === selectedClient);
+
+  const handleEditContact = () => {
+    if (selectedClientData) {
+      setEditingContact({
+        id: selectedClientData.id,
+        first_name: selectedClientData.name.split(' ')[0] || '',
+        last_name: selectedClientData.name.split(' ').slice(1).join(' ') || '',
+        email: selectedClientData.email,
+        phone_prefix: selectedClientData.phone_prefix || '+39',
+        phone_number_raw: selectedClientData.phone_number_raw || '',
+        birthdate: selectedClientData.birthdate,
+        notes: selectedClientData.notes,
+      });
+      setShowEditContactModal(true);
+    }
+  };
+
+  const handleEditContactSave = () => {
+    setShowEditContactModal(false);
+    setEditingContact(null);
+    fetchClients(profile.business_id);
+  };
 
   if (authLoading || !profile?.business_id) {
     return <div className="p-6 text-gray-500">Caricamento contatti…</div>;
@@ -175,7 +203,10 @@ const Contacts: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <button className="p-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+                  <button 
+                    onClick={handleEditContact}
+                    className="p-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                  >
                     <Edit size={18} />
                   </button>
                   <button className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
@@ -247,6 +278,18 @@ const Contacts: React.FC = () => {
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
           onCreated={() => fetchClients(profile.business_id)}
+        />
+      )}
+
+      {showEditContactModal && (
+        <EditContactModal
+          isOpen={showEditContactModal}
+          onClose={() => {
+            setShowEditContactModal(false);
+            setEditingContact(null);
+          }}
+          onSave={handleEditContactSave}
+          defaultValues={editingContact}
         />
       )}
     </div>
