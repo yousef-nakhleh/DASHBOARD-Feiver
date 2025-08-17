@@ -12,9 +12,9 @@ const CreateAppointmentModal = ({
   businessTimezone, 
   onClose,
   onCreated,
-  initialBarberId = '',
-  initialDate = '',
-  initialTime = '',
+  initialBarberId,
+  initialDate,
+  initialTime,
 }) => {
   const { profile } = useAuth();                 // ✅ pull profile from context
   const businessId = profile?.business_id; // ✅ dynamic business id
@@ -26,9 +26,9 @@ const CreateAppointmentModal = ({
   const [selectedService, setSelectedService] = useState('');
   const [selectedBarber, setSelectedBarber] = useState(initialBarberId);
   const [selectedDate, setSelectedDate] = useState(
-    initialDate || formatDateToYYYYMMDDLocal(new Date())
+    initialDate
   );
-  const [selectedTime, setSelectedTime] = useState(initialTime || '07:00');
+  const [selectedTime, setSelectedTime] = useState(initialTime);
   const [duration, setDuration] = useState(30);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState('');

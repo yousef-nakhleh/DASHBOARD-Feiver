@@ -398,9 +398,9 @@ const Agenda = () => {
       {showCreateModal && (
         <CreateAppointmentModal
           businessTimezone={businessTimezone}
-          initialBarberId={slotPrefill?.barberId || ''}
-          initialDate={slotPrefill?.date || selectedDate.toISOString().split('T')[0]}
-          initialTime={slotPrefill?.time || '07:00'}
+          initialBarberId={slotPrefill.barberId}
+          initialDate={slotPrefill.date}
+          initialTime={slotPrefill.time}
           onClose={() => {
             setShowCreateModal(false);
             setSlotPrefill(null);
