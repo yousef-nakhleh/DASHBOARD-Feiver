@@ -218,26 +218,9 @@ export default function CashRegister() {
         if (!cancelled) {
           setAppointments(mapped);
 
-          // Auto-select first unpaid appointment; prefill items with its booked service
-          const firstUnpaid = mapped.find((x) => !x.paid) || mapped[0] || null;
-          setSelectedApptId(firstUnpaid?.id ?? null);
-          if (firstUnpaid) {
-            setItems([
-              {
-                id: "li" + Math.random().toString(36).slice(2, 8),
-                kind: "service",
-                name: firstUnpaid.service,
-                barberId: firstUnpaid.raw.barber?.id ?? null,
-                qty: 1,
-                unit: firstUnpaid.price,
-                discountType: "none",
-                discountValue: 0,
-                refServiceId: firstUnpaid.raw.service?.id ?? null,
-              },
-            ]);
-          } else {
-            setItems([]);
-          }
+          // Clear selection when appointments are refreshed
+          setSelectedApptId(null);
+          setItems([]);
         }
       } catch (e) {
         console.error(e);
@@ -249,6 +232,11 @@ export default function CashRegister() {
       cancelled = true;
     };
   }, [businessId, date, businessTimezone, allBarbers]);
+
+  // Handle appointment selection
+  const handleAppointmentSelect = (appointment: UiAppointment) => {
+    setSelectedApptId(appointment.id);
+  };
 
   // Prefill items when selecting another appointment
   useEffect(() => {
@@ -566,7 +554,7 @@ export default function CashRegister() {
                   {toPay.map((a) => (
                     <button
                       key={a.id}
-                      onClick={() => setSelectedApptId(a.id)}
+                      onClick={() => handleAppointmentSelect(a)}
                       className={cn(
                         "w-full rounded-xl border px-4 py-3 text-left hover:bg-gray-50 transition-colors",
                         selectedApptId === a.id && "border-black bg-gray-50"
