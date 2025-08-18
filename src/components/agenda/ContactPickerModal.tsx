@@ -2,15 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X } from 'lucide-react';
 
-const ContactPickerModal = ({ onSelect, onClose }) => {
+const ContactPickerModal = ({ onSelect, onClose, businessId }) => {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchContacts = async () => {
+      if (!businessId) {
+        setContacts([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('contacts')
         .select('id, first_name, last_name, email, phone_number_e164')
+        .eq('business_id', businessId)
         .order('first_name', { ascending: true });
 
       if (error) {
@@ -23,7 +30,7 @@ const ContactPickerModal = ({ onSelect, onClose }) => {
     };
 
     fetchContacts();
-  }, []);
+  }, [businessId]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center">

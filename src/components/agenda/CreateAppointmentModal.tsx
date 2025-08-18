@@ -389,6 +389,7 @@ const CreateAppointmentModal = ({
           <ContactPickerModal
             onSelect={handleSelectContact}
             onClose={() => setShowContactPicker(false)}
+            businessId={businessId}
           />
         )}
       </div>
