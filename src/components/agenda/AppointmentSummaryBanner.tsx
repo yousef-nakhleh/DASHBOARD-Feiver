@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Info, User, Clock, DollarSign, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Info, User, Clock, DollarSign, CreditCard, X } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
-const AppointmentSummaryBanner = ({ 
-  appointment, 
-  businessTimezone, 
-  onEdit, 
-  onGoToCashRegister, 
-  onDeleteAppointment, 
-  onClose 
-}) => {
+const AppointmentSummaryBanner = ({ appointment, businessTimezone, onEdit, onPay, onDelete, onClose }) => {
   const { profile } = useAuth();
   const [currentView, setCurrentView] = useState('summary'); // 'summary' or 'contact'
   const [contactDetails, setContactDetails] = useState(null);
@@ -27,12 +20,7 @@ const AppointmentSummaryBanner = ({
     timezone: businessTimezone,
   });
 
-  const displayDate = localTime.toLocaleString('it-IT', { 
-    weekday: 'long', 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  });
+  const displayDate = localTime.toFormat('yyyy-MM-dd');
   const displayTime = localTime.toFormat('HH:mm');
 
   // Fetch contact details
@@ -57,6 +45,7 @@ const AppointmentSummaryBanner = ({
   // Generate duration options and check for conflicts
   useEffect(() => {
     const generateDurationOptions = () => {
+      const baseDuration = appointment?.services?.duration_min || 30;
       const options = [];
       
       // Generate options from 15 to 120 minutes in 5-minute increments
@@ -68,7 +57,7 @@ const AppointmentSummaryBanner = ({
     };
 
     const checkConflicts = async () => {
-      if (!appointment?.barber?.id || !profile?.business_id) return;
+      if (!appointment?.barber_id || !profile?.business_id) return;
 
       // Fetch appointments for the same day and barber
       const startOfDay = localTime.startOf('day').toUTC().toISO();
@@ -77,7 +66,7 @@ const AppointmentSummaryBanner = ({
       const { data, error } = await supabase
         .from('appointments')
         .select('appointment_date, duration_min, services(duration_min), id')
-        .eq('barber_id', appointment.barber.id)
+        .eq('barber_id', appointment.barber_id)
         .eq('business_id', profile.business_id)
         .gte('appointment_date', startOfDay)
         .lte('appointment_date', endOfDay)
@@ -118,7 +107,7 @@ const AppointmentSummaryBanner = ({
     
     setSelectedDuration(newDuration);
     
-    // Update the appointment duration in the database immediately
+    // Update the appointment duration in the database
     const { error } = await supabase
       .from('appointments')
       .update({ duration_min: newDuration })
@@ -127,6 +116,11 @@ const AppointmentSummaryBanner = ({
     if (error) {
       console.error('Error updating duration:', error);
     }
+  };
+
+  const handlePayAndConfirm = () => {
+    // This will trigger the payment flow and mark as paid
+    onPay();
   };
 
   const ContactInfoView = () => (
@@ -193,7 +187,7 @@ const AppointmentSummaryBanner = ({
       </div>
 
       {/* Contact Info with Info Button */}
-      <div className="bg-gray-50 rounded-2xl p-4">
+      <div className="bg-gray-50 rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <User size={16} className="text-gray-400 mr-3" />
@@ -211,19 +205,20 @@ const AppointmentSummaryBanner = ({
         </div>
       </div>
 
-      {/* Service and Duration on same line */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Service and Duration */}
+      <div className="space-y-4">
         <div>
           <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Servizio</span>
           <p className="text-lg font-semibold text-black mt-1">{appointment.services?.name || 'Non disponibile'}</p>
         </div>
+
         <div>
           <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Durata</span>
-          <div className="mt-1">
+          <div className="mt-2">
             <select
               value={selectedDuration}
               onChange={(e) => handleDurationChange(Number(e.target.value))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white text-sm"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
             >
               {availableDurations.map(duration => (
                 <option 
@@ -232,7 +227,7 @@ const AppointmentSummaryBanner = ({
                   disabled={busyTimes.has(duration)}
                   className={busyTimes.has(duration) ? 'text-gray-400' : ''}
                 >
-                  {duration} min {busyTimes.has(duration) ? '(conflitto)' : ''}
+                  {duration} minuti {busyTimes.has(duration) ? '(conflitto)' : ''}
                 </option>
               ))}
             </select>
@@ -240,7 +235,7 @@ const AppointmentSummaryBanner = ({
         </div>
       </div>
 
-      {/* Date and Time */}
+      {/* Appointment Details */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <span className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Data</span>
@@ -291,18 +286,18 @@ const AppointmentSummaryBanner = ({
         {currentView === 'summary' && (
           <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
             <button
-              onClick={onGoToCashRegister}
+              onClick={handlePayAndConfirm}
+              className="w-full flex items-center justify-center px-4 py-3 bg-green-600 hover:bg-green-700 rounded-xl text-white font-medium transition-colors"
+            >
+              <CreditCard size={18} className="mr-2" />
+              Conferma e Paga
+            </button>
+            <button
+              onClick={() => window.location.href = '/cassa'}
               className="w-full flex items-center justify-center px-4 py-3 bg-black hover:bg-gray-800 rounded-xl text-white font-medium transition-colors"
             >
               <DollarSign size={18} className="mr-2" />
               Vai alla Cassa
-            </button>
-            <button
-              onClick={onDeleteAppointment}
-              className="w-full flex items-center justify-center px-4 py-3 bg-red-600 hover:bg-red-700 rounded-xl text-white font-medium transition-colors"
-            >
-              <Trash2 size={18} className="mr-2" />
-              Elimina appuntamento
             </button>
           </div>
         )}

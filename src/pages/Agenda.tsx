@@ -12,14 +12,15 @@ import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
 import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import Dropdown from '../components/ui/Dropdown';
+import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 // 🔐 Auth
 import { useAuth } from '../components/auth/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -48,7 +49,6 @@ const formatShort = (d: Date) =>
 
 const Agenda = () => {
   const { profile, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -60,8 +60,12 @@ const Agenda = () => {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showHeaderExceptionModal, setShowHeaderExceptionModal] = useState(false);
   const [headerExceptionType, setHeaderExceptionType] = useState<'open' | 'closed'>('closed');
+  const [paymentPrefill, setPaymentPrefill] = useState({});
+  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [slotPrefill, setSlotPrefill] = useState<{
     date: string;
@@ -189,19 +193,6 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  const handleGoToCashRegister = () => {
-    if (!selectedAppointment) return;
-    navigate('/cassa', {
-      state: {
-        appointment_id: selectedAppointment.id,
-        barber_id: selectedAppointment.barber_id,
-        service_id: selectedAppointment.service_id,
-        price: selectedAppointment.services?.price || 0,
-        customer_name: `${selectedAppointment.contact?.first_name || ''} ${selectedAppointment.contact?.last_name || ''}`.trim(),
-      }
-    });
-  };
-
   const handleDelete = async () => {
     if (!selectedAppointment) return;
     await supabase
@@ -210,6 +201,18 @@ const Agenda = () => {
       .eq('id', selectedAppointment.id);
     setSelectedAppointment(null);
     fetchAppointments();
+  };
+
+  const handlePay = () => {
+    if (!selectedAppointment) return;
+    setPaymentPrefill({
+      appointment_id: selectedAppointment.id,
+      barber_id: selectedAppointment.barber_id,
+      service_id: selectedAppointment.service_id,
+      price: selectedAppointment.services?.price || 0,
+      customer_name: `${selectedAppointment.contact?.first_name || ''} ${selectedAppointment.contact?.last_name || ''}`.trim(),
+    });
+    setShowPaymentPanel(true);
   };
 
   const filtered =
@@ -373,8 +376,9 @@ const Agenda = () => {
           appointment={selectedAppointment}
           businessTimezone={businessTimezone}
           onClose={() => setSelectedAppointment(null)}
-          onGoToCashRegister={handleGoToCashRegister}
-          onDeleteAppointment={handleDelete}
+          onPay={handlePay}
+          onEdit={() => setShowEditModal(true)}
+          onDelete={handleDelete}
         /> 
       )}
 
@@ -408,6 +412,17 @@ const Agenda = () => {
           }}
         />
       )}
+
+      <SlidingPanelPayment
+        visible={showPaymentPanel}
+        prefill={paymentPrefill}
+        onClose={() => setShowPaymentPanel(false)}
+        businessId={profile?.business_id}
+        onSuccess={() => {
+          setShowPaymentPanel(false);
+          fetchAppointments();
+        }}
+      />
 
       {showHeaderExceptionModal && (
         <AvailabilityExceptionFormModal
