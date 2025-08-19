@@ -271,8 +271,7 @@ export default function Trattamenti() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-700">
-                      <DollarSign size={16} className="text-gray-400 mr-2" />
+                    <div className="text-sm text-gray-700">
                       €{s.price}
                     </div>
                   </td>

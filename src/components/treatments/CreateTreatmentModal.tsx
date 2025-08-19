@@ -56,7 +56,7 @@ export default function CreateTreatmentModal({
             <Dialog.Title className="text-2xl font-bold text-black">Nuovo Trattamento</Dialog.Title>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-black"
               disabled={saving}
             >
               <X size={20} />

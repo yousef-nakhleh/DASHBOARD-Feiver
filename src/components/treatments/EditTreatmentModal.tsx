@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { X } from "lucide-react";
+import { useEffect } from "react";
 
 // Supabase client
 const supabase = createClient(
@@ -27,6 +28,16 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
   const [duration, setDuration] = useState(defaultValues?.duration_min ?? 0);
   const [category, setCategory] = useState(defaultValues?.category ?? "");
   const [saving, setSaving] = useState(false);
+
+  // Update form fields when defaultValues change
+  useEffect(() => {
+    if (defaultValues) {
+      setName(defaultValues.name ?? "");
+      setPrice(defaultValues.price ?? 0);
+      setDuration(defaultValues.duration_min ?? 0);
+      setCategory(defaultValues.category ?? "");
+    }
+  }, [defaultValues]);
 
   const isEditing = !!defaultValues?.id;
 
@@ -65,7 +76,7 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-black"
             disabled={saving}
           >
             <X size={20} />
