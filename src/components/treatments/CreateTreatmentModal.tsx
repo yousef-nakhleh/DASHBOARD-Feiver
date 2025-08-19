@@ -2,6 +2,7 @@ import { Dialog } from "@headlessui/react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/AuthContext";
+import { X } from "lucide-react";
 
 export default function CreateTreatmentModal({
   onClose,
@@ -16,7 +17,6 @@ export default function CreateTreatmentModal({
   const [duration, setDuration] = useState(30);
   const [price, setPrice] = useState(20);
   const [category, setCategory] = useState("");
-  const [isPopular, setIsPopular] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async () => {
@@ -33,7 +33,6 @@ export default function CreateTreatmentModal({
         duration_min: duration,
         price,
         category,
-        is_popular: isPopular,
         business_id: profile.business_id, // 👈 dinamico dal profilo
       },
     ]);
@@ -50,55 +49,87 @@ export default function CreateTreatmentModal({
   };
 
   return (
-    <Dialog open onClose={onClose} className="fixed inset-0 z-50">
-      <div className="flex items-center justify-center min-h-screen bg-black/30 p-4">
-        <Dialog.Panel className="bg-white rounded p-6 w-full max-w-md">
-          <Dialog.Title className="text-lg font-semibold mb-4">
-            Nuovo Trattamento
-          </Dialog.Title>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-black">Nuovo Trattamento</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            disabled={saving}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          <div className="space-y-4">
+        <div className="p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-black mb-2">Nome</label>
             <input
-              className="w-full border p-2 rounded"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               placeholder="Nome"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={saving}
             />
+          </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-black mb-2">Durata (minuti)</label>
             <input
               type="number"
-              className="w-full border p-2 rounded"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               placeholder="Durata (min)"
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
+              disabled={saving}
             />
+          </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-black mb-2">Prezzo (€)</label>
             <input
               type="number"
-              className="w-full border p-2 rounded"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               placeholder="Prezzo (€)"
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
+              disabled={saving}
             />
+          </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-black mb-2">Categoria</label>
             <input
-              className="w-full border p-2 rounded"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               placeholder="Categoria"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={saving}
             />
-
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={isPopular}
-                onChange={(e) => setIsPopular(e.target.checked)}
-              />
-              <span>Popolare</span>
-            </label>
           </div>
+        </div>
 
-          <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+            disabled={saving}
+          >
+            Annulla
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 font-medium transition-colors disabled:opacity-50"
+            disabled={saving}
+          >
+            {saving ? "Salvataggio..." : "Salva"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
             <button
               onClick={onClose}
               className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { X } from "lucide-react";
 
 // Supabase client
 const supabase = createClient(
@@ -25,6 +26,7 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
   const [price, setPrice] = useState(defaultValues?.price ?? 0);
   const [duration, setDuration] = useState(defaultValues?.duration_min ?? 0);
   const [category, setCategory] = useState(defaultValues?.category ?? "");
+  const [saving, setSaving] = useState(false);
 
   const isEditing = !!defaultValues?.id;
 
@@ -36,6 +38,7 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
       return;
     }
 
+    setSaving(true);
     const { error } = await supabase.from("services").upsert({
       id: defaultValues?.id,
       name,
@@ -44,6 +47,7 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
       category,
     });
 
+    setSaving(false);
     if (error) {
       console.error(error);
       alert("Errore durante il salvataggio.");
@@ -53,66 +57,81 @@ export default function EditTreatmentModal({ isOpen, onClose, onSave, defaultVal
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
-        <h2 className="text-lg font-semibold mb-4">
-          {isEditing ? "Modifica trattamento" : "Nuovo trattamento"}
-        </h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-[500px] max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-2xl font-bold text-black">
+            {isEditing ? "Modifica trattamento" : "Nuovo trattamento"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            disabled={saving}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-        <div className="space-y-4">
+        <div className="p-6 space-y-6">
           <div>
-            <label className="block mb-1 font-medium">Nome</label>
+            <label className="block text-sm font-semibold text-black mb-2">Nome</label>
             <input
               type="text"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={saving}
             />
           </div>
 
           <div>
-            <label className="block mb-1 font-medium">Durata (minuti)</label>
+            <label className="block text-sm font-semibold text-black mb-2">Durata (minuti)</label>
             <input
               type="number"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
+              disabled={saving}
             />
           </div>
 
           <div>
-            <label className="block mb-1 font-medium">Prezzo (€)</label>
+            <label className="block text-sm font-semibold text-black mb-2">Prezzo (€)</label>
             <input
               type="number"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
+              disabled={saving}
             />
           </div>
 
           <div>
-            <label className="block mb-1 font-medium">Categoria</label>
+            <label className="block text-sm font-semibold text-black mb-2">Categoria</label>
             <input
               type="text"
-              className="w-full border rounded px-3 py-2"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={saving}
             />
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-black rounded hover:bg-gray-300"
+            className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+            disabled={saving}
           >
             Annulla
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-[#5b3623] text-white rounded hover:bg-[#472c1b]"
+            className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 font-medium transition-colors disabled:opacity-50"
+            disabled={saving}
           >
-            {isEditing ? "Aggiorna" : "Salva"}
+            {saving ? "Salvataggio..." : (isEditing ? "Aggiorna" : "Salva")}
           </button>
         </div>
       </div>

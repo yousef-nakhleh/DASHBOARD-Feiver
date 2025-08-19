@@ -254,9 +254,6 @@ export default function Trattamenti() {
                   Categoria
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Popolare
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Azioni
                 </th>
               </tr>
@@ -284,17 +281,6 @@ export default function Trattamenti() {
                       {s.category || "—"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        s.is_popular
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {s.is_popular ? "Sì" : "No"}
-                    </span>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
                       <button
@@ -315,7 +301,7 @@ export default function Trattamenti() {
               ))}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="text-gray-500">
                       {searchQuery
                         ? "Nessun trattamento trovato per la ricerca"
@@ -326,7 +312,7 @@ export default function Trattamenti() {
               )}
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <div className="text-gray-500">Caricamento trattamenti…</div>
                   </td>
                 </tr>
