@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { User, Phone, Calendar, Clock, Search, Plus, Edit, X } from 'lucide-react';
+import { User, Phone, Calendar, Clock, Search, Plus, Edit, X, Trash2 } from 'lucide-react'; // Added Trash2 back
 import NewContactForm from '../components/rubrica/NewContactForm';
 import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
