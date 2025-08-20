@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 
@@ -13,6 +13,7 @@ interface NewContact {
 
 interface NewContactFormProps {
   onCreated: (newContact: NewContact) => void;
+  onCancel?: () => void;
 }
 
 const constraintToMessage = (msg: string) => {
@@ -35,7 +36,9 @@ const constraintToMessage = (msg: string) => {
 const emailLooksValid = (v: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
-const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
+const LOCAL_STORAGE_KEY = 'newContactFormDraft';
+
+const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated, onCancel }) => {
   const { profile } = useAuth();
 
   const [firstName, setFirstName] = useState('');
@@ -46,6 +49,44 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
   const [birthdate, setBirthdate] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const draft = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (draft) {
+        const parsedDraft = JSON.parse(draft);
+        setFirstName(parsedDraft.firstName || '');
+        setLastName(parsedDraft.lastName || '');
+        setPhonePrefix(parsedDraft.phonePrefix || '+39');
+        setPhoneNumberRaw(parsedDraft.phoneNumberRaw || '');
+        setEmail(parsedDraft.email || '');
+        setBirthdate(parsedDraft.birthdate || '');
+      }
+    } catch (e) {
+      console.error("Failed to load draft from localStorage", e);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  }, []);
+
+  // Save draft to localStorage on form field changes (debounced)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      const draftData = { firstName, lastName, phonePrefix, phoneNumberRaw, email, birthdate };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(draftData));
+    }, 500);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [firstName, lastName, phonePrefix, phoneNumberRaw, email, birthdate]);
 
   const handleSave = async () => {
     setFormError(null);
@@ -113,6 +154,7 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
     setPhoneNumberRaw('');
     setEmail('');
     setBirthdate('');
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     onCreated(newContact);
   };
 
@@ -191,13 +233,26 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated }) => {
         />
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full bg-black text-white py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium disabled:opacity-50"
-      >
-        {saving ? 'Salvataggio...' : 'Salva Cliente'}
-      </button>
+      <div className="flex justify-end gap-3">
+        {onCancel && (
+          <button
+            onClick={() => {
+              localStorage.removeItem(LOCAL_STORAGE_KEY);
+              onCancel();
+            }}
+            className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+          >
+            Annulla
+          </button>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 font-medium transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Salvataggio...' : 'Salva Cliente'}
+        </button>
+      </div>
     </div>
   );
 };

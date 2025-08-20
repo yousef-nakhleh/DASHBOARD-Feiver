@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { User, Phone, Calendar, Clock, Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { User, Phone, Calendar, Clock, Search, Plus, Edit, X } from 'lucide-react';
 import NewContactForm from '../components/rubrica/NewContactForm';
 import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
@@ -149,7 +149,10 @@ const Contacts: React.FC = () => {
                   className={`p-6 cursor-pointer hover:bg-gray-50 transition-colors ${
                     selectedClient === client.id ? 'bg-gray-50 border-l-4 border-black' : ''
                   }`}
-                  onClick={() => setSelectedClient(client.id)}
+                  onClick={() => {
+                    setSelectedClient(client.id);
+                    setShowCreateContactForm(false);
+                  }}
                 >
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-12 w-12 rounded-full bg-black text-white flex items-center justify-center font-semibold">
@@ -180,7 +183,7 @@ const Contacts: React.FC = () => {
                   onClick={() => setShowCreateContactForm(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
-                  <Trash2 size={18} />
+                  <X size={18} />
                 </button>
               </div>
               <NewContactForm 
@@ -188,6 +191,7 @@ const Contacts: React.FC = () => {
                   setShowCreateContactForm(false);
                   fetchClients(profile.business_id);
                 }} 
+                onCancel={() => setShowCreateContactForm(false)}
               />
             </div>
           ) : selectedClientData ? (
