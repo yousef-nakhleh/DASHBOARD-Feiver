@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase"; // ← ensure this path is correct
+import { supabase } from "../../lib/supabase";
 
-// keep the same shape you already use elsewhere
 type Profile = {
   id: string;
   business_id: string | null;
@@ -26,38 +25,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ⬇️ now reads from memberships, not profiles
   async function fetchProfile(userId: string) {
     try {
-      // get the user’s memberships; pick one (latest created) for now
       const { data, error } = await supabase
-        .from("memberships")
-        .select("business_id, role, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
       if (error) {
-        console.error("memberships fetch error:", error.message, error);
-        const fallback: Profile = { id: userId, business_id: null, role: null };
-        setProfile(fallback);
-        return fallback;
+        console.error("profiles fetch error:", error.message, error);
+        setProfile(null);
+        return null;
       }
-
-      const first = (data && data[0]) || null;
-      const virtualProfile: Profile = {
-        id: userId,
-        business_id: first?.business_id ?? null,
-        role: (first?.role as string) ?? null, // enum comes back as string
-      };
-
-      setProfile(virtualProfile);
-      return virtualProfile;
+      console.log("Profile data from Supabase (raw):", data);
+      console.log("Profile fetched successfully:", data);
+      setProfile(data as Profile);
+      console.log("Profile set in AuthContext:", data);
+      return data as Profile;
     } catch (e) {
-      console.error("memberships fetch exception:", e);
-      const fallback: Profile = { id: userId, business_id: null, role: null };
-      setProfile(fallback);
-      return fallback;
+      console.error("profiles fetch exception:", e);
+      setProfile(null);
+      return null;
     }
   }
 
@@ -72,16 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (!mounted) return;
-
-        if (error) console.error("getSession error:", error.message, error);
+        if (error) {
+          console.error("getSession error:", error.message, error);
+        }
 
         const sess = data?.session ?? null;
+        console.log("Initial session:", sess ? "Found session" : "No session");
         setSession(sess);
-
         const u = sess?.user ?? null;
+        console.log("Initial user:", u ? `User ID: ${u.id}` : "No user");
         setUser(u);
 
         if (u?.id) {
+          // don’t block UI on profile
+          console.log("Fetching profile for user:", u.id);
           await fetchProfile(u.id);
         } else {
           setProfile(null);
@@ -94,16 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log("Auth state change:", _event, newSession ? "Session exists" : "No session");
       setSession(newSession ?? null);
       const nextUser = newSession?.user ?? null;
       setUser(nextUser);
-
+      // fire-and-forget profile load; UI doesn’t hang
       if (nextUser?.id) {
-        await fetchProfile(nextUser.id);
-      } else {
-        setProfile(null);
+        console.log("Auth change: fetching profile for user:", nextUser.id);
+        fetchProfile(nextUser.id);
       }
+      else setProfile(null);
       setLoading(false);
     });
 
@@ -120,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut().catch(() => {});
   };
 
-  return (
+  return ( 
     <AuthContext.Provider
       value={{ user, session, profile, loading, signOut, refreshProfile }}
     >
