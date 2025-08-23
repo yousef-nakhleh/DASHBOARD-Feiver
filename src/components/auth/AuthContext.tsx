@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabaseClient"; // ← make sure this path matches your project
+import { supabase } from "../../lib/supabase"; // ← make sure this path matches your project
 
 type Role = "admin" | "staff" | "viewer";
 
