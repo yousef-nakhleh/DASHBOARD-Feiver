@@ -1,38 +1,29 @@
 // /src/lib/supabase.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url  = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const url  = import.meta.env.VITE_SUPABASE_URL!;
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY!;
 
-if (!url || !anon) {
-  console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
-}
+// Stable, app-specific storage key (unique namespace for your app)
+const APP_KEY = "sb-auth-dashboard"; // change if you have multiple apps on same host
 
-// derive a per-project storage key so different projects don't clash
-let storageKey = "sb-auth";
-try {
-  const host = new URL(url ?? "").hostname;         // e.g. ijysjdbdwxhjwxuthzh.supabase.co
-  const project = host.split(".")[0] || "sb";       // e.g. ijysjdbdwxhjwxuthzh
-  storageKey = `sb-${project}-auth`;
-} catch {}
-
-type G = typeof globalThis & { __sb?: SupabaseClient; __sb_id?: string };
-
+type G = typeof globalThis & { __sb?: SupabaseClient };
 const g = globalThis as G;
 
 if (!g.__sb) {
-  // first time (or after full refresh)
-  g.__sb = createClient(url!, anon!, {
+  g.__sb = createClient(url, anon, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      storageKey, // IMPORTANT: one consistent storage bucket
+      // 👇 isolate your client’s token storage
+      storageKey: APP_KEY,
+      // Optional: in preview/dev, switch to sessionStorage to avoid host collisions
+      // storage: window.sessionStorage,
     },
   });
-  g.__sb_id = Math.random().toString(36).slice(2, 8); // debug id
-  console.log(`[supabase] CREATED client id=${g.__sb_id} storageKey=${storageKey}`);
+  console.log("[supabase] CREATED client");
 } else {
-  console.log(`[supabase] REUSED  client id=${g.__sb_id} storageKey=${storageKey}`);
+  console.log("[supabase] REUSED client");
 }
 
 export const supabase = g.__sb!;
