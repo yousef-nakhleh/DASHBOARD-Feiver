@@ -1,9 +1,25 @@
-import { createClient } from '@supabase/supabase-js';
+// /src/lib/supabase.ts
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url  = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-console.log('Supabase URL:', supabaseUrl); // ✅ Verifica se è corretto
-console.log('Supabase Anon Key:', supabaseAnonKey); // ✅ Verifica se esiste
+if (!url || !anon) {
+  console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Cache on globalThis so Vite HMR doesn't create duplicates.
+type G = typeof globalThis & { __sb?: SupabaseClient };
+
+export const supabase: SupabaseClient | null =
+  (globalThis as G).__sb ??
+  ((globalThis as G).__sb =
+    url && anon
+      ? createClient(url, anon, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            storageKey: "sb-auth", // one consistent storage key
+          },
+        })
+      : null);
