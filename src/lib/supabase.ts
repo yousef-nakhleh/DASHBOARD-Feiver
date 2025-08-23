@@ -8,18 +8,31 @@ if (!url || !anon) {
   console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
 }
 
-// Cache on globalThis so Vite HMR doesn't create duplicates.
-type G = typeof globalThis & { __sb?: SupabaseClient };
+// derive a per-project storage key so different projects don't clash
+let storageKey = "sb-auth";
+try {
+  const host = new URL(url ?? "").hostname;         // e.g. ijysjdbdwxhjwxuthzh.supabase.co
+  const project = host.split(".")[0] || "sb";       // e.g. ijysjdbdwxhjwxuthzh
+  storageKey = `sb-${project}-auth`;
+} catch {}
 
-export const supabase: SupabaseClient | null =
-  (globalThis as G).__sb ??
-  ((globalThis as G).__sb =
-    url && anon
-      ? createClient(url, anon, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            storageKey: "sb-auth", // one consistent storage key
-          },
-        })
-      : null);
+type G = typeof globalThis & { __sb?: SupabaseClient; __sb_id?: string };
+
+const g = globalThis as G;
+
+if (!g.__sb) {
+  // first time (or after full refresh)
+  g.__sb = createClient(url!, anon!, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey, // IMPORTANT: one consistent storage bucket
+    },
+  });
+  g.__sb_id = Math.random().toString(36).slice(2, 8); // debug id
+  console.log(`[supabase] CREATED client id=${g.__sb_id} storageKey=${storageKey}`);
+} else {
+  console.log(`[supabase] REUSED  client id=${g.__sb_id} storageKey=${storageKey}`);
+}
+
+export const supabase = g.__sb!;
