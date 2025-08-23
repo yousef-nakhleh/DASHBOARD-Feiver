@@ -1,7 +1,7 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabaseClient"; // make sure this path is correct
+import { supabase } from "../../lib/supabase"; // make sure this path is correct
 
 // ---- Types kept identical to your old API ----
 type Profile = {
