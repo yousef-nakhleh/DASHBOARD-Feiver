@@ -118,14 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const { data, error } = await supabase.auth.getSession();
-
-if (error?.message?.toLowerCase().includes("refresh")) {
-  console.warn("Invalid refresh token – clearing local session");
-  await supabase.auth.signOut({ scope: "local" });
-  location.reload();
-  return; // stop here, don’t continue with bad state
-}
-        if (!mounted) return;
+        if (!mounted) return; 
 
         if (error) console.error("getSession error:", error.message, error);
 
