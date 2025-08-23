@@ -5,7 +5,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 // 👇 import your AuthProvider
-import { AuthProvider } from "../context/AuthContext"; 
+import { AuthProvider } from "../components/auth/AuthContext"; 
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
