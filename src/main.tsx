@@ -1,17 +1,10 @@
-// src/main.tsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
-import { AuthProvider } from "./components/auth/AuthContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <App />   {/* App must NOT render another Router */}
-      </BrowserRouter>
-    </AuthProvider>
+    <App />   {/* no AuthProvider, no BrowserRouter here */}
   </StrictMode>
 );
