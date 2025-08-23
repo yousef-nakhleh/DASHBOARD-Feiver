@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 // ⬇️ ensure this path matches your project (e.g. "../../lib/supabaseClient")
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
 
 type Role = "admin" | "staff" | "viewer";
 
