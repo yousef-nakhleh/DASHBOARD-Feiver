@@ -1,20 +1,26 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../../lib/supabase";
+// ⬇️ ensure this path matches your project (e.g. "../../lib/supabaseClient")
+import { supabase } from "../lib/supabase";
 
-type Profile = {
-  id: string;
-  business_id: string | null;
-  role: string | null;
+type Role = "admin" | "staff" | "viewer";
+
+export type Membership = {
+  user_id: string;
+  business_id: string;
+  role: Role;
+  created_at?: string;
 };
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
+  memberships: Membership[];
+  activeMembership: Membership | null;              // current business in UI
   loading: boolean;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshMemberships: () => Promise<void>;
+  setActiveBusinessId: (businessId: string | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,35 +28,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string) {
+  const activeMembership = useMemo(() => {
+    if (!memberships.length) return null;
+    // if an explicit selection exists, use it
+    if (activeBusinessId) {
+      return memberships.find(m => m.business_id === activeBusinessId) ?? null;
+    }
+    // if only one membership, auto-pick it
+    if (memberships.length === 1) return memberships[0];
+    // multiple memberships but none selected yet
+    return null;
+  }, [memberships, activeBusinessId]);
+
+  async function fetchMemberships(userId: string) {
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+        .from("memberships")
+        .select("user_id, business_id, role, created_at")
+        .eq("user_id", userId);
+
       if (error) {
-        console.error("profiles fetch error:", error.message, error);
-        setProfile(null);
-        return null;
+        console.error("memberships fetch error:", error.message, error);
+        setMemberships([]);
+        return [];
       }
-      console.log("Profile data from Supabase (raw):", data);
-      console.log("Profile fetched successfully:", data);
-      setProfile(data as Profile);
-      console.log("Profile set in AuthContext:", data);
-      return data as Profile;
+
+      setMemberships((data ?? []) as Membership[]);
+      // auto-select if exactly one
+      if ((data?.length ?? 0) === 1) {
+        setActiveBusinessId(data![0].business_id);
+      }
+      return (data ?? []) as Membership[];
     } catch (e) {
-      console.error("profiles fetch exception:", e);
-      setProfile(null);
-      return null;
+      console.error("memberships fetch exception:", e);
+      setMemberships([]);
+      return [];
     }
   }
 
-  const refreshProfile = async () => {
-    if (user?.id) await fetchProfile(user.id);
+  const refreshMemberships = async () => {
+    if (user?.id) await fetchMemberships(user.id);
   };
 
   useEffect(() => {
@@ -60,43 +81,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (!mounted) return;
-        if (error) {
-          console.error("getSession error:", error.message, error);
-        }
+
+        if (error) console.error("getSession error:", error.message, error);
 
         const sess = data?.session ?? null;
-        console.log("Initial session:", sess ? "Found session" : "No session");
         setSession(sess);
+
         const u = sess?.user ?? null;
-        console.log("Initial user:", u ? `User ID: ${u.id}` : "No user");
         setUser(u);
 
         if (u?.id) {
-          // don’t block UI on profile
-          console.log("Fetching profile for user:", u.id);
-          await fetchProfile(u.id);
+          await fetchMemberships(u.id);
         } else {
-          setProfile(null);
+          setMemberships([]);
+          setActiveBusinessId(null);
         }
       } catch (e) {
         console.error("getSession exception:", e);
-        setProfile(null);
+        setMemberships([]);
+        setActiveBusinessId(null);
       } finally {
         if (mounted) setLoading(false);
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log("Auth state change:", _event, newSession ? "Session exists" : "No session");
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession ?? null);
       const nextUser = newSession?.user ?? null;
       setUser(nextUser);
-      // fire-and-forget profile load; UI doesn’t hang
+
       if (nextUser?.id) {
-        console.log("Auth change: fetching profile for user:", nextUser.id);
-        fetchProfile(nextUser.id);
+        await fetchMemberships(nextUser.id);
+      } else {
+        setMemberships([]);
+        setActiveBusinessId(null);
       }
-      else setProfile(null);
       setLoading(false);
     });
 
@@ -109,13 +128,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setUser(null);
     setSession(null);
-    setProfile(null);
+    setMemberships([]);
+    setActiveBusinessId(null);
     await supabase.auth.signOut().catch(() => {});
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, profile, loading, signOut, refreshProfile }}
+      value={{
+        user,
+        session,
+        memberships,
+        activeMembership,
+        loading,
+        signOut,
+        refreshMemberships,
+        setActiveBusinessId
+      }}
     >
       {children}
     </AuthContext.Provider>
