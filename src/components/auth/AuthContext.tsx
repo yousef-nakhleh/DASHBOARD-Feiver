@@ -26,28 +26,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function fetchProfile(userId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-      if (error) {
-        console.error("profiles fetch error:", error.message, error);
-        setProfile(null);
-        return null;
-      }
-      console.log("Profile data from Supabase (raw):", data);
-      console.log("Profile fetched successfully:", data);
-      setProfile(data as Profile);
-      console.log("Profile set in AuthContext:", data);
-      return data as Profile;
-    } catch (e) {
-      console.error("profiles fetch exception:", e);
+  try {
+    const { data, error } = await supabase
+      .from("memberships")
+      .select("user_id, business_id, role")
+      .eq("user_id", userId)
+      .single(); // OK because you currently have exactly one row per user
+
+    if (error) {
+      console.error("memberships fetch error:", error.message, error);
       setProfile(null);
       return null;
     }
+
+    // Adapt membership row to your Profile shape
+    const prof: Profile = {
+      id: userId,
+      business_id: data?.business_id ?? null,
+      role: (data?.role as string) ?? null,
+    };
+
+    console.log("Membership fetched successfully:", data);
+    setProfile(prof);
+    console.log("Profile set in AuthContext (from memberships):", prof);
+    return prof;
+  } catch (e) {
+    console.error("memberships fetch exception:", e);
+    setProfile(null);
+    return null;
   }
+}
 
   const refreshProfile = async () => {
     if (user?.id) await fetchProfile(user.id);
