@@ -78,7 +78,7 @@ function App() {
 
                 {/* ✅ Voiceflow page is gated by ChatbotGate (chatbot.component) */}
                 <Route
-                  path="voiceflow"
+                  path="chatbot"
                   element={
                     <ChatbotGate fallback={<Navigate to="/" replace />}>
                       <Voiceflow />
