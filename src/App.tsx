@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 
@@ -17,9 +18,13 @@ import Vapi from './pages/Vapi';
 import ClosingExceptions from './pages/ClosingExceptions';
 import OpeningExceptions from './pages/OpeningExceptions';
 
-// 🔐 Auth (moved)
+// 🔐 Auth
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import LoginPage from './components/auth/LoginPage';
+
+// ✅ Features
+import { FeaturesProvider } from './features/FeaturesProvider';
+import { ChatbotGate } from './gates/ChatbotGate';
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -27,13 +32,25 @@ function RequireAuth() {
   const location = useLocation();
 
   if (loading) return null; // or a spinner
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+  return <Outlet />;
+}
 
-  if (!user) {
-    // send them to /login and remember where they were going
-    return <Navigate to="/login" replace state={{ from: location }} />;
+// ✅ Wrap protected routes with FeaturesProvider (needs business_id)
+function WithFeatures() {
+  const { profile, loading } = useAuth();
+  if (loading) return null;
+
+  const businessId = profile?.business_id ?? null;
+  if (!businessId) {
+    return <div className="p-6">Nessun business associato.</div>;
   }
 
-  return <Outlet />;
+  return (
+    <FeaturesProvider businessId={businessId}>
+      <Outlet />
+    </FeaturesProvider>
+  );
 }
 
 // ---------- App ----------
@@ -47,24 +64,37 @@ function App() {
 
           {/* Everything else is protected */}
           <Route element={<RequireAuth />}>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="agenda" element={<Agenda />} />
-              <Route path="cassa" element={<CashRegister />} />
-              <Route path="cassa/pagamento" element={<PaymentPage />} />
-              <Route path="rubrica" element={<Contacts />} />
-              <Route path="trattamenti" element={<Trattamenti />} />
-              <Route path="statistiche" element={<Statistiche />} />
-              <Route path="magazzino" element={<Magazzino />} />
-              <Route path="staff" element={<StaffAvailability />} />
-              <Route path="chatbot" element={<Chatbot />} />
-              <Route path="waiting-list" element={<WaitingList />} />
-              <Route path="vapi" element={<Vapi />} />
-              <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
-              <Route path="exceptions" element={<ClosingExceptions />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+            {/* mount FeaturesProvider for all protected routes */}
+            <Route element={<WithFeatures />}>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="agenda" element={<Agenda />} />
+                <Route path="cassa" element={<CashRegister />} />
+                <Route path="cassa/pagamento" element={<PaymentPage />} />
+                <Route path="rubrica" element={<Contacts />} />
+                <Route path="trattamenti" element={<Trattamenti />} />
+                <Route path="statistiche" element={<Statistiche />} />
+                <Route path="magazzino" element={<Magazzino />} />
+                <Route path="staff" element={<StaffAvailability />} />
+
+                {/* ✅ Chatbot route gated by feature flag (chatbot.component) */}
+                <Route
+                  path="chatbot"
+                  element={
+                    <ChatbotGate fallback={<Navigate to="/" replace />}>
+                      <Chatbot />
+                    </ChatbotGate>
+                  }
+                />
+
+                <Route path="waiting-list" element={<WaitingList />} />
+                <Route path="vapi" element={<Vapi />} />
+                <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
+                <Route path="exceptions" element={<ClosingExceptions />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
             </Route>
-          </Route> 
+          </Route>
         </Routes>
       </Router>
     </AuthProvider>
