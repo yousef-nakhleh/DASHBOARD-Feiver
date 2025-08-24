@@ -48,7 +48,7 @@ const sidebarItems = [
   { path: '/trattamenti', name: 'Trattamenti', icon: <Scissors size={20} /> },
   { path: '/statistiche', name: 'Statistiche', icon: <BarChart2 size={20} /> },
   { path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> },
-  { path: '/Voiceflow', name: 'ChatBot', icon: <MessageSquare size={20} /> },
+  { path: '/Chatbot', name: 'Chatbot', icon: <MessageSquare size={20} /> },
   { path: '/waiting-list', name: 'Lista d\'Attesa', icon: <Clock size={20} /> },
   { path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> },
 ];
