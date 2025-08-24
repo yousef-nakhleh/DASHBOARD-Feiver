@@ -1,5 +1,5 @@
 // src/pages/Trattamenti.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Clock, DollarSign, Edit2, Trash2, Plus, Search, XCircle } from "lucide-react";
 import EditTreatmentModal from "@/components/treatments/EditTreatmentModal";
 import CreateTreatmentModal from "@/components/treatments/CreateTreatmentModal";
@@ -21,9 +21,9 @@ type Service = {
 };
 
 export default function Trattamenti() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profile } = useAuth();
+  const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
   const [filtered, setFiltered] = useState<Service[]>([]);
@@ -32,45 +32,12 @@ export default function Trattamenti() {
   const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
-  // 1) Fetch profile to get business_id for this user
-  useEffect(() => {
-    const loadBusinessId = async () => {
-      if (authLoading) return;
-      if (!user) {
-        setBusinessId(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setProfileError(null);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.warn("profiles fetch error:", error.message);
-        setProfileError("Profilo non configurato. Contatta l’amministratore.");
-        setBusinessId(null);
-        setLoading(false);
-        return;
-      }
-
-      setBusinessId(data?.business_id ?? null);
-      setLoading(false);
-    };
-
-    loadBusinessId();
-  }, [user, authLoading]);
-
-  // 2) Fetch services for this business
+  // 1) Fetch services for this business (now driven by AuthContext businessId)
   useEffect(() => {
     const fetchServices = async () => {
+      if (authLoading) return; // wait for auth to resolve
       if (!businessId) {
-        console.log("Trattamenti: No business_id available, clearing services");
         setServices([]);
         setLoading(false);
         return;
@@ -92,9 +59,9 @@ export default function Trattamenti() {
     };
 
     fetchServices();
-  }, [businessId]);
+  }, [businessId, authLoading]);
 
-  // 3) Local filtering
+  // 2) Local filtering
   useEffect(() => {
     let result = services;
 
@@ -133,20 +100,7 @@ export default function Trattamenti() {
     }
   }
 
-  const formatDuration = (secondsOrMinutes: number): string => {
-    // Your table stores minutes, so keep it as "NN min"
-    return `${secondsOrMinutes} min`;
-  };
-
-  const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleString("it-IT", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatDuration = (minutes: number): string => `${minutes} min`;
 
   const successfulBookings = 0; // not applicable here; kept UI structure intact
   const totalCalls = services.length;
@@ -174,13 +128,13 @@ export default function Trattamenti() {
     );
   }
 
-  if (profileError || !businessId) {
+  if (!businessId) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <XCircle size={40} className="mx-auto text-red-400 mb-3" />
           <p className="text-gray-700">
-            {profileError || "Profilo senza business associato."}
+            Profilo senza business associato.
           </p>
         </div>
       </div>
