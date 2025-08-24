@@ -5,6 +5,10 @@ import { supabase } from '../lib/supabase';
 import { toLocalFromUTC } from '../lib/timeUtils';
 import { useAuth } from '../components/auth/AuthContext';
 
+// ✅ NEW: feature gating
+import { useFeatures } from '@/features/FeaturesProvider';
+import { FEATURE } from '@/features/featureSlugs';
+
 interface VoiceflowData {
   id: string;
   name: string;
@@ -18,18 +22,21 @@ const Voiceflow: React.FC = () => {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
+  // ✅ NEW: ask provider if this feature is enabled for this business
+  const { ready: featuresReady, has } = useFeatures();
+  const featureEnabled = featuresReady && has(FEATURE.VOICEFLOW);
+
   const [data, setData] = useState<VoiceflowData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Assume the timezone is defined somewhere (or fetched)
   const businessTimezone = 'Europe/Rome';
 
-  // Fetch Voiceflow rows for this business
+  // Fetch Voiceflow rows for this business (only if feature is enabled)
   useEffect(() => {
     const fetchVoiceflowData = async () => {
-      if (authLoading) return; // wait for auth to resolve
-      if (!businessId) {
+      if (authLoading || !featuresReady) return;          // wait for auth + features
+      if (!user || !businessId || !featureEnabled) {      // nothing to load if not enabled
         setData([]);
         setLoading(false);
         return;
@@ -62,7 +69,7 @@ const Voiceflow: React.FC = () => {
     };
 
     fetchVoiceflowData();
-  }, [businessId, authLoading]);
+  }, [user, businessId, authLoading, featuresReady, featureEnabled]);
 
   const filteredData = data.filter(
     item =>
@@ -73,10 +80,10 @@ const Voiceflow: React.FC = () => {
   );
 
   // Guard states
-  if (authLoading) {
+  if (authLoading || !featuresReady) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-gray-600">Caricamento autenticazione…</p>
+        <p className="text-gray-600">Caricamento…</p>
       </div>
     );
   }
@@ -100,6 +107,19 @@ const Voiceflow: React.FC = () => {
     );
   }
 
+  // ✅ NEW: feature gate — if disabled, show a friendly fallback
+  if (!featureEnabled) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <XCircle size={40} className="mx-auto text-red-400 mb-3" />
+          <p className="text-gray-700">Voiceflow non è disponibile per questo business.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ If we’re here, the feature is enabled → render the page UI
   return (
     <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
