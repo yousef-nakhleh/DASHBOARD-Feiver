@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/supabase/supabase"; // adjust path if different
+import { supabase } from '../lib/supabase'; // adjust path if different
 import type { FeatureSlug } from "./featureSlugs";
 
 type FeatureRow = { feature_slug: string; enabled: boolean };
