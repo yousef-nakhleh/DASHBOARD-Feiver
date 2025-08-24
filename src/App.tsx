@@ -12,7 +12,7 @@ import Statistiche from "./pages/Statistiche";
 import Magazzino from "./pages/Magazzino";
 import StaffAvailability from "./pages/StaffAvailability";
 import PaymentPage from "./components/payment/PaymentPage";
-import Voiceflow from "./pages/Voiceflow";
+import Chatbot from "./pages/Chatbot";
 import WaitingList from "./pages/WaitingList";
 import Vapi from "./pages/Vapi";
 import ClosingExceptions from "./pages/ClosingExceptions";
