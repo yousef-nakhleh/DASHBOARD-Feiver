@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { useFeatures } from "@/features/FeaturesProvider";
-import { FEATURE } from "@/features/featureSlugs";
+import { useFeatures } from "../features/FeaturesProvider";
+import { FEATURE } from "../features/featureSlugs";
 
 type Props = {
   children: ReactNode;
