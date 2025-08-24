@@ -23,6 +23,7 @@ import LoginPage from "./components/auth/LoginPage";
 
 // ✅ Features
 import { FeaturesProvider } from "./features/FeaturesProvider";
+import { ChatbotGate } from "./gates/ChatbotGate"; // 👈 add this
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -74,7 +75,17 @@ function App() {
                 <Route path="statistiche" element={<Statistiche />} />
                 <Route path="magazzino" element={<Magazzino />} />
                 <Route path="staff" element={<StaffAvailability />} />
-                <Route path="voiceflow" element={<Voiceflow />} />
+
+                {/* ✅ Voiceflow is now gated by ChatbotGate */}
+                <Route
+                  path="voiceflow"
+                  element={
+                    <ChatbotGate fallback={<Navigate to="/" replace />}>
+                      <Voiceflow />
+                    </ChatbotGate>
+                  }
+                />
+
                 <Route path="waiting-list" element={<WaitingList />} />
                 <Route path="vapi" element={<Vapi />} />
                 <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
