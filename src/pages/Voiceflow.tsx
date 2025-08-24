@@ -1,5 +1,5 @@
 // src/pages/Voiceflow.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toLocalFromUTC } from '../lib/timeUtils';
@@ -15,57 +15,23 @@ interface VoiceflowData {
 }
 
 const Voiceflow: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profile } = useAuth();
+  const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [data, setData] = useState<VoiceflowData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profileError, setProfileError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Assume the timezone is defined somewhere (or fetched)
   const businessTimezone = 'Europe/Rome';
 
-  // 1) Load user's business_id from profiles
-  useEffect(() => {
-    const loadBusinessId = async () => {
-      if (authLoading) return;
-
-      if (!user) {
-        setBusinessId(null);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setProfileError(null);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('business_id')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.warn('profiles fetch error:', error.message);
-        setProfileError('Profilo non configurato. Contatta l’amministratore.');
-        setBusinessId(null);
-        setLoading(false);
-        return;
-      }
-
-      setBusinessId(data?.business_id ?? null);
-      setLoading(false);
-    };
-
-    loadBusinessId();
-  }, [user, authLoading]);
-
-  // 2) Fetch Voiceflow rows for this business
+  // Fetch Voiceflow rows for this business
   useEffect(() => {
     const fetchVoiceflowData = async () => {
+      if (authLoading) return; // wait for auth to resolve
       if (!businessId) {
         setData([]);
+        setLoading(false);
         return;
       }
       setLoading(true);
@@ -96,7 +62,7 @@ const Voiceflow: React.FC = () => {
     };
 
     fetchVoiceflowData();
-  }, [businessId]);
+  }, [businessId, authLoading]);
 
   const filteredData = data.filter(
     item =>
@@ -123,14 +89,12 @@ const Voiceflow: React.FC = () => {
     );
   }
 
-  if (profileError || !businessId) {
+  if (!businessId) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <XCircle size={40} className="mx-auto text-red-400 mb-3" />
-          <p className="text-gray-700">
-            {profileError || 'Profilo senza business associato.'}
-          </p>
+          <p className="text-gray-700">Profilo senza business associato.</p>
         </div>
       </div>
     );
