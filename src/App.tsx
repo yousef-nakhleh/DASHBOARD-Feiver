@@ -81,7 +81,7 @@ function App() {
                   path="chatbot"
                   element={
                     <ChatbotGate fallback={<Navigate to="/" replace />}>
-                      <Voiceflow />
+                      <Chatbot />
                     </ChatbotGate>
                   }
                 />
