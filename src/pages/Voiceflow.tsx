@@ -6,8 +6,8 @@ import { toLocalFromUTC } from '../lib/timeUtils';
 import { useAuth } from '../components/auth/AuthContext';
 
 // ✅ NEW: feature gating
-import { useFeatures } from '@/features/FeaturesProvider';
-import { FEATURE } from '@/features/featureSlugs';
+import { useFeatures } from './features/FeaturesProvider';
+import { FEATURE } from './features/featureSlugs';
 
 interface VoiceflowData {
   id: string;
