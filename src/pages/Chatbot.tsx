@@ -1,11 +1,10 @@
-// src/pages/Voiceflow.tsx
 import React, { useEffect, useState, useMemo } from "react";
 import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toLocalFromUTC } from "../lib/timeUtils";
 import { useAuth } from "../components/auth/AuthContext";
 
-interface VoiceflowData {
+interface ChatbotData {
   id: string;
   name: string;
   phone: string;
@@ -14,18 +13,18 @@ interface VoiceflowData {
   created_at?: string;
 }
 
-const Voiceflow: React.FC = () => {
+const Chatbot: React.FC = () => {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
-  const [data, setData] = useState<VoiceflowData[]>([]);
+  const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   const businessTimezone = "Europe/Rome";
 
   useEffect(() => {
-    const fetchVoiceflowData = async () => {
+    const fetchChatbotData = async () => {
       if (authLoading) return; // wait for auth
       if (!user || !businessId) {
         setData([]);
@@ -34,17 +33,17 @@ const Voiceflow: React.FC = () => {
       }
       setLoading(true);
       try {
-        const { data: voiceflowData, error } = await supabase
-          .from("voiceflow")
+        const { data: ChatbotData, error } = await supabase
+          .from("chatbot")
           .select("id, name, phone, email, request, created_at")
           .eq("business_id", businessId)
           .order("created_at", { ascending: false });
 
         if (error) {
-          console.error("Errore nel caricamento dei dati Voiceflow:", error);
+          console.error("Errore nel caricamento dei dati Chatbot:", error);
           setData([]);
         } else {
-          const converted = (voiceflowData || []).map((item) => ({
+          const converted = (chatbotData || []).map((item) => ({
             ...item,
             created_at: item.created_at
               ? toLocalFromUTC({ utcString: item.created_at, timezone: businessTimezone }).toISO()
@@ -59,7 +58,7 @@ const Voiceflow: React.FC = () => {
       }
     };
 
-    fetchVoiceflowData();
+    fetchChatbotData();
   }, [user, businessId, authLoading]);
 
   const filteredData = data.filter(
@@ -103,8 +102,8 @@ const Voiceflow: React.FC = () => {
     <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2">Voiceflow</h1>
-          <p className="text-gray-600">Gestisci le richieste ricevute tramite Voiceflow</p>
+          <h1 className="text-3xl font-bold text-black mb-2">Chatbot</h1>
+          <p className="text-gray-600">Gestisci le richieste ricevute tramite Chatbot</p>
         </div>
       </div>
 
@@ -208,4 +207,4 @@ const Voiceflow: React.FC = () => {
   );
 };
 
-export default Voiceflow;
+export default Chatbot;
