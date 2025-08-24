@@ -1,13 +1,9 @@
 // src/pages/Voiceflow.tsx
-import React, { useEffect, useState, useMemo } from 'react';
-import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { toLocalFromUTC } from '../lib/timeUtils';
-import { useAuth } from '../components/auth/AuthContext';
-
-// ✅ NEW: feature gating
-import { useFeatures } from '../features/FeaturesProvider';
-import { FEATURE } from '../features/featureSlugs';
+import React, { useEffect, useState, useMemo } from "react";
+import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { toLocalFromUTC } from "../lib/timeUtils";
+import { useAuth } from "../components/auth/AuthContext";
 
 interface VoiceflowData {
   id: string;
@@ -22,21 +18,16 @@ const Voiceflow: React.FC = () => {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
-  // ✅ NEW: ask provider if this feature is enabled for this business
-  const { ready: featuresReady, has } = useFeatures();
-  const featureEnabled = featuresReady && has(FEATURE.VOICEFLOW);
-
   const [data, setData] = useState<VoiceflowData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const businessTimezone = 'Europe/Rome';
+  const businessTimezone = "Europe/Rome";
 
-  // Fetch Voiceflow rows for this business (only if feature is enabled)
   useEffect(() => {
     const fetchVoiceflowData = async () => {
-      if (authLoading || !featuresReady) return;          // wait for auth + features
-      if (!user || !businessId || !featureEnabled) {      // nothing to load if not enabled
+      if (authLoading) return; // wait for auth
+      if (!user || !businessId) {
         setData([]);
         setLoading(false);
         return;
@@ -44,13 +35,13 @@ const Voiceflow: React.FC = () => {
       setLoading(true);
       try {
         const { data: voiceflowData, error } = await supabase
-          .from('voiceflow')
-          .select('id, name, phone, email, request, created_at')
-          .eq('business_id', businessId)
-          .order('created_at', { ascending: false });
+          .from("voiceflow")
+          .select("id, name, phone, email, request, created_at")
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: false });
 
         if (error) {
-          console.error('Errore nel caricamento dei dati Voiceflow:', error);
+          console.error("Errore nel caricamento dei dati Voiceflow:", error);
           setData([]);
         } else {
           const converted = (voiceflowData || []).map((item) => ({
@@ -62,17 +53,17 @@ const Voiceflow: React.FC = () => {
           setData(converted);
         }
       } catch (err) {
-        console.error('Errore nel fetch dei dati:', err);
+        console.error("Errore nel fetch dei dati:", err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchVoiceflowData();
-  }, [user, businessId, authLoading, featuresReady, featureEnabled]);
+  }, [user, businessId, authLoading]);
 
   const filteredData = data.filter(
-    item =>
+    (item) =>
       item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.phone?.includes(searchQuery) ||
       item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -80,7 +71,7 @@ const Voiceflow: React.FC = () => {
   );
 
   // Guard states
-  if (authLoading || !featuresReady) {
+  if (authLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <p className="text-gray-600">Caricamento…</p>
@@ -107,19 +98,7 @@ const Voiceflow: React.FC = () => {
     );
   }
 
-  // ✅ NEW: feature gate — if disabled, show a friendly fallback
-  if (!featureEnabled) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <XCircle size={40} className="mx-auto text-red-400 mb-3" />
-          <p className="text-gray-700">Voiceflow non è disponibile per questo business.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ If we’re here, the feature is enabled → render the page UI
+  // Render UI
   return (
     <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
@@ -155,7 +134,7 @@ const Voiceflow: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
+                  <tr className="border-b border-gray-2 00">
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wide">
                       <div className="flex items-center">
                         <User size={16} className="mr-2" />
@@ -188,23 +167,23 @@ const Voiceflow: React.FC = () => {
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center font-semibold text-sm">
-                            {item.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                            {item.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"}
                           </div>
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-black">{item.name || 'N/A'}</p>
+                            <p className="text-sm font-medium text-black">{item.name || "N/A"}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm text-gray-900">{item.phone || 'N/A'}</p>
+                        <p className="text-sm text-gray-900">{item.phone || "N/A"}</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm text-gray-900">{item.email || 'N/A'}</p>
+                        <p className="text-sm text-gray-900">{item.email || "N/A"}</p>
                       </td>
                       <td className="px-4 py-4">
                         <div className="max-w-xs">
                           <p className="text-sm text-gray-900 truncate" title={item.request}>
-                            {item.request || 'N/A'}
+                            {item.request || "N/A"}
                           </p>
                         </div>
                       </td>
@@ -218,7 +197,7 @@ const Voiceflow: React.FC = () => {
               <div className="text-center">
                 <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
-                  {searchQuery ? 'Nessun risultato trovato' : 'Nessuna richiesta disponibile'}
+                  {searchQuery ? "Nessun risultato trovato" : "Nessuna richiesta disponibile"}
                 </p>
               </div>
             </div>
