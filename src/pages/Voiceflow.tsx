@@ -1,11 +1,10 @@
-// src/pages/Voiceflow.tsx
-import React, { useEffect, useState, useMemo } from 'react';
-import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { toLocalFromUTC } from '../lib/timeUtils';
-import { useAuth } from '../components/auth/AuthContext';
+import React, { useEffect, useState, useMemo } from "react";
+import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { toLocalFromUTC } from "../lib/timeUtils";
+import { useAuth } from "../components/auth/AuthContext";
 
-interface VoiceflowData {
+interface ChatbotData {
   id: string;
   name: string;
   phone: string;
@@ -14,21 +13,20 @@ interface VoiceflowData {
   created_at?: string;
 }
 
-const Voiceflow: React.FC = () => {
+const Chatbot: React.FC = () => {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
 
-  const [data, setData] = useState<VoiceflowData[]>([]);
+  const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Assume the timezone is defined somewhere (or fetched)
-  const businessTimezone = 'Europe/Rome';
+  const businessTimezone = "Europe/Rome";
 
-  // Fetch Voiceflow rows for this business
+  // Fetch Chatbot rows for this business
   useEffect(() => {
-    const fetchVoiceflowData = async () => {
-      if (authLoading) return; // wait for auth to resolve
+    const fetchChatbotData = async () => {
+      if (authLoading) return; // wait for auth
       if (!businessId) {
         setData([]);
         setLoading(false);
@@ -36,17 +34,17 @@ const Voiceflow: React.FC = () => {
       }
       setLoading(true);
       try {
-        const { data: voiceflowData, error } = await supabase
-          .from('voiceflow')
-          .select('id, name, phone, email, request, created_at')
-          .eq('business_id', businessId)
-          .order('created_at', { ascending: false });
+        const { data: chatbotData, error } = await supabase
+          .from("chatbot") // 👈 now fetching from chatbot table
+          .select("id, name, phone, email, request, created_at")
+          .eq("business_id", businessId)
+          .order("created_at", { ascending: false });
 
         if (error) {
-          console.error('Errore nel caricamento dei dati Voiceflow:', error);
+          console.error("Errore nel caricamento dei dati Chatbot:", error);
           setData([]);
         } else {
-          const converted = (voiceflowData || []).map((item) => ({
+          const converted = (chatbotData || []).map((item) => ({
             ...item,
             created_at: item.created_at
               ? toLocalFromUTC({ utcString: item.created_at, timezone: businessTimezone }).toISO()
@@ -55,17 +53,17 @@ const Voiceflow: React.FC = () => {
           setData(converted);
         }
       } catch (err) {
-        console.error('Errore nel fetch dei dati:', err);
+        console.error("Errore nel fetch dei dati:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchVoiceflowData();
-  }, [businessId, authLoading]);
+    fetchChatbotData();
+  }, [user, businessId, authLoading]);
 
   const filteredData = data.filter(
-    item =>
+    (item) =>
       item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.phone?.includes(searchQuery) ||
       item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -104,8 +102,8 @@ const Voiceflow: React.FC = () => {
     <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-black mb-2">Voiceflow</h1>
-          <p className="text-gray-600">Gestisci le richieste ricevute tramite Voiceflow</p>
+          <h1 className="text-3xl font-bold text-black mb-2">Chatbot</h1>
+          <p className="text-gray-600">Gestisci le richieste ricevute tramite Chatbot</p>
         </div>
       </div>
 
@@ -168,23 +166,23 @@ const Voiceflow: React.FC = () => {
                       <td className="px-4 py-4">
                         <div className="flex items-center">
                           <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center font-semibold text-sm">
-                            {item.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                            {item.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"}
                           </div>
                           <div className="ml-3">
-                            <p className="text-sm font-medium text-black">{item.name || 'N/A'}</p>
+                            <p className="text-sm font-medium text-black">{item.name || "N/A"}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm text-gray-900">{item.phone || 'N/A'}</p>
+                        <p className="text-sm text-gray-900">{item.phone || "N/A"}</p>
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm text-gray-900">{item.email || 'N/A'}</p>
+                        <p className="text-sm text-gray-900">{item.email || "N/A"}</p>
                       </td>
                       <td className="px-4 py-4">
                         <div className="max-w-xs">
                           <p className="text-sm text-gray-900 truncate" title={item.request}>
-                            {item.request || 'N/A'}
+                            {item.request || "N/A"}
                           </p>
                         </div>
                       </td>
@@ -198,7 +196,7 @@ const Voiceflow: React.FC = () => {
               <div className="text-center">
                 <MessageSquare size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
-                  {searchQuery ? 'Nessun risultato trovato' : 'Nessuna richiesta disponibile'}
+                  {searchQuery ? "Nessun risultato trovato" : "Nessuna richiesta disponibile"}
                 </p>
               </div>
             </div>
@@ -209,4 +207,4 @@ const Voiceflow: React.FC = () => {
   );
 };
 
-export default Voiceflow;
+export default Chatbot;
