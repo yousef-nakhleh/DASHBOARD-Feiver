@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 
@@ -23,7 +24,7 @@ import LoginPage from "./components/auth/LoginPage";
 
 // ✅ Features
 import { FeaturesProvider } from "./features/FeaturesProvider";
-import { ChatbotGate } from "./gates/ChatbotGate"; // 👈 add this
+import { ChatbotGate } from "./gates/ChatbotGate"; // gate for chatbot/voiceflow
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -35,7 +36,7 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-// ✅ Wraps protected routes with FeaturesProvider
+// ✅ Wrap protected routes with FeaturesProvider
 function WithFeatures() {
   const { profile, loading } = useAuth();
 
@@ -63,7 +64,6 @@ function App() {
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
-            {/* ✅ Mount features here */}
             <Route element={<WithFeatures />}>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
@@ -76,7 +76,7 @@ function App() {
                 <Route path="magazzino" element={<Magazzino />} />
                 <Route path="staff" element={<StaffAvailability />} />
 
-                {/* ✅ Voiceflow is now gated by ChatbotGate */}
+                {/* ✅ Voiceflow page is gated by ChatbotGate (chatbot.component) */}
                 <Route
                   path="voiceflow"
                   element={
