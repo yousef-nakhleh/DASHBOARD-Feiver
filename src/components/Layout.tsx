@@ -8,8 +8,6 @@ import {
   BarChart2,
   Package,
   Users,
-  Wallet,
-  Tag,
   Menu,
   X,
   LogOut,
@@ -30,28 +28,9 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 // ✅ use the Logout logic component (keeps UI here)
 import Logout from './auth/Logout';
 
-const sidebarItems = [
-  { path: '/', name: 'Dashboard', icon: <Home size={20} /> },
-  { path: '/agenda', name: 'Agenda', icon: <Calendar size={20} /> },
-  { path: '/cassa', name: 'Cassa', icon: <DollarSign size={20} /> },
-  { 
-    name: 'Orari', 
-    icon: <Clock size={20} />, 
-    isGroup: true,
-    children: [
-      { path: '/staff', name: 'Staff Disponibilità', icon: <Users size={18} /> },
-      { path: '/aperture-eccezionali', name: 'Aperture Eccezionali', icon: <Calendar size={18} /> },
-      { path: '/exceptions', name: 'Chiusure Eccezionali', icon: <CalendarX size={18} /> },
-    ]
-  },
-  { path: '/rubrica', name: 'Rubrica', icon: <Book size={20} /> },
-  { path: '/trattamenti', name: 'Trattamenti', icon: <Scissors size={20} /> },
-  { path: '/statistiche', name: 'Statistiche', icon: <BarChart2 size={20} /> },
-  { path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> },
-  { path: '/Chatbot', name: 'Chatbot', icon: <MessageSquare size={20} /> },
-  { path: '/waiting-list', name: 'Lista d\'Attesa', icon: <Clock size={20} /> },
-  { path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> },
-];
+// ✅ Feature flags
+import { useFeatures } from '../features/FeaturesProvider';
+import { FEATURE } from '../features/featureSlugs';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -59,6 +38,36 @@ const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  // ✅ Ask provider for flags
+  const { ready, has } = useFeatures();
+
+  // ✅ Build sidebar dynamically so Chatbot only appears when enabled
+  const sidebarItems = [
+    { path: '/', name: 'Dashboard', icon: <Home size={20} /> },
+    { path: '/agenda', name: 'Agenda', icon: <Calendar size={20} /> },
+    { path: '/cassa', name: 'Cassa', icon: <DollarSign size={20} /> },
+    { 
+      name: 'Orari', 
+      icon: <Clock size={20} />, 
+      isGroup: true,
+      children: [
+        { path: '/staff', name: 'Staff Disponibilità', icon: <Users size={18} /> },
+        { path: '/aperture-eccezionali', name: 'Aperture Eccezionali', icon: <Calendar size={18} /> },
+        { path: '/exceptions', name: 'Chiusure Eccezionali', icon: <CalendarX size={18} /> },
+      ]
+    },
+    { path: '/rubrica', name: 'Rubrica', icon: <Book size={20} /> },
+    { path: '/trattamenti', name: 'Trattamenti', icon: <Scissors size={20} /> },
+    { path: '/statistiche', name: 'Statistiche', icon: <BarChart2 size={20} /> },
+    { path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> },
+    // 🔒 Only include Chatbot if feature flag is ON
+    ...(ready && has(FEATURE.CHATBOT)
+      ? [{ path: '/chatbot', name: 'Chatbot', icon: <MessageSquare size={20} /> }]
+      : []),
+    { path: '/waiting-list', name: "Lista d'Attesa", icon: <Clock size={20} /> },
+    { path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> },
+  ];
 
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
@@ -87,83 +96,82 @@ const Layout = () => {
           
           <div className="flex-1 overflow-y-auto">
             <nav className="px-4 py-6 space-y-1">
-            {sidebarItems.map((item) => (
-              <div key={item.path || item.name}>
-                {item.isGroup ? (
-                  <>
+              {sidebarItems.map((item) => (
+                <div key={item.path || item.name}>
+                  {item.isGroup ? (
+                    <>
+                      <button
+                        onClick={() => setExpandedGroup(expandedGroup === item.name ? null : item.name)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-300 hover:text-white hover:bg-gray-900"
+                      >
+                        <div className="flex items-center">
+                          <span className="mr-3">{item.icon}</span>
+                          <span>{item.name}</span>
+                        </div>
+                        {expandedGroup === item.name ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                      </button>
+                      <AnimatePresence>
+                        {expandedGroup === item.name && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pl-8 space-y-1 mt-1">
+                              {item.children?.map((child) => (
+                                <button
+                                  key={child.path}
+                                  onClick={() => navigate(child.path)}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                                    location.pathname === child.path
+                                      ? 'bg-white text-black'
+                                      : 'text-gray-300 hover:text-white hover:bg-gray-900'
+                                  }`}
+                                >
+                                  <div className="flex items-center">
+                                    <span className="mr-3">{child.icon}</span>
+                                    <span>{child.name}</span>
+                                  </div>
+                                  {location.pathname === child.path && (
+                                    <ChevronRight size={14} />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => setExpandedGroup(expandedGroup === item.name ? null : item.name)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group text-gray-300 hover:text-white hover:bg-gray-900"
+                      onClick={() => navigate(item.path)}
+                      className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group ${
+                        location.pathname === item.path
+                          ? 'bg-white text-black'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-900'
+                      }`}
                     >
                       <div className="flex items-center">
                         <span className="mr-3">{item.icon}</span>
                         <span>{item.name}</span>
                       </div>
-                      {expandedGroup === item.name ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
+                      {location.pathname === item.path && (
+                        <ChevronRight size={16} />
                       )}
                     </button>
-                    <AnimatePresence>
-                      {expandedGroup === item.name && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pl-8 space-y-1 mt-1">
-                            {item.children?.map((child) => (
-                              <button
-                                key={child.path}
-                                onClick={() => navigate(child.path)}
-                                className={`w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 group ${
-                                  location.pathname === child.path
-                                    ? 'bg-white text-black'
-                                    : 'text-gray-300 hover:text-white hover:bg-gray-900'
-                                }`}
-                              >
-                                <div className="flex items-center">
-                                  <span className="mr-3">{child.icon}</span>
-                                  <span>{child.name}</span>
-                                </div>
-                                {location.pathname === child.path && (
-                                  <ChevronRight size={14} />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => navigate(item.path)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 group ${
-                      location.pathname === item.path
-                        ? 'bg-white text-black'
-                        : 'text-gray-300 hover:text-white hover:bg-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <span className="mr-3">{item.icon}</span>
-                      <span>{item.name}</span>
-                    </div>
-                    {location.pathname === item.path && (
-                      <ChevronRight size={16} />
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))}
             </nav>
           </div>
           
           <div className="p-4 border-t border-gray-800">
-            {/* ✅ Same UI, wrapped with Logout to handle logic */}
             <Logout>
               <button
                 className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
@@ -285,7 +293,6 @@ const Layout = () => {
                 </nav>
                 
                 <div className="p-4 border-t border-gray-800 flex-shrink-0">
-                  {/* ✅ Same mobile UI, wrapped with Logout */}
                   <Logout>
                     <button
                       className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-900 rounded-lg transition-all duration-200"
@@ -334,18 +341,6 @@ const Layout = () => {
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium">Davide</p>
-                  <p className="text-xs text-gray-400">Administrator</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center font-semibold">
-                  A
-                </div>
-              </div>
-            </div>
           </header>
 
           {/* Page Content */}
@@ -369,4 +364,4 @@ const Layout = () => {
   );
 };
 
-export default Layout; 
+export default Layout;
