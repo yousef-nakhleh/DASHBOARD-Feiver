@@ -69,16 +69,7 @@ const Chatbot: React.FC = () => {
       item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.request?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  // TEMP: prove RLS — try to read *all* rows, RLS should scope to my business
-useEffect(() => {
-  const testRls = async () => {
-    if (authLoading || !user) return;
-    const { data, error } = await supabase.from("chatbot").select("*"); // no .eq()
-    console.log("[RLS test] visible chatbot rows:", data);
-    if (error) console.error("[RLS test] error:", error);
-  };
-  testRls();
-}, [authLoading, user]);
+   
 
   // Guard states
   if (authLoading) {
