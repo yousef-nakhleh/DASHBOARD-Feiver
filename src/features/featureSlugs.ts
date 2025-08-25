@@ -3,6 +3,7 @@
 // Canonical list of feature slugs used in both DB and React code
 export const FEATURE = {
   CHATBOT: "chatbot.component",
+  AGENDA:  "agenda.component",
 } as const;
 
 // Type helper → only allow valid feature slugs
