@@ -25,13 +25,14 @@ import LoginPage from './components/auth/LoginPage';
 // ✅ Features
 import { FeaturesProvider } from './features/FeaturesProvider';
 import { ChatbotGate } from './gates/ChatbotGate';
+import { AgendaGate } from './gates/AgendaGate'; // ✅ NEW
 
 // ---------- Route guard ----------
 function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return null; // or a spinner
+  if (loading) return null;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   return <Outlet />;
 }
@@ -68,7 +69,17 @@ function App() {
             <Route element={<WithFeatures />}>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
-                <Route path="agenda" element={<Agenda />} />
+
+                {/* ✅ Agenda gated */}
+                <Route
+                  path="agenda"
+                  element={
+                    <AgendaGate fallback={<Navigate to="/" replace />}>
+                      <Agenda />
+                    </AgendaGate>
+                  }
+                />
+
                 <Route path="cassa" element={<CashRegister />} />
                 <Route path="cassa/pagamento" element={<PaymentPage />} />
                 <Route path="rubrica" element={<Contacts />} />
@@ -77,7 +88,7 @@ function App() {
                 <Route path="magazzino" element={<Magazzino />} />
                 <Route path="staff" element={<StaffAvailability />} />
 
-                {/* ✅ Chatbot route gated by feature flag (chatbot.component) */}
+                {/* ✅ Chatbot gated */}
                 <Route
                   path="chatbot"
                   element={
