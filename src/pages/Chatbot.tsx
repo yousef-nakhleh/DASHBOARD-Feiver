@@ -11,6 +11,7 @@ interface ChatbotData {
   email: string;
   request: string;
   created_at?: string;
+  business_id?: string;
 }
 
 const Chatbot: React.FC = () => {
@@ -35,8 +36,8 @@ const Chatbot: React.FC = () => {
       setLoading(true);
       try {
         const { data: chatbotData, error } = await supabase
-          .from("chatbot") // 👈 now fetching from chatbot table
-          .select("id, name, phone, email, request, created_at")
+          .from("chatbot")
+          .select("id, name, phone, email, request, created_at, business_id")
           .eq("business_id", businessId)
           .order("created_at", { ascending: false });
 
@@ -62,6 +63,38 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
+  // 🔴 Real-time subscription for inserts
+  useEffect(() => {
+    if (!businessId) return;
+
+    const channel = supabase
+      .channel("chatbot-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chatbot",
+          filter: `business_id=eq.${businessId}`,
+        },
+        (payload) => {
+          const newItem = payload.new as ChatbotData;
+          const converted = {
+            ...newItem,
+            created_at: newItem.created_at
+              ? toLocalFromUTC({ utcString: newItem.created_at, timezone: businessTimezone }).toISO()
+              : undefined,
+          };
+          setData((prev) => [converted, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [businessId]);
+
   const filteredData = data.filter(
     (item) =>
       item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,7 +102,6 @@ const Chatbot: React.FC = () => {
       item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.request?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-   
 
   // Guard states
   if (authLoading) {
