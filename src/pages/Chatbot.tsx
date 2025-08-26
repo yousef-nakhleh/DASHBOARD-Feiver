@@ -63,20 +63,12 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
-  // ✅ Real-time subscription for inserts
+  // 🔴 Real-time subscription for inserts
   useEffect(() => {
     if (!businessId) return;
 
-    // De-dupe: avoid multiple channels with same name
-    const channelName = `chatbot-realtime-${businessId}`;
-    const existing = supabase.getChannels().find((c) => c.topic === channelName);
-    if (existing) {
-      console.log("♻️ Reusing existing subscription:", channelName);
-      return;
-    }
-
     const channel = supabase
-      .channel(channelName)
+      .channel("chatbot-realtime")
       .on(
         "postgres_changes",
         {
@@ -86,7 +78,6 @@ const Chatbot: React.FC = () => {
           filter: `business_id=eq.${businessId}`,
         },
         (payload) => {
-          console.log("⚡ Realtime insert payload:", payload);
           const newItem = payload.new as ChatbotData;
           const converted = {
             ...newItem,
@@ -97,15 +88,12 @@ const Chatbot: React.FC = () => {
           setData((prev) => [converted, ...prev]);
         }
       )
-      .subscribe((status) => {
-        console.log("📡 subscription status:", status, "channel:", channelName);
-      });
+      .subscribe();
 
     return () => {
-      console.log("🧹 unsubscribing from channel:", channelName);
       supabase.removeChannel(channel);
     };
-  }, [businessId]); // 🔑 only re-run when businessId changes
+  }, [businessId]);
 
   const filteredData = data.filter(
     (item) =>
@@ -249,7 +237,7 @@ const Chatbot: React.FC = () => {
         </div>
       </div>
     </div>
-  ); 
+  );
 };
 
 export default Chatbot;
