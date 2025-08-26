@@ -11,6 +11,8 @@ export const FEATURE = {
   SERVICES:      "services.component",
   PHONECALLER:   "phonecaller.component",
   ANALYTICS:     "analytics.component",
+  OPENING_EXCEPTIONS: "openingexceptions.component",
+  CLOSING_EXCEPTIONS: "closingexceptions.component",
 } as const;
 
 // Type helper → only allow valid feature slugs
