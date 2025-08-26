@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle, X } from "lucide-react";
+import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toLocalFromUTC } from "../lib/timeUtils";
 import { useAuth } from "../components/auth/AuthContext";
@@ -14,40 +14,6 @@ interface ChatbotData {
   business_id?: string;
 }
 
-// Simple in-page toast component
-function Toast({
-  title,
-  message,
-  onClose,
-}: {
-  title: string;
-  message: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed right-4 bottom-4 z-50 max-w-sm w-[360px]">
-      <div className="bg-white text-black rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <MessageSquare size={18} />
-            <p className="font-semibold">{title}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-gray-100 transition"
-            aria-label="Close notification"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="px-4 py-3">
-          <p className="text-sm text-gray-800">{message}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const Chatbot: React.FC = () => {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
@@ -56,19 +22,7 @@ const Chatbot: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // toast state
-  const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
-  const [toastTimer, setToastTimer] = useState<number | null>(null);
-
   const businessTimezone = "Europe/Rome";
-
-  // helper: show toast with auto-hide
-  const showToast = (title: string, message: string) => {
-    setToast({ title, message });
-    if (toastTimer) window.clearTimeout(toastTimer);
-    const t = window.setTimeout(() => setToast(null), 4000);
-    setToastTimer(t);
-  };
 
   // Fetch Chatbot rows for this business
   useEffect(() => {
@@ -109,7 +63,7 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
-  // Real-time subscription for INSERTs + in-app toast
+  // 🔴 Real-time subscription for inserts
   useEffect(() => {
     if (!businessId) return;
 
@@ -128,25 +82,18 @@ const Chatbot: React.FC = () => {
           const converted = {
             ...newItem,
             created_at: newItem.created_at
-              ? toLocalFromUTC({ utcString: newItem.created_at as string, timezone: businessTimezone }).toISO()
+              ? toLocalFromUTC({ utcString: newItem.created_at, timezone: businessTimezone }).toISO()
               : undefined,
           };
-          // prepend to list (newest first)
           setData((prev) => [converted, ...prev]);
-
-          // show in-app toast
-          const who = newItem.name?.trim() || "Nuovo contatto";
-          const what = newItem.request?.trim() || "Nuova richiesta dal chatbot.";
-          showToast(who, what);
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
-      if (toastTimer) window.clearTimeout(toastTimer);
     };
-  }, [businessId]); // intentionally not depending on toastTimer
+  }, [businessId]);
 
   const filteredData = data.filter(
     (item) =>
@@ -186,15 +133,6 @@ const Chatbot: React.FC = () => {
 
   return (
     <div className="h-full space-y-6">
-      {/* Toast (in-app notification) */}
-      {toast && (
-        <Toast
-          title={toast.title}
-          message={toast.message}
-          onClose={() => setToast(null)}
-        />
-      )}
-
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">Chatbot</h1>
@@ -302,4 +240,4 @@ const Chatbot: React.FC = () => {
   );
 };
 
-export default Chatbot;
+export default Chatbot; 
