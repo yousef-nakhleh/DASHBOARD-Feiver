@@ -24,10 +24,10 @@ const Chatbot: React.FC = () => {
 
   const businessTimezone = "Europe/Rome";
 
-  // Fetch Chatbot rows for this business
+  // Initial fetch
   useEffect(() => {
     const fetchChatbotData = async () => {
-      if (authLoading) return; // wait for auth
+      if (authLoading) return;
       if (!businessId) {
         setData([]);
         setLoading(false);
@@ -63,12 +63,13 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
-  // 🔴 Real-time subscription for inserts
+  // ✅ Real-time subscription for inserts (wait for auth + businessId, unique channel per business)
   useEffect(() => {
-    if (!businessId) return;
+    if (authLoading || !businessId) return;
 
+    const channelName = `chatbot-realtime-${businessId}`;
     const channel = supabase
-      .channel("chatbot-realtime")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -78,7 +79,7 @@ const Chatbot: React.FC = () => {
           filter: `business_id=eq.${businessId}`,
         },
         (payload) => {
-          console.log("✅ Realtime insert received:", payload); // 👈 log new inserts
+          console.log("[realtime] INSERT received:", payload);
           const newItem = payload.new as ChatbotData;
           const converted = {
             ...newItem,
@@ -90,15 +91,14 @@ const Chatbot: React.FC = () => {
         }
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("📡 Subscribed to chatbot-realtime"); // 👈 log when subscription is ready
-        }
+        console.log("📡 subscription status:", status, "channel:", channelName);
       });
 
     return () => {
       supabase.removeChannel(channel);
+      // console.log("🧹 unsubscribed:", channelName);
     };
-  }, [businessId]);
+  }, [authLoading, businessId]); // <- wait for auth + businessId
 
   const filteredData = data.filter(
     (item) =>
@@ -108,7 +108,7 @@ const Chatbot: React.FC = () => {
       item.request?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Guard states
+  // Guards
   if (authLoading) {
     return (
       <div className="h-full flex items-center justify-center">
