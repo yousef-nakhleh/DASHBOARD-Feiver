@@ -78,6 +78,7 @@ const Chatbot: React.FC = () => {
           filter: `business_id=eq.${businessId}`,
         },
         (payload) => {
+          console.log("✅ Realtime insert received:", payload); // 👈 log new inserts
           const newItem = payload.new as ChatbotData;
           const converted = {
             ...newItem,
@@ -88,7 +89,11 @@ const Chatbot: React.FC = () => {
           setData((prev) => [converted, ...prev]);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("📡 Subscribed to chatbot-realtime"); // 👈 log when subscription is ready
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -240,4 +245,4 @@ const Chatbot: React.FC = () => {
   );
 };
 
-export default Chatbot; 
+export default Chatbot;
