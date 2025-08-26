@@ -24,10 +24,10 @@ const Chatbot: React.FC = () => {
 
   const businessTimezone = "Europe/Rome";
 
-  // Initial fetch
+  // Fetch Chatbot rows for this business
   useEffect(() => {
     const fetchChatbotData = async () => {
-      if (authLoading) return;
+      if (authLoading) return; // wait for auth
       if (!businessId) {
         setData([]);
         setLoading(false);
@@ -63,11 +63,18 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
-  // ✅ Real-time subscription for inserts (wait for auth + businessId, unique channel per business)
+  // ✅ Real-time subscription for inserts
   useEffect(() => {
-    if (authLoading || !businessId) return;
+    if (!businessId) return;
 
+    // De-dupe: avoid multiple channels with same name
     const channelName = `chatbot-realtime-${businessId}`;
+    const existing = supabase.getChannels().find((c) => c.topic === channelName);
+    if (existing) {
+      console.log("♻️ Reusing existing subscription:", channelName);
+      return;
+    }
+
     const channel = supabase
       .channel(channelName)
       .on(
@@ -79,7 +86,7 @@ const Chatbot: React.FC = () => {
           filter: `business_id=eq.${businessId}`,
         },
         (payload) => {
-          console.log("[realtime] INSERT received:", payload);
+          console.log("⚡ Realtime insert payload:", payload);
           const newItem = payload.new as ChatbotData;
           const converted = {
             ...newItem,
@@ -95,10 +102,10 @@ const Chatbot: React.FC = () => {
       });
 
     return () => {
+      console.log("🧹 unsubscribing from channel:", channelName);
       supabase.removeChannel(channel);
-      // console.log("🧹 unsubscribed:", channelName);
     };
-  }, [authLoading, businessId]); // <- wait for auth + businessId
+  }, [businessId]); // 🔑 only re-run when businessId changes
 
   const filteredData = data.filter(
     (item) =>
@@ -108,7 +115,7 @@ const Chatbot: React.FC = () => {
       item.request?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Guards
+  // Guard states
   if (authLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -245,4 +252,4 @@ const Chatbot: React.FC = () => {
   );
 };
 
-export default Chatbot;
+export default Chatbot;a
