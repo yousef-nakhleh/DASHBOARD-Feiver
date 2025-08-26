@@ -57,20 +57,18 @@ function TimeSelect({
   disabled?: boolean;
 }) {
   const options = useMemo(() => {
+    // Build 15-minute increments from 00:00 to 24:00 inclusive
     const arr: { value: string; label: string }[] = [];
-    for (let h = 6; h <= 21; h++) {
-      for (let m = 0; m < 60; m += 15) {
-        const d = new Date();
-        d.setHours(h, m, 0);
-        arr.push({
-          value: d.toTimeString().slice(0, 5),
-          label: d.toLocaleTimeString('it-IT', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: false,
-          }),
-        });
-      }
+    // 0..1440 minutes inclusive in 15-minute steps
+    for (let mins = 0; mins <= 1440; mins += 15) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      // Format "HH:MM", allowing 24:00 as the terminal value
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const value = `${hh}:${mm}`;
+      const label = `${hh}:${mm}`;
+      arr.push({ value, label });
     }
     return arr;
   }, []);
@@ -141,7 +139,8 @@ export default function EditStaffAvailabilityModal({
       p.map((d, i) => {
         if (i !== idx) return d;
         if (val && (d.slots.length === 0 || (d.slots.length === 1 && !d.slots[0].start_time && !d.slots[0].end_time))) {
-          return { ...d, enabled: val, slots: [{ start_time: '09:00', end_time: '17:00' }] };
+          // Default when enabling: 08:00 - 19:00
+          return { ...d, enabled: val, slots: [{ start_time: '08:00', end_time: '19:00' }] };
         }
         return { ...d, enabled: val };
       }),
@@ -201,7 +200,7 @@ export default function EditStaffAvailabilityModal({
       day.slots.forEach((slot) => {
         if (!slot.start_time || !slot.end_time) return;
         newFlat.push({
-          id: slot.id ?? null,
+          id: slot.id ?? null as any,
           weekday: day.weekday,
           start_time: slot.start_time,
           end_time: slot.end_time,
