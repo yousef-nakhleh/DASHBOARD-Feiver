@@ -24,8 +24,16 @@ import LoginPage from './components/auth/LoginPage';
 
 // ✅ Features
 import { FeaturesProvider } from './features/FeaturesProvider';
+import { AgendaGate } from './gates/AgendaGate';
 import { ChatbotGate } from './gates/ChatbotGate';
-import { AgendaGate } from './gates/AgendaGate'; // ✅ NEW
+import { TransactionsGate } from './gates/TransactionsGate';
+import { AvailabilityGate } from './gates/AvailabilityGate';
+import { ContactsGate } from './gates/ContactsGate';
+import { ServicesGate } from './gates/ServicesGate';
+import { PhoneCallerGate } from './gates/PhoneCallerGate';
+import { WaitingListGate } from './gates/WaitingListGate';
+import { OpeningExceptionsGate } from './gates/OpeningExceptionsGate';
+import { ClosingExceptionsGate } from './gates/ClosingExceptionsGate';
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -63,14 +71,13 @@ function App() {
           {/* Public route */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Everything else is protected */}
+          {/* Protected */}
           <Route element={<RequireAuth />}>
-            {/* mount FeaturesProvider for all protected routes */}
             <Route element={<WithFeatures />}>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
 
-                {/* ✅ Agenda gated */}
+                {/* ✅ Gated routes */}
                 <Route
                   path="agenda"
                   element={
@@ -79,16 +86,41 @@ function App() {
                     </AgendaGate>
                   }
                 />
-
-                <Route path="cassa" element={<CashRegister />} />
+                <Route
+                  path="cassa"
+                  element={
+                    <TransactionsGate fallback={<Navigate to="/" replace />}>
+                      <CashRegister />
+                    </TransactionsGate>
+                  }
+                />
                 <Route path="cassa/pagamento" element={<PaymentPage />} />
-                <Route path="rubrica" element={<Contacts />} />
-                <Route path="trattamenti" element={<Trattamenti />} />
-                <Route path="statistiche" element={<Statistiche />} />
+                <Route
+                  path="rubrica"
+                  element={
+                    <ContactsGate fallback={<Navigate to="/" replace />}>
+                      <Contacts />
+                    </ContactsGate>
+                  }
+                />
+                <Route
+                  path="trattamenti"
+                  element={
+                    <ServicesGate fallback={<Navigate to="/" replace />}>
+                      <Trattamenti />
+                    </ServicesGate>
+                  }
+                />
+                <Route path="statistiche" element={<Statistiche />} /> {/* ✅ analytics left open */}
                 <Route path="magazzino" element={<Magazzino />} />
-                <Route path="staff" element={<StaffAvailability />} />
-
-                {/* ✅ Chatbot gated */}
+                <Route
+                  path="staff"
+                  element={
+                    <AvailabilityGate fallback={<Navigate to="/" replace />}>
+                      <StaffAvailability />
+                    </AvailabilityGate>
+                  }
+                />
                 <Route
                   path="chatbot"
                   element={
@@ -97,11 +129,40 @@ function App() {
                     </ChatbotGate>
                   }
                 />
+                <Route
+                  path="waiting-list"
+                  element={
+                    <WaitingListGate fallback={<Navigate to="/" replace />}>
+                      <WaitingList />
+                    </WaitingListGate>
+                  }
+                />
+                <Route
+                  path="vapi"
+                  element={
+                    <PhoneCallerGate fallback={<Navigate to="/" replace />}>
+                      <Vapi />
+                    </PhoneCallerGate>
+                  }
+                />
+                <Route
+                  path="aperture-eccezionali"
+                  element={
+                    <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <OpeningExceptions />
+                    </OpeningExceptionsGate>
+                  }
+                />
+                <Route
+                  path="exceptions"
+                  element={
+                    <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <ClosingExceptions />
+                    </ClosingExceptionsGate>
+                  }
+                />
 
-                <Route path="waiting-list" element={<WaitingList />} />
-                <Route path="vapi" element={<Vapi />} />
-                <Route path="aperture-eccezionali" element={<OpeningExceptions />} />
-                <Route path="exceptions" element={<ClosingExceptions />} />
+                {/* Default */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>
@@ -112,4 +173,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
