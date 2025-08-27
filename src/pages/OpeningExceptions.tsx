@@ -122,7 +122,7 @@ const OpeningExceptions = () => {
           event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'availability_exceptions',
-          filter: `business_id=eq.${businessId},type=eq.open`,
+          filter: `business_id=eq.${businessId}`,
         },
         () => {
           fetchData();
