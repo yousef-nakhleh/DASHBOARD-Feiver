@@ -21,7 +21,6 @@ const Chatbot: React.FC = () => {
   const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notification, setNotification] = useState<string | null>(null);
 
   const businessTimezone = "Europe/Rome";
 
@@ -64,7 +63,7 @@ const Chatbot: React.FC = () => {
     fetchChatbotData();
   }, [user, businessId, authLoading]);
 
-  // 🔴 Real-time subscription for inserts + notification
+  // 🔴 Real-time subscription for inserts
   useEffect(() => {
     if (!businessId) return;
 
@@ -87,10 +86,6 @@ const Chatbot: React.FC = () => {
               : undefined,
           };
           setData((prev) => [converted, ...prev]);
-
-          // show notification
-          setNotification("A new row was inserted in chatbot");
-          setTimeout(() => setNotification(null), 10000); // auto-hide after 10s
         }
       )
       .subscribe();
@@ -137,14 +132,7 @@ const Chatbot: React.FC = () => {
   }
 
   return (
-    <div className="h-full space-y-6 relative">
-      {/* 🔔 Notification */}
-      {notification && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black text-white px-6 py-3 rounded-lg shadow-lg z-50">
-          {notification}
-        </div>
-      )}
-
+    <div className="h-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">Chatbot</h1>
@@ -252,4 +240,4 @@ const Chatbot: React.FC = () => {
   );
 };
 
-export default Chatbot;
+export default Chatbot; 
