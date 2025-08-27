@@ -56,6 +56,35 @@ const Vapi: React.FC = () => {
     }
   };
 
+  /* 🔴 REAL-TIME SUBSCRIPTION (ADD-ON ONLY)
+     - Listens to INSERT/UPDATE/DELETE on `vapi`
+     - Scoped by business_id
+     - Refreshes the calls list live
+  */
+  useEffect(() => {
+    if (!profile?.business_id) return;
+
+    const channel = supabase
+      .channel(`vapi-realtime-${profile.business_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'vapi',
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => {
+          fetchVapiCalls(profile.business_id!);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.business_id]);
+
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
