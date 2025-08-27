@@ -20,6 +20,13 @@ type Service = {
   created_at?: string;
 };
 
+// 🔵 QUERY + CACHE (in-memory, per business, short TTL)
+const SERVICES_CACHE: Record<
+  string,
+  { data: Service[]; ts: number }
+> = {};
+const SERVICES_CACHE_TTL_MS = 60_000; // 60s
+
 export default function Trattamenti() {
   const { user, loading: authLoading, profile } = useAuth();
   const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
@@ -42,6 +49,16 @@ export default function Trattamenti() {
         setLoading(false);
         return;
       }
+
+      // 🔵 QUERY + CACHE: serve cached data immediately if fresh
+      const cached = SERVICES_CACHE[businessId];
+      const now = Date.now();
+      if (cached && now - cached.ts < SERVICES_CACHE_TTL_MS) {
+        setServices(cached.data);
+        setLoading(false);
+        return; // skip network call
+      }
+
       setLoading(true);
       const { data, error } = await supabase
         .from("services")
@@ -53,7 +70,10 @@ export default function Trattamenti() {
         console.error("Errore nel caricamento dei servizi:", error);
         setServices([]);
       } else {
-        setServices((data || []) as Service[]);
+        const list = (data || []) as Service[];
+        setServices(list);
+        // 🔵 QUERY + CACHE: write-through
+        SERVICES_CACHE[businessId] = { data: list, ts: now };
       }
       setLoading(false);
     };
@@ -88,13 +108,25 @@ export default function Trattamenti() {
       .eq("business_id", businessId)
       .order("created_at", { ascending: false });
 
-    if (!error && data) setServices(data as Service[]);
+    if (!error && data) {
+      const list = data as Service[];
+      setServices(list);
+      // 🔵 QUERY + CACHE: refresh cache after mutations
+      SERVICES_CACHE[businessId] = { data: list, ts: Date.now() };
+    }
   }
 
   async function handleConfirmDelete(id: string) {
     const { error } = await supabase.from("services").delete().eq("id", id);
     if (!error) {
       setServices((prev) => prev.filter((s) => s.id !== id));
+      // 🔵 QUERY + CACHE: keep cache coherent quickly
+      if (businessId && SERVICES_CACHE[businessId]) {
+        SERVICES_CACHE[businessId] = {
+          data: SERVICES_CACHE[businessId].data.filter((s) => s.id !== id),
+          ts: Date.now(),
+        };
+      }
     } else {
       alert("Errore durante l'eliminazione.");
     }
