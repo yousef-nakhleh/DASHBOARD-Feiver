@@ -75,6 +75,40 @@ const Staff = () => {
     }
   };
 
+  /* 🔴 REAL-TIME SUBSCRIPTION (ADD-ON ONLY)
+     - Listens to INSERT/UPDATE/DELETE on `availability`
+     - Scoped by business_id; filtered in handler by selectedStaff.id
+     - Refreshes the availability list live
+  */
+  useEffect(() => {
+    if (!businessId || !selectedStaff?.id) return;
+
+    const channel = supabase
+      .channel(`availability-realtime-${businessId}-${selectedStaff.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'availability',
+          filter: `business_id=eq.${businessId}`,
+        },
+        (payload) => {
+          const changedBarber =
+            (payload.new as any)?.barber_id ?? (payload.old as any)?.barber_id;
+          if (changedBarber === selectedStaff.id) {
+            fetchAvailability(selectedStaff.id, businessId);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [businessId, selectedStaff?.id]);
+  // 🔴 END REAL-TIME SUBSCRIPTION
+
   // Group availability slots by weekday
   const groupedAvailability: { [key: string]: any[] } = availabilities.reduce((acc: any, slot) => {
     if (!acc[slot.weekday]) acc[slot.weekday] = [];
@@ -254,4 +288,4 @@ const Staff = () => {
   );
 };
 
-export default Staff; 
+export default Staff;
