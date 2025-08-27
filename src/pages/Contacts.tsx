@@ -6,6 +6,13 @@ import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal'
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
 
+/* 🟡 Query + Cache: module-scope cache with TTL */
+const CONTACTS_CACHE_TTL_MS = 60_000; // 60s; adjust as you prefer
+const contactsCache = new Map<
+  string,
+  { data: any[]; ts: number }
+>();
+
 const Contacts: React.FC = () => {
   const { profile, authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,6 +26,15 @@ const Contacts: React.FC = () => {
   const fetchClients = useCallback(async (businessId: string) => {
     if (!businessId) return;
 
+    /* 🟡 Serve cached data immediately if fresh */
+    const cached = contactsCache.get(businessId);
+    const now = Date.now();
+    if (cached && now - cached.ts < CONTACTS_CACHE_TTL_MS) {
+      setClients(cached.data);
+      // Continue to revalidate in background
+    }
+
+    // Fresh query (revalidation)
     const { data: contacts, error } = await supabase
       .from('contacts')
       .select('id, first_name, last_name, email, phone_number_e164, phone_prefix, phone_number_raw, birthdate, notes')
@@ -67,6 +83,9 @@ const Contacts: React.FC = () => {
     );
 
     setClients(enriched);
+
+    /* 🟡 Update cache after successful revalidation */
+    contactsCache.set(businessId, { data: enriched, ts: now });
   }, []);
 
   useEffect(() => {
