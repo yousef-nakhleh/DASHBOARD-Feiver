@@ -8,7 +8,7 @@ import Agenda from './pages/Agenda';
 import CashRegister from './pages/CashRegister';
 import Contacts from './pages/Contacts';
 import Trattamenti from './pages/Trattamenti';
-import Statistiche from './pages/Statistiche';
+import Statistiche from './pages/Analytics';
 import Magazzino from './pages/Magazzino';
 import StaffAvailability from './pages/StaffAvailability';
 import PaymentPage from './components/payment/PaymentPage';
@@ -111,7 +111,7 @@ function App() {
                     </ServicesGate>
                   }
                 />
-                <Route path="statistiche" element={<Statistiche />} /> {/* ✅ analytics left open */}
+                <Route path="statistiche" element={<Analytics />} /> {/* ✅ analytics left open */}
                 <Route path="magazzino" element={<Magazzino />} />
                 <Route
                   path="staff"
