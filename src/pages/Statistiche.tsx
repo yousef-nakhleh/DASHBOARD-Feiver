@@ -236,4 +236,4 @@ const Analytics: React.FC = () => {
   );
 };
 
-export default Statistiche;
+export default Analytics;
