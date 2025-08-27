@@ -106,6 +106,36 @@ const OpeningExceptions = () => {
     }
   };
 
+  /* 🔴 REAL-TIME SUBSCRIPTION (ADD-ON ONLY)
+     - Listens to INSERT/UPDATE/DELETE on `availability_exceptions`
+     - Scoped by business_id and type='open'
+     - Triggers your existing fetchData() to refresh the list live
+  */
+  useEffect(() => {
+    if (!businessId) return;
+
+    const channel = supabase
+      .channel(`availability-exceptions-open-${businessId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'availability_exceptions',
+          filter: `business_id=eq.${businessId},type=eq.open`,
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [businessId]);
+  // 🔴 END REAL-TIME SUBSCRIPTION
+
   const handleSelect = (exception: AvailabilityException) => {
     setSelectedException(exception);
   };
