@@ -96,7 +96,7 @@ const Layout = () => {
     }
 
     // Statistiche (Analytics) — left open by your request (no gate)
-    items.push({ path: '/statistiche', name: 'Statistiche', icon: <BarChart2 size={20} /> });
+    items.push({ path: '/analytics', name: 'Statistiche', icon: <BarChart2 size={20} /> });
 
     // Magazzino — left open
     items.push({ path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> });
