@@ -111,7 +111,7 @@ function App() {
                     </ServicesGate>
                   }
                 />
-                <Route path="statistiche" element={<Analytics />} /> {/* ✅ analytics left open */}
+                <Route path="analytics" element={<Analytics />} /> {/* ✅ analytics left open */}
                 <Route path="magazzino" element={<Magazzino />} />
                 <Route
                   path="staff"
