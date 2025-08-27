@@ -153,6 +153,33 @@ const Agenda = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, profile?.business_id]);
 
+  // 🔴 Realtime: refresh appointments on INSERT / UPDATE / DELETE for this business
+  useEffect(() => {
+    if (authLoading || !profile?.business_id) return;
+
+    const channel = supabase
+      .channel(`appointments-realtime-${profile.business_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'appointments',
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => {
+          // Keep it simple: re-fetch so joins (contact/services) stay correct
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, profile?.business_id]);
+
   const handleExceptionSelect = (value: string) => {
     if (value === 'apertura') {
       setHeaderExceptionType('open');
@@ -398,9 +425,9 @@ const Agenda = () => {
       {showCreateModal && (
         <CreateAppointmentModal
           businessTimezone={businessTimezone}
-          initialBarberId={slotPrefill.barberId}
-          initialDate={slotPrefill.date}
-          initialTime={slotPrefill.time}
+          initialBarberId={slotPrefill?.barberId}
+          initialDate={slotPrefill?.date}
+          initialTime={slotPrefill?.time}
           onClose={() => {
             setShowCreateModal(false);
             setSlotPrefill(null);
