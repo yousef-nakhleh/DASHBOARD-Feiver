@@ -67,6 +67,32 @@ const WaitingList: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.business_id]);
 
+  // 🔴 Realtime: refresh waiting list on INSERT / UPDATE / DELETE for this business
+  useEffect(() => {
+    if (!profile?.business_id) return;
+
+    const channel = supabase
+      .channel(`waiting-list-realtime-${profile.business_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'waiting_list',
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => {
+          // simply refetch to keep UI logic untouched
+          fetchWaitingList();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.business_id]); // ← only depends on business scope
+
   // ---- format helpers (use business timezone) -------------------------
   const fmtTime = (utc: string) => {
     try {
