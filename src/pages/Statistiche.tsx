@@ -94,14 +94,14 @@ const SimpleLineChart = () => {
   );
 };
 
-const Statistiche: React.FC = () => {
+const Analytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState('Questa Settimana');
   
   return (
     <div className="h-full">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Statistiche</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
           <p className="text-gray-600">Analisi delle performance del salone</p>
         </div>
         <div className="relative">
