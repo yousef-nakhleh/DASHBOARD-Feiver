@@ -1,4 +1,3 @@
-// src/components/staff/EditStaffAvailabilityModal.tsx
 import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
