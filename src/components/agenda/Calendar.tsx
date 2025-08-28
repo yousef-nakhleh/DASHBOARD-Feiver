@@ -1,8 +1,9 @@
 // src/components/staff/EditStaffAvailabilityModal.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
+import { getEmptyImage } from 'react-dnd-html5-backend';
 
 const slotHeight = 40;
 
@@ -169,13 +170,35 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  const [{ isDragging }, drag] = useDrag({
+  // ***** CHANGED: enhance drag behavior while keeping existing drop logic *****
+  const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   });
+
+  // Disable the native browser drag image so we control the preview
+  useEffect(() => {
+    preview(getEmptyImage(), { captureDraggingState: true });
+  }, [preview]);
+
+  // Track the cursor to position our floating preview
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!isDragging) {
+      setDragPos(null);
+      return;
+    }
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault?.();
+      setDragPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('dragover', onDragOver, { passive: false });
+    return () => window.removeEventListener('dragover', onDragOver as any);
+  }, [isDragging]);
 
   const isPaid = app.paid === true;
   
@@ -190,22 +213,9 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   // Use appointment-specific duration if available, otherwise fall back to service duration
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  return (
-    <div
-      ref={drag}
-      onClick={onClick}
-      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move hover:shadow-md transition-shadow ${
-        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
-      } ${
-        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-      }`}
-      style={{
-        height: `${(appointmentDuration / 15) * slotHeight}px`,
-        flexBasis: `${flexBasis}%`,
-        flexGrow: 1,
-        flexShrink: 0,
-      }}
-    >
+  // Shared inner content so source and floating preview look identical
+  const Inner = (
+    <>
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{displayTime}</span>
         <span>{appointmentDuration} min</span>
@@ -223,6 +233,56 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
           </span>
         )}
       </div>
-    </div>
+    </>
   );
-}; 
+
+  return (
+    <>
+      {/* Source element: hidden while dragging so no ghost stays at origin */}
+      <div
+        ref={drag}
+        onClick={onClick}
+        className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow ${
+          isDragging ? 'invisible' : 'cursor-grab'
+        } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
+        style={{
+          height: `${(appointmentDuration / 15) * slotHeight}px`,
+          flexBasis: `${flexBasis}%`,
+          flexGrow: 1,
+          flexShrink: 0,
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+        }}
+      >
+        {Inner}
+      </div>
+
+      {/* Floating preview that follows the cursor with zero lag */}
+      {isDragging && dragPos && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            transform: `translate3d(${dragPos.x + 8}px, ${dragPos.y + 8}px, 0)`,
+            zIndex: 9999,
+            pointerEvents: 'none',
+            willChange: 'transform',
+          }}
+        >
+          <div
+            className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
+              isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+            }`}
+            style={{
+              height: `${(appointmentDuration / 15) * slotHeight}px`,
+              boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+            }}
+          >
+            {Inner}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
