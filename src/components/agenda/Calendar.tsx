@@ -1,5 +1,5 @@
 // src/components/staff/EditStaffAvailabilityModal.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
@@ -101,7 +101,6 @@ const DayBarberColumn = ({
             const currentTime = currentLocal.toFormat('HH:mm');
 
             // 🔎 DEBUG: confirm drop is firing and where
-            // (Safe to keep; remove when finished debugging)
             // eslint-disable-next-line no-console
             console.log('📥 DROP TRIGGERED',
               { draggedId: draggedItem.id, fromDate: currentDate, fromTime: currentTime, fromBarber: draggedItem.barber_id },
@@ -119,9 +118,15 @@ const DayBarberColumn = ({
             }
           },
           collect: (monitor) => ({
-            isOver: monitor.isOver(), // visual highlight while hovering
+            isOver: monitor.isOver(),
           }),
         });
+
+        // 🔎 DEBUG: log when hovering a slot (kept light; only logs while over)
+        if (isOver) {
+          // eslint-disable-next-line no-console
+          console.log('🟦 HOVER slot', { date, time: slot.time, barber: barber.id });
+        }
 
         // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
@@ -182,7 +187,7 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  // ***** CHANGED previously: custom preview & hide source; left as-is *****
+  // ***** Same behavior; added debug-only logs *****
   const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -191,10 +196,41 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     }),
   });
 
+  // 🔎 DEBUG: track the actual DOM node to listen for native drag events
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+
   // Disable the native browser drag image so we control the preview
   useEffect(() => {
     preview(getEmptyImage(), { captureDraggingState: true });
   }, [preview]);
+
+  // 🔎 DEBUG: log when isDragging toggles
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('🔁 isDragging changed:', isDragging, 'for', app.id);
+  }, [isDragging, app.id]);
+
+  // 🔎 DEBUG: log native dragstart/dragend on the source element
+  useEffect(() => {
+    const el = nodeRef.current;
+    if (!el) return;
+
+    const onStart = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('🟢 native dragstart', { id: app.id, target: el });
+    };
+    const onEnd = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('🔴 native dragend', { id: app.id, target: el });
+    };
+
+    el.addEventListener('dragstart', onStart);
+    el.addEventListener('dragend', onEnd);
+    return () => {
+      el.removeEventListener('dragstart', onStart);
+      el.removeEventListener('dragend', onEnd);
+    };
+  }, [app.id]);
 
   // Track the cursor to position our floating preview
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
@@ -252,7 +288,10 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     <>
       {/* Source element: hidden while dragging so no ghost stays at origin */}
       <div
-        ref={drag}
+        ref={(el) => {
+          drag(el as any);
+          nodeRef.current = el as HTMLDivElement;
+        }}
         onClick={onClick}
         className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow ${
           isDragging ? 'invisible' : 'cursor-grab'
