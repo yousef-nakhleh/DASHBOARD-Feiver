@@ -88,7 +88,7 @@ const DayBarberColumn = ({
       style={{ width: `${100 / totalBarbers}%` }}
     >
       {timeSlots.map((slot) => {
-        const [, drop] = useDrop({
+        const [{ isOver }, drop] = useDrop({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
             // Convert current appointment to local time for comparison
@@ -99,6 +99,15 @@ const DayBarberColumn = ({
             
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
+
+            // 🔎 DEBUG: confirm drop is firing and where
+            // (Safe to keep; remove when finished debugging)
+            // eslint-disable-next-line no-console
+            console.log('📥 DROP TRIGGERED',
+              { draggedId: draggedItem.id, fromDate: currentDate, fromTime: currentTime, fromBarber: draggedItem.barber_id },
+              '→ into slot',
+              { date, time: slot.time, barber: barber.id }
+            );
             
             // Only update if something actually changed
             if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
@@ -109,6 +118,9 @@ const DayBarberColumn = ({
               });
             }
           },
+          collect: (monitor) => ({
+            isOver: monitor.isOver(), // visual highlight while hovering
+          }),
         });
 
         // Filter appointments for this time slot
@@ -143,7 +155,7 @@ const DayBarberColumn = ({
             ref={drop}
             className={`h-[40px] border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            }`}
+            } ${isOver ? 'ring-2 ring-blue-300 ring-inset bg-blue-50/30' : ''}`}
             onClick={() => {
               if (isEmpty) {
                 onEmptySlotClick?.(barber.id, date, slot.time);
@@ -170,7 +182,7 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  // ***** CHANGED: enhance drag behavior while keeping existing drop logic *****
+  // ***** CHANGED previously: custom preview & hide source; left as-is *****
   const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
