@@ -1,8 +1,9 @@
 // src/components/staff/EditStaffAvailabilityModal.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { useDrop } from 'react-dnd';
+import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
+import { getEmptyImage } from 'react-dnd-html5-backend';
 
 const slotHeight = 40;
 
@@ -81,24 +82,51 @@ const DayBarberColumn = ({
   onEmptySlotClick,
   totalBarbers,
 }) => {
-  // ref to the entire column so we can translate pointer Y -> slot index
-  const columnRef = useRef<HTMLDivElement | null>(null);
-
   return (
     <div
-      ref={columnRef}
-      className="flex flex-col border-r relative"
+      className="flex flex-col border-r"
       style={{ width: `${100 / totalBarbers}%` }}
     >
       {timeSlots.map((slot) => {
-        // keep useDrop for now (no visual change required)
         const [{ isOver }, drop] = useDrop({
           accept: 'APPOINTMENT',
-          drop: () => {},
+          drop: (draggedItem) => {
+            // Convert current appointment to local time for comparison
+            const currentLocal = toLocalFromUTC({
+              utcString: draggedItem.appointment_date,
+              timezone: businessTimezone,
+            });
+            
+            const currentDate = currentLocal.toFormat('yyyy-MM-dd');
+            const currentTime = currentLocal.toFormat('HH:mm');
+
+            // 🔎 DEBUG: confirm drop is firing and where
+            // eslint-disable-next-line no-console
+            console.log('📥 DROP TRIGGERED',
+              { draggedId: draggedItem.id, fromDate: currentDate, fromTime: currentTime, fromBarber: draggedItem.barber_id },
+              '→ into slot',
+              { date, time: slot.time, barber: barber.id }
+            );
+            
+            // Only update if something actually changed
+            if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
+              onDrop(draggedItem.id, {
+                newTime: `${slot.time}:00`,
+                newDate: date,
+                newBarberId: barber.id,
+              });
+            }
+          },
           collect: (monitor) => ({
             isOver: monitor.isOver(),
           }),
         });
+
+        // 🔎 DEBUG: log when hovering a slot (kept light; only logs while over)
+        if (isOver) {
+          // eslint-disable-next-line no-console
+          console.log('🟦 HOVER slot', { date, time: slot.time, barber: barber.id });
+        }
 
         // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
@@ -118,8 +146,8 @@ const DayBarberColumn = ({
             timezone: businessTimezone,
           });
           
-        const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
-        const appointmentStart = localAppointment.toJSDate();
+          const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
+          const appointmentStart = localAppointment.toJSDate();
           
           return appointmentDate === date && appointmentStart >= slotStart && appointmentStart < slotEnd;
         });
@@ -132,7 +160,7 @@ const DayBarberColumn = ({
             ref={drop}
             className={`h-[40px] border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            } ${isOver ? '' : ''}`}
+            } ${isOver ? 'ring-2 ring-blue-300 ring-inset bg-blue-50/30' : ''}`}
             onClick={() => {
               if (isEmpty) {
                 onEmptySlotClick?.(barber.id, date, slot.time);
@@ -143,17 +171,12 @@ const DayBarberColumn = ({
               {slot.time}
             </span>
             {apps.map((app) => (
-              <PointerDraggableAppointment
+              <DraggableAppointment
                 key={app.id}
                 app={app}
                 businessTimezone={businessTimezone}
                 onClick={() => onClickAppointment?.(app)}
                 flexBasis={100}
-                columnRef={columnRef}
-                date={date}
-                barberId={barber.id}
-                timeSlots={timeSlots}
-                onDrop={onDrop}
               />
             ))}
           </div>
@@ -163,94 +186,82 @@ const DayBarberColumn = ({
   );
 };
 
-// -------------------- POINTER-BASED CARD (no react-dnd on the card) --------------------
+const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
+  // ***** Same behavior; added debug-only logs *****
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: 'APPOINTMENT',
+    item: { ...app },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  });
 
-type PointerDraggableProps = {
-  app: any;
-  businessTimezone: string;
-  onClick?: () => void;
-  flexBasis: number;
-  columnRef: React.RefObject<HTMLDivElement>;
-  date: string;
-  barberId: string | number;
-  timeSlots: Array<{ time: string }>;
-  onDrop: (id: any, payload: { newTime: string; newDate: string; newBarberId: any }) => void;
-};
+  // 🔎 DEBUG: track the actual DOM node to listen for native drag events
+  const nodeRef = useRef<HTMLDivElement | null>(null);
 
-const PointerDraggableAppointment: React.FC<PointerDraggableProps> = ({
-  app,
-  businessTimezone,
-  onClick,
-  flexBasis,
-  columnRef,
-  date,
-  barberId,
-  timeSlots,
-  onDrop,
-}) => {
+  // Disable the native browser drag image so we control the preview
+  useEffect(() => {
+    preview(getEmptyImage(), { captureDraggingState: true });
+  }, [preview]);
+
+  // 🔎 DEBUG: log when isDragging toggles
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('🔁 isDragging changed:', isDragging, 'for', app.id);
+  }, [isDragging, app.id]);
+
+  // 🔎 DEBUG: log native dragstart/dragend on the source element
+  useEffect(() => {
+    const el = nodeRef.current;
+    if (!el) return;
+
+    const onStart = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('🟢 native dragstart', { id: app.id, target: el });
+    };
+    const onEnd = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('🔴 native dragend', { id: app.id, target: el });
+    };
+
+    el.addEventListener('dragstart', onStart);
+    el.addEventListener('dragend', onEnd);
+    return () => {
+      el.removeEventListener('dragstart', onStart);
+      el.removeEventListener('dragend', onEnd);
+    };
+  }, [app.id]);
+
+  // Track the cursor to position our floating preview
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!isDragging) {
+      setDragPos(null);
+      return;
+    }
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault?.();
+      setDragPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('dragover', onDragOver, { passive: false });
+    return () => window.removeEventListener('dragover', onDragOver as any);
+  }, [isDragging]);
+
   const isPaid = app.paid === true;
-
+  
   // Convert UTC appointment_start to local time for display
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
   });
+  
   const displayTime = localTime.toFormat('HH:mm');
 
+  // Use appointment-specific duration if available, otherwise fall back to service duration
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  // drag state
-  const [dragging, setDragging] = useState(false);
-  const [cursor, setCursor] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const grabOffset = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // left button / primary pointer only
-    if (e.button !== 0) return;
-    e.preventDefault();
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-
-    const rect = columnRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    // compute offset so the card doesn't jump when starting drag
-    grabOffset.current = {
-      dx: e.clientX - (rect.left + 8), // keep card aligned to column padding (~px-2)
-      dy: e.clientY - (rect.top + 0),
-    };
-
-    setCursor({ x: e.clientX, y: e.clientY });
-    setDragging(true);
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging) return;
-    setCursor({ x: e.clientX, y: e.clientY });
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging) return;
-    setDragging(false);
-
-    const rect = columnRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    // y within column
-    const yWithin = e.clientY - rect.top;
-    // snap to slot index (15m, 40px)
-    let idx = Math.floor(yWithin / slotHeight);
-    idx = Math.max(0, Math.min(timeSlots.length - 1, idx));
-
-    const targetTime = timeSlots[idx].time;
-
-    // call your existing onDrop with new time in this same column/date
-    onDrop(app.id, {
-      newTime: `${targetTime}:00`,
-      newDate: date,
-      newBarberId: barberId,
-    });
-  };
-
+  // Shared inner content so source and floating preview look identical
   const Inner = (
     <>
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -273,59 +284,56 @@ const PointerDraggableAppointment: React.FC<PointerDraggableProps> = ({
     </>
   );
 
-  // card height based on duration (still 15m grid for now)
-  const cardHeight = (appointmentDuration / 15) * slotHeight;
-
-  if (dragging) {
-    // render the same element following the cursor; no ghost left behind
-    const colRect = columnRef.current?.getBoundingClientRect();
-    const fixedLeft = (colRect?.left ?? 0) + 8; // respect px-2 padding in the slot
-    const translateY = cursor.y - grabOffset.current.dy;
-
-    return (
-      <div
-        role="button"
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        style={{
-          position: 'fixed',
-          left: fixedLeft,
-          top: 0,
-          transform: `translate3d(0, ${translateY}px, 0)`,
-          width: `calc(${flexBasis}% - 16px)`, // approximate column width minus padding
-          zIndex: 9999,
-          pointerEvents: 'none', // so slots below can still detect pointer for hover visuals if needed
-        }}
-        className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
-          isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-        }`}
-      >
-        <div style={{ height: `${cardHeight}px` }}>{Inner}</div>
-      </div>
-    );
-  }
-
-  // normal (not dragging) render inside the slot
   return (
-    <div
-      role="button"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onClick={onClick}
-      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-grab ${
-        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-      }`}
-      style={{
-        height: `${cardHeight}px`,
-        flexBasis: `${flexBasis}%`,
-        flexGrow: 1,
-        flexShrink: 0,
-        willChange: 'transform',
-        transform: 'translateZ(0)',
-      }}
-    >
-      {Inner}
-    </div>
+    <>
+      {/* Source element: hidden while dragging so no ghost stays at origin */}
+      <div
+        ref={(el) => {
+          drag(el as any);
+          nodeRef.current = el as HTMLDivElement;
+        }}
+        onClick={onClick}
+        className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow ${
+isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+        } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
+        style={{
+          height: `${(appointmentDuration / 15) * slotHeight}px`,
+          flexBasis: `${flexBasis}%`,
+          flexGrow: 1,
+          flexShrink: 0,
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+        }}
+      >
+        {Inner}
+      </div>
+
+      {/* Floating preview that follows the cursor with zero lag */}
+      {isDragging && dragPos && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 0,
+            top: 0,
+            transform: `translate3d(${dragPos.x + 8}px, ${dragPos.y + 8}px, 0)`,
+            zIndex: 9999,
+            pointerEvents: 'none',
+            willChange: 'transform',
+          }}
+        >
+          <div 
+            className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
+              isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+            }`}
+            style={{
+              height: `${(appointmentDuration / 15) * slotHeight}px`,
+              boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
+            }}
+          >
+            {Inner}
+          </div>
+        </div>
+      )}
+    </>
   );
-};
+}; 
