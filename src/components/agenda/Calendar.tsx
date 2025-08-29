@@ -91,24 +91,20 @@ const DayBarberColumn = ({
         const [{ isOver }, drop] = useDrop({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
-            // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
               utcString: draggedItem.appointment_date,
               timezone: businessTimezone,
             });
-            
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
 
-            // 🔎 DEBUG: confirm drop is firing and where
-            // eslint-disable-next-line no-console
+            // DEBUG
             console.log('📥 DROP TRIGGERED',
               { draggedId: draggedItem.id, fromDate: currentDate, fromTime: currentTime, fromBarber: draggedItem.barber_id },
               '→ into slot',
               { date, time: slot.time, barber: barber.id }
             );
             
-            // Only update if something actually changed
             if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
               onDrop(draggedItem.id, {
                 newTime: `${slot.time}:00`,
@@ -122,33 +118,18 @@ const DayBarberColumn = ({
           }),
         });
 
-        // 🔎 DEBUG: log when hovering a slot (kept light; only logs while over)
-        if (isOver) {
-          // eslint-disable-next-line no-console
-          console.log('🟦 HOVER slot', { date, time: slot.time, barber: barber.id });
-        }
-
-        // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
         const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
 
         const apps = appointments.filter((a) => {
-          if (
-            a.appointment_status === 'cancelled' ||
-            a.barber_id !== barber.id
-          ) {
-            return false;
-          }
+          if (a.appointment_status === 'cancelled' || a.barber_id !== barber.id) return false;
 
-          // Convert UTC appointment_start to local time for comparison
           const localAppointment = toLocalFromUTC({
             utcString: a.appointment_date,
             timezone: businessTimezone,
           });
-          
           const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
           const appointmentStart = localAppointment.toJSDate();
-          
           return appointmentDate === date && appointmentStart >= slotStart && appointmentStart < slotEnd;
         });
 
@@ -162,9 +143,7 @@ const DayBarberColumn = ({
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
             } ${isOver ? 'ring-2 ring-blue-300 ring-inset bg-blue-50/30' : ''}`}
             onClick={() => {
-              if (isEmpty) {
-                onEmptySlotClick?.(barber.id, date, slot.time);
-              }
+              if (isEmpty) onEmptySlotClick?.(barber.id, date, slot.time);
             }}
           >
             <span className="absolute top-0 right-2 transform -translate-y-1/2">
@@ -187,7 +166,6 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  // ***** Same behavior; added debug-only logs *****
   const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -196,34 +174,36 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     }),
   });
 
-  // 🔎 DEBUG: track the actual DOM node to listen for native drag events
   const nodeRef = useRef<HTMLDivElement | null>(null);
 
-  // Disable the native browser drag image so we control the preview
+  // Use the empty image so the browser ghost is suppressed
   useEffect(() => {
     preview(getEmptyImage(), { captureDraggingState: true });
   }, [preview]);
 
-  // 🔎 DEBUG: log when isDragging toggles
+  // Delay hiding the source until after the drag is established.
+  // This prevents the browser from cancelling the drag instantly.
+  const [hideSource, setHideSource] = useState(false);
   useEffect(() => {
-    // eslint-disable-next-line no-console
+    let rafId = 0;
+    if (isDragging) {
+      rafId = requestAnimationFrame(() => setHideSource(true));
+    } else {
+      setHideSource(false);
+    }
+    return () => cancelAnimationFrame(rafId);
+  }, [isDragging]);
+
+  // DEBUG: native drag events + isDragging transitions
+  useEffect(() => {
     console.log('🔁 isDragging changed:', isDragging, 'for', app.id);
   }, [isDragging, app.id]);
 
-  // 🔎 DEBUG: log native dragstart/dragend on the source element
   useEffect(() => {
     const el = nodeRef.current;
     if (!el) return;
-
-    const onStart = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('🟢 native dragstart', { id: app.id, target: el });
-    };
-    const onEnd = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('🔴 native dragend', { id: app.id, target: el });
-    };
-
+    const onStart = () => console.log('🟢 native dragstart', { id: app.id, target: el });
+    const onEnd = () => console.log('🔴 native dragend', { id: app.id, target: el });
     el.addEventListener('dragstart', onStart);
     el.addEventListener('dragend', onEnd);
     return () => {
@@ -232,9 +212,8 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     };
   }, [app.id]);
 
-  // Track the cursor to position our floating preview
+  // Follow the cursor with our floating preview
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
-
   useEffect(() => {
     if (!isDragging) {
       setDragPos(null);
@@ -249,19 +228,15 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   }, [isDragging]);
 
   const isPaid = app.paid === true;
-  
-  // Convert UTC appointment_start to local time for display
+
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
   });
-  
   const displayTime = localTime.toFormat('HH:mm');
 
-  // Use appointment-specific duration if available, otherwise fall back to service duration
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  // Shared inner content so source and floating preview look identical
   const Inner = (
     <>
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -286,7 +261,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
 
   return (
     <>
-      {/* Source element: hidden while dragging so no ghost stays at origin */}
+      {/* Source: becomes invisible only AFTER drag is established */}
       <div
         ref={(el) => {
           drag(el as any);
@@ -294,7 +269,7 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
         }}
         onClick={onClick}
         className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow ${
-isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+          hideSource ? 'invisible' : 'cursor-grab'
         } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
         style={{
           height: `${(appointmentDuration / 15) * slotHeight}px`,
@@ -308,7 +283,7 @@ isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
         {Inner}
       </div>
 
-      {/* Floating preview that follows the cursor with zero lag */}
+      {/* Floating preview following the cursor */}
       {isDragging && dragPos && (
         <div
           style={{
