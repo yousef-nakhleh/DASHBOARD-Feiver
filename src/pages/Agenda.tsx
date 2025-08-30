@@ -25,9 +25,10 @@ import { useAuth } from '../components/auth/AuthContext';
 const generateTimeSlots = () => {
   const slots = [];
   for (let h = 6; h <= 21; h++) {
-    for (let m = 0; m < 60; m += 15) {
+    for (let m = 0; m < 60; m += 10) { // 🔄 15 → 10 minutes
       if (h === 21 && m > 0) break;
       const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      // Keep styling markers the same: hour, half, otherwise "quarter" (used just for lighter lines)
       const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
       slots.push({ time, type });
     }
@@ -144,16 +145,14 @@ const Agenda = () => {
   useEffect(() => {
     if (authLoading) return;
     fetchAppointments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, viewMode, businessTimezone, authLoading, profile?.business_id]);
 
   useEffect(() => {
     if (authLoading) return;
     fetchBarbers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, profile?.business_id]);
 
-  // 🔴 Realtime: refresh appointments on INSERT / UPDATE / DELETE for this business
+  // 🔴 Realtime
   useEffect(() => {
     if (authLoading || !profile?.business_id) return;
 
@@ -162,13 +161,12 @@ const Agenda = () => {
       .on(
         'postgres_changes',
         {
-          event: '*', // INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'appointments',
           filter: `business_id=eq.${profile.business_id}`,
         },
         () => {
-          // Keep it simple: re-fetch so joins (contact/services) stay correct
           fetchAppointments();
         }
       )
@@ -177,7 +175,6 @@ const Agenda = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, profile?.business_id]);
 
   const handleExceptionSelect = (value: string) => {
@@ -262,7 +259,6 @@ const Agenda = () => {
     return d;
   });
 
-  // Optional: small guard if profile has no business configured
   if (!authLoading && !profile?.business_id) {
     return (
       <div className="h-full flex items-center justify-center">
