@@ -35,6 +35,7 @@ import { PhoneCallerGate } from './gates/PhoneCallerGate';
 import { WaitingListGate } from './gates/WaitingListGate';
 import { OpeningExceptionsGate } from './gates/OpeningExceptionsGate';
 import { ClosingExceptionsGate } from './gates/ClosingExceptionsGate';
+import { ReportsGate } from './gates/ReportsGate'; // ✅ added
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -162,7 +163,14 @@ function App() {
                     </ClosingExceptionsGate>
                   }
                 />
-                <Route path="reports" element={<Reports />} /> {/* ✅ mounted Reports page */}
+                <Route
+                  path="reports"
+                  element={
+                    <ReportsGate fallback={<Navigate to="/" replace />}>
+                      <Reports />
+                    </ReportsGate>
+                  }
+                /> {/* ✅ mounted Reports with gate */}
 
                 {/* Default */}
                 <Route path="*" element={<Navigate to="/" replace />} />
