@@ -48,4 +48,4 @@ const RevenueDetails: React.FC = () => {
   );
 };
 
-export default RevenueDetails;
+export default RevenueDetails; 
