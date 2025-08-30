@@ -75,6 +75,11 @@ const Layout = () => {
       items.push({ path: '/cassa', name: 'Cassa', icon: <DollarSign size={20} /> });
     }
 
+    // ✅ Reports (right under Cassa)
+    if (ready && has(FEATURE.REPORTS)) {
+      items.push({ path: '/reports', name: 'Reports', icon: <BarChart2 size={20} /> });
+    }
+
     // Orari group (only if at least one child is enabled)
     if (orariChildren.length > 0) {
       items.push({
