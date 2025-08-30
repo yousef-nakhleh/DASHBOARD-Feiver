@@ -13,7 +13,7 @@ export const Calendar = ({
   businessTimezone,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,      // ✅ nuova prop
+  onEmptySlotClick,      
   barbers,
   selectedBarber,
   datesInView = [], 
@@ -91,7 +91,6 @@ const DayBarberColumn = ({
         const [{ isOver }, drop] = useDrop({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
-            // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
               utcString: draggedItem.appointment_date,
               timezone: businessTimezone,
@@ -100,15 +99,6 @@ const DayBarberColumn = ({
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
 
-            // 🔎 DEBUG: confirm drop is firing and where
-            // eslint-disable-next-line no-console
-            console.log('📥 DROP TRIGGERED',
-              { draggedId: draggedItem.id, fromDate: currentDate, fromTime: currentTime, fromBarber: draggedItem.barber_id },
-              '→ into slot',
-              { date, time: slot.time, barber: barber.id }
-            );
-            
-            // Only update if something actually changed
             if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
               onDrop(draggedItem.id, {
                 newTime: `${slot.time}:00`,
@@ -122,25 +112,14 @@ const DayBarberColumn = ({
           }),
         });
 
-        // 🔎 DEBUG: log when hovering a slot (kept light; only logs while over)
-        if (isOver) {
-          // eslint-disable-next-line no-console
-          console.log('🟦 HOVER slot', { date, time: slot.time, barber: barber.id });
-        }
-
-        // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
-        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
+        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000);
 
         const apps = appointments.filter((a) => {
-          if (
-            a.appointment_status === 'cancelled' ||
-            a.barber_id !== barber.id
-          ) {
+          if (a.appointment_status === 'cancelled' || a.barber_id !== barber.id) {
             return false;
           }
 
-          // Convert UTC appointment_start to local time for comparison
           const localAppointment = toLocalFromUTC({
             utcString: a.appointment_date,
             timezone: businessTimezone,
@@ -187,7 +166,6 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  // ***** Same behavior; added debug-only logs *****
   const [{ isDragging }, drag, preview] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
@@ -196,43 +174,14 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     }),
   });
 
-  // 🔎 DEBUG: track the actual DOM node to listen for native drag events
   const nodeRef = useRef<HTMLDivElement | null>(null);
 
-  // Disable the native browser drag image so we control the preview
+  // Disable native ghost image
   useEffect(() => {
     preview(getEmptyImage(), { captureDraggingState: true });
   }, [preview]);
 
-  // 🔎 DEBUG: log when isDragging toggles
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log('🔁 isDragging changed:', isDragging, 'for', app.id);
-  }, [isDragging, app.id]);
-
-  // 🔎 DEBUG: log native dragstart/dragend on the source element
-  useEffect(() => {
-    const el = nodeRef.current;
-    if (!el) return;
-
-    const onStart = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('🟢 native dragstart', { id: app.id, target: el });
-    };
-    const onEnd = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('🔴 native dragend', { id: app.id, target: el });
-    };
-
-    el.addEventListener('dragstart', onStart);
-    el.addEventListener('dragend', onEnd);
-    return () => {
-      el.removeEventListener('dragstart', onStart);
-      el.removeEventListener('dragend', onEnd);
-    };
-  }, [app.id]);
-
-  // Track the cursor to position our floating preview
+  // Track cursor for smooth floating preview
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -249,19 +198,13 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
   }, [isDragging]);
 
   const isPaid = app.paid === true;
-  
-  // Convert UTC appointment_start to local time for display
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
   });
-  
   const displayTime = localTime.toFormat('HH:mm');
-
-  // Use appointment-specific duration if available, otherwise fall back to service duration
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  // Shared inner content so source and floating preview look identical
   const Inner = (
     <>
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -286,29 +229,27 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
 
   return (
     <>
-      {/* Source element: hidden while dragging so no ghost stays at origin */}
+      {/* Source: hidden while dragging */}
       <div
         ref={(el) => {
           drag(el as any);
           nodeRef.current = el as HTMLDivElement;
         }}
         onClick={onClick}
-        className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden hover:shadow-md transition-shadow ${
-isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+        className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
+          isDragging ? 'opacity-0' : 'cursor-grab hover:shadow-md'
         } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
         style={{
           height: `${(appointmentDuration / 15) * slotHeight}px`,
           flexBasis: `${flexBasis}%`,
           flexGrow: 1,
           flexShrink: 0,
-          willChange: 'transform',
-          transform: 'translateZ(0)',
         }}
       >
         {Inner}
       </div>
 
-      {/* Floating preview that follows the cursor with zero lag */}
+      {/* Floating live preview */}
       {isDragging && dragPos && (
         <div
           style={{
@@ -336,4 +277,4 @@ isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
       )}
     </>
   );
-}; 
+};
