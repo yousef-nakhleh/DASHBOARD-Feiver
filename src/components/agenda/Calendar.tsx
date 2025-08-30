@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'; 
+import React, { useEffect, useRef, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
@@ -24,8 +24,8 @@ export const Calendar = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     id: string;
-    newDate: string;
-    newTime: string;
+    newDate: string;       // 'yyyy-MM-dd'
+    newTime: string;       // 'HH:mm:00'
     newBarberId: string;
   } | null>(null);
 
@@ -101,49 +101,85 @@ const DayBarberColumn = ({
   setPendingMove,
   setDraggingId,
 }) => {
+  // Column-level drop target
+  const columnRef = useRef<HTMLDivElement | null>(null);
+  const [hoverRow, setHoverRow] = useState<number | null>(null);
+
+  const [{ isOver }, drop] = useDrop({
+    accept: 'APPOINTMENT',
+    drop: (draggedItem: any, monitor) => {
+      const client = monitor.getClientOffset();
+      const rect = columnRef.current?.getBoundingClientRect();
+      if (!client || !rect) return;
+
+      // Compute target slot index from cursor Y
+      const offsetY = client.y - rect.top;
+      let rowIndex = Math.floor(offsetY / slotHeight);
+      if (rowIndex < 0) rowIndex = 0;
+      if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
+
+      const targetSlot = timeSlots[rowIndex]; // { time: 'HH:mm', type: ... }
+      const newTime = `${targetSlot.time}:00`;
+
+      // Current local time/date of the appointment
+      const currentLocal = toLocalFromUTC({
+        utcString: draggedItem.appointment_date,
+        timezone: businessTimezone,
+      });
+      const currentDate = currentLocal.toFormat('yyyy-MM-dd');
+      const currentTime = currentLocal.toFormat('HH:mm');
+
+      // Only update if something actually changed (time/date/barber)
+      if (
+        currentTime !== targetSlot.time ||
+        currentDate !== date ||
+        draggedItem.barber_id !== barber.id
+      ) {
+        setPendingMove({
+          id: draggedItem.id,
+          newDate: date,
+          newTime,
+          newBarberId: barber.id,
+        });
+        setDraggingId(null);
+        onDrop(draggedItem.id, {
+          newTime,
+          newDate: date,
+          newBarberId: barber.id,
+        });
+      }
+    },
+    hover: (_item, monitor) => {
+      const client = monitor.getClientOffset();
+      const rect = columnRef.current?.getBoundingClientRect();
+      if (!client || !rect) return;
+      const offsetY = client.y - rect.top;
+      let rowIndex = Math.floor(offsetY / slotHeight);
+      if (rowIndex < 0) rowIndex = 0;
+      if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
+      setHoverRow(rowIndex);
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver({ shallow: true }),
+    }),
+  });
+
+  // Clear hover when pointer leaves
+  useEffect(() => {
+    if (!isOver) setHoverRow(null);
+  }, [isOver]);
+
   return (
     <div
       className="flex flex-col border-r"
       style={{ width: `${100 / totalBarbers}%` }}
+      ref={(el) => {
+        columnRef.current = el;
+        drop(el as any);
+      }}
     >
-      {timeSlots.map((slot) => {
-        const [{ isOver }, drop] = useDrop({
-          accept: 'APPOINTMENT',
-          drop: (draggedItem: any) => {
-            const currentLocal = toLocalFromUTC({
-              utcString: draggedItem.appointment_date,
-              timezone: businessTimezone,
-            });
-
-            const currentDate = currentLocal.toFormat('yyyy-MM-dd');
-            const currentTime = currentLocal.toFormat('HH:mm');
-
-            if (
-              currentTime !== slot.time ||
-              currentDate !== date ||
-              draggedItem.barber_id !== barber.id
-            ) {
-              const newTime = `${slot.time}:00`;
-              setPendingMove({
-                id: draggedItem.id,
-                newDate: date,
-                newTime,
-                newBarberId: barber.id,
-              });
-              setDraggingId(null);
-              onDrop(draggedItem.id, {
-                newTime,
-                newDate: date,
-                newBarberId: barber.id,
-              });
-            }
-          },
-          collect: (monitor) => ({
-            isOver: monitor.isOver(),
-          }),
-        });
-
-        // 🔹 now each slot = 10 minutes
+      {timeSlots.map((slot, idx) => {
+        // 🔹 each slot = 10 minutes
         const slotStart = new Date(`${date}T${slot.time}:00`);
         const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
 
@@ -173,15 +209,15 @@ const DayBarberColumn = ({
         });
 
         const isEmpty = apps.length === 0;
+        const highlight = isOver && hoverRow === idx;
 
         return (
           <div
             key={slot.time}
-            ref={drop}
             style={{ height: slotHeight }}
             className={`border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            } ${draggingId ? '' : isOver ? 'bg-blue-50/30' : ''}`}
+            } ${highlight ? 'bg-blue-50/30' : ''}`}
             onClick={() => {
               if (isEmpty) {
                 onEmptySlotClick?.(barber.id, date, slot.time);
@@ -239,7 +275,7 @@ const DraggableAppointment = ({
 
   useEffect(() => {
     if (isDragging) onDragStart();
-  }, [isDragging]);
+  }, [isDragging, onDragStart]);
 
   const isPaid = app.paid === true;
 
@@ -261,7 +297,7 @@ const DraggableAppointment = ({
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
       style={{
-        // 🔹 now size based on 10-minute slots
+        // 🔹 size based on 10-minute slots
         height: `${(appointmentDuration / 10) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
