@@ -1,9 +1,7 @@
-// src/components/staff/EditStaffAvailabilityModal.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
-import { getEmptyImage } from 'react-dnd-html5-backend';
 
 const slotHeight = 40;
 
@@ -13,7 +11,7 @@ export const Calendar = ({
   businessTimezone,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,      
+  onEmptySlotClick,      // ✅ nuova prop
   barbers,
   selectedBarber,
   datesInView = [], 
@@ -88,9 +86,10 @@ const DayBarberColumn = ({
       style={{ width: `${100 / totalBarbers}%` }}
     >
       {timeSlots.map((slot) => {
-        const [{ isOver }, drop] = useDrop({
+        const [, drop] = useDrop({
           accept: 'APPOINTMENT',
           drop: (draggedItem) => {
+            // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
               utcString: draggedItem.appointment_date,
               timezone: businessTimezone,
@@ -98,7 +97,8 @@ const DayBarberColumn = ({
             
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
-
+            
+            // Only update if something actually changed
             if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
               onDrop(draggedItem.id, {
                 newTime: `${slot.time}:00`,
@@ -107,19 +107,21 @@ const DayBarberColumn = ({
               });
             }
           },
-          collect: (monitor) => ({
-            isOver: monitor.isOver(),
-          }),
         });
 
+        // Filter appointments for this time slot
         const slotStart = new Date(`${date}T${slot.time}:00`);
-        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000);
+        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
 
         const apps = appointments.filter((a) => {
-          if (a.appointment_status === 'cancelled' || a.barber_id !== barber.id) {
+          if (
+            a.appointment_status === 'cancelled' ||
+            a.barber_id !== barber.id
+          ) {
             return false;
           }
 
+          // Convert UTC appointment_start to local time for comparison
           const localAppointment = toLocalFromUTC({
             utcString: a.appointment_date,
             timezone: businessTimezone,
@@ -139,7 +141,7 @@ const DayBarberColumn = ({
             ref={drop}
             className={`h-[40px] border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            } ${isOver ? 'ring-2 ring-blue-300 ring-inset bg-blue-50/30' : ''}`}
+            }`}
             onClick={() => {
               if (isEmpty) {
                 onEmptySlotClick?.(barber.id, date, slot.time);
@@ -166,7 +168,7 @@ const DayBarberColumn = ({
 };
 
 const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
-  const [{ isDragging }, drag, preview] = useDrag({
+  const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
@@ -174,39 +176,35 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     }),
   });
 
-  const nodeRef = useRef<HTMLDivElement | null>(null);
-
-  // Disable native ghost image
-  useEffect(() => {
-    preview(getEmptyImage(), { captureDraggingState: true });
-  }, [preview]);
-
-  // Track cursor for smooth floating preview
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!isDragging) {
-      setDragPos(null);
-      return;
-    }
-    const onDragOver = (e: DragEvent) => {
-      e.preventDefault?.();
-      setDragPos({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('dragover', onDragOver, { passive: false });
-    return () => window.removeEventListener('dragover', onDragOver as any);
-  }, [isDragging]);
-
   const isPaid = app.paid === true;
+  
+  // Convert UTC appointment_start to local time for display
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
   });
+  
   const displayTime = localTime.toFormat('HH:mm');
+
+  // Use appointment-specific duration if available, otherwise fall back to service duration
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  const Inner = (
-    <>
+  return (
+    <div
+      ref={drag}
+      onClick={onClick}
+      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move hover:shadow-md transition-shadow ${
+        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+      } ${
+        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+      }`}
+      style={{
+        height: `${(appointmentDuration / 15) * slotHeight}px`,
+        flexBasis: `${flexBasis}%`,
+        flexGrow: 1,
+        flexShrink: 0,
+      }}
+    >
       <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{displayTime}</span>
         <span>{appointmentDuration} min</span>
@@ -224,57 +222,6 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
           </span>
         )}
       </div>
-    </>
+    </div>
   );
-
-  return (
-    <>
-      {/* Source: hidden while dragging */}
-      <div
-        ref={(el) => {
-          drag(el as any);
-          nodeRef.current = el as HTMLDivElement;
-        }}
-        onClick={onClick}
-        className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
-          isDragging ? 'opacity-0' : 'cursor-grab hover:shadow-md'
-        } ${isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'}`}
-        style={{
-          height: `${(appointmentDuration / 15) * slotHeight}px`,
-          flexBasis: `${flexBasis}%`,
-          flexGrow: 1,
-          flexShrink: 0,
-        }}
-      >
-        {Inner}
-      </div>
-
-      {/* Floating live preview */}
-      {isDragging && dragPos && (
-        <div
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            transform: `translate3d(${dragPos.x + 8}px, ${dragPos.y + 8}px, 0)`,
-            zIndex: 9999,
-            pointerEvents: 'none',
-            willChange: 'transform',
-          }}
-        >
-          <div 
-            className={`relative border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden ${
-              isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
-            }`}
-            style={{
-              height: `${(appointmentDuration / 15) * slotHeight}px`,
-              boxShadow: '0 6px 18px rgba(0,0,0,0.2)',
-            }}
-          >
-            {Inner}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
+}; 
