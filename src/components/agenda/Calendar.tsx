@@ -21,12 +21,11 @@ export const Calendar = ({
       ? barbers
       : barbers.filter((b) => b.id === selectedBarber);
 
-  // 🔹 Optimistic move + drag state (UI-only)
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     id: string;
-    newDate: string;       // 'yyyy-MM-dd'
-    newTime: string;       // 'HH:mm:00'
+    newDate: string;
+    newTime: string;
     newBarberId: string;
   } | null>(null);
 
@@ -144,8 +143,9 @@ const DayBarberColumn = ({
           }),
         });
 
+        // 🔹 now each slot = 10 minutes
         const slotStart = new Date(`${date}T${slot.time}:00`);
-        const slotEnd = new Date(slotStart.getTime() + 15 * 60_000);
+        const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
 
         const apps = appointments.filter((a) => {
           if (a.appointment_status === 'cancelled') return false;
@@ -261,7 +261,8 @@ const DraggableAppointment = ({
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
       style={{
-        height: `${(appointmentDuration / 15) * slotHeight}px`,
+        // 🔹 now size based on 10-minute slots
+        height: `${(appointmentDuration / 10) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
