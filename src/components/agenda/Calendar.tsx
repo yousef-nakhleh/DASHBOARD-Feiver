@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
@@ -21,6 +21,21 @@ export const Calendar = ({
       ? barbers
       : barbers.filter((b) => b.id === selectedBarber);
 
+  // 🔹 Optimistic move + drag state (UI-only)
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<{
+    id: string;
+    newDate: string;       // 'yyyy-MM-dd'
+    newTime: string;       // 'HH:mm:00'
+    newBarberId: string;
+  } | null>(null);
+
+  // When appointments refresh (Agenda refetches after onDrop), clear optimistic state
+  useEffect(() => {
+    if (pendingMove) setPendingMove(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments]);
+
   return (
     <div className="h-full w-full overflow-y-auto">
       <div className="flex min-h-[1100px]">
@@ -29,7 +44,8 @@ export const Calendar = ({
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
+              style={{ height: slotHeight }}
+              className={`px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
@@ -59,6 +75,11 @@ export const Calendar = ({
                   onClickAppointment={onClickAppointment}
                   onEmptySlotClick={onEmptySlotClick}
                   totalBarbers={barbersToRender.length}
+                  // 🔸 pass optimistic state + handlers
+                  draggingId={draggingId}
+                  pendingMove={pendingMove}
+                  setPendingMove={setPendingMove}
+                  setDraggingId={setDraggingId}
                 />
               ));
             })}
@@ -79,6 +100,11 @@ const DayBarberColumn = ({
   onClickAppointment,
   onEmptySlotClick,
   totalBarbers,
+  // 🔸 optimistic props
+  draggingId,
+  pendingMove,
+  setPendingMove,
+  setDraggingId,
 }) => {
   return (
     <div
@@ -86,27 +112,44 @@ const DayBarberColumn = ({
       style={{ width: `${100 / totalBarbers}%` }}
     >
       {timeSlots.map((slot) => {
-        const [, drop] = useDrop({
+        const [{ isOver }, drop] = useDrop({
           accept: 'APPOINTMENT',
-          drop: (draggedItem) => {
+          drop: (draggedItem: any) => {
             // Convert current appointment to local time for comparison
             const currentLocal = toLocalFromUTC({
               utcString: draggedItem.appointment_date,
               timezone: businessTimezone,
             });
-            
+
             const currentDate = currentLocal.toFormat('yyyy-MM-dd');
             const currentTime = currentLocal.toFormat('HH:mm');
-            
+
             // Only update if something actually changed
-            if (currentTime !== slot.time || currentDate !== date || draggedItem.barber_id !== barber.id) {
+            if (
+              currentTime !== slot.time ||
+              currentDate !== date ||
+              draggedItem.barber_id !== barber.id
+            ) {
+              const newTime = `${slot.time}:00`;
+              // 🔹 Optimistic: show immediately in the new slot/column
+              setPendingMove({
+                id: draggedItem.id,
+                newDate: date,
+                newTime,
+                newBarberId: barber.id,
+              });
+              setDraggingId(null);
+              // Persist using existing logic
               onDrop(draggedItem.id, {
-                newTime: `${slot.time}:00`,
+                newTime,
                 newDate: date,
                 newBarberId: barber.id,
               });
             }
           },
+          collect: (monitor) => ({
+            isOver: monitor.isOver(),
+          }),
         });
 
         // Filter appointments for this time slot
@@ -114,23 +157,36 @@ const DayBarberColumn = ({
         const slotEnd = new Date(slotStart.getTime() + 15 * 60_000); // +15 min
 
         const apps = appointments.filter((a) => {
-          if (
-            a.appointment_status === 'cancelled' ||
-            a.barber_id !== barber.id
-          ) {
-            return false;
-          }
+          if (a.appointment_status === 'cancelled') return false;
 
-          // Convert UTC appointment_start to local time for comparison
-          const localAppointment = toLocalFromUTC({
-            utcString: a.appointment_date,
-            timezone: businessTimezone,
-          });
-          
-          const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
-          const appointmentStart = localAppointment.toJSDate();
-          
-          return appointmentDate === date && appointmentStart >= slotStart && appointmentStart < slotEnd;
+          // 🔹 Determine "effective" placement (optimistic or actual)
+          const isPending =
+            pendingMove && pendingMove.id === a.id;
+
+          const effectiveBarberId = isPending
+            ? pendingMove!.newBarberId
+            : a.barber_id;
+
+          if (effectiveBarberId !== barber.id) return false;
+
+          // Effective date/time in local tz
+          if (isPending) {
+            // pendingMove has local date/time already
+            const pendingDate = pendingMove!.newDate; // 'yyyy-MM-dd'
+            const pendingTime = pendingMove!.newTime; // 'HH:mm:00'
+            if (pendingDate !== date) return false;
+            const pendingStart = new Date(`${pendingDate}T${pendingTime}`);
+            return pendingStart >= slotStart && pendingStart < slotEnd;
+          } else {
+            const localAppointment = toLocalFromUTC({
+              utcString: a.appointment_date,
+              timezone: businessTimezone,
+            });
+            const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
+            if (appointmentDate !== date) return false;
+            const appointmentStart = localAppointment.toJSDate();
+            return appointmentStart >= slotStart && appointmentStart < slotEnd;
+          }
         });
 
         const isEmpty = apps.length === 0;
@@ -139,18 +195,16 @@ const DayBarberColumn = ({
           <div
             key={slot.time}
             ref={drop}
-            className={`h-[40px] border-t border-gray-200 relative px-1 ${
+            style={{ height: slotHeight }}
+            className={`border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            }`}
+            } ${draggingId ? '' : isOver ? 'bg-blue-50/30' : ''}`} // soften hover; suppress while dragging
             onClick={() => {
               if (isEmpty) {
                 onEmptySlotClick?.(barber.id, date, slot.time);
               }
             }}
           >
-            <span className="absolute top-0 right-2 transform -translate-y-1/2">
-              {slot.time}
-            </span>
             {apps.map((app) => (
               <DraggableAppointment
                 key={app.id}
@@ -158,6 +212,13 @@ const DayBarberColumn = ({
                 businessTimezone={businessTimezone}
                 onClick={() => onClickAppointment?.(app)}
                 flexBasis={100}
+                // 🔸 inform parent about drag start/end
+                onDragStart={() => setDraggingId(app.id)}
+                onDragEnd={() => setDraggingId(null)}
+                // If this app is being optimistically moved, keep it visible
+                isOptimisticallyMoving={
+                  !!pendingMove && pendingMove.id === app.id
+                }
               />
             ))}
           </div>
@@ -167,14 +228,39 @@ const DayBarberColumn = ({
   );
 };
 
-const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => {
+const DraggableAppointment = ({
+  app,
+  businessTimezone,
+  onClick,
+  flexBasis,
+  onDragStart,
+  onDragEnd,
+  isOptimisticallyMoving,
+}: {
+  app: any;
+  businessTimezone: string;
+  onClick: () => void;
+  flexBasis: number;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  isOptimisticallyMoving: boolean;
+}) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+    end: () => {
+      onDragEnd();
+    },
   });
+
+  // Call onDragStart precisely when dragging toggles true
+  useEffect(() => {
+    if (isDragging) onDragStart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDragging]);
 
   const isPaid = app.paid === true;
   
@@ -193,8 +279,8 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
     <div
       ref={drag}
       onClick={onClick}
-      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden cursor-move hover:shadow-md transition-shadow ${
-        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'
+      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
+        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
       } ${
         isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
@@ -203,6 +289,8 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
+        // Keep visible even while being "virtually" reparented
+        visibility: isOptimisticallyMoving ? 'visible' : undefined,
       }}
     >
       <div className="flex justify-between text-xs font-medium text-gray-800">
@@ -224,4 +312,4 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
       </div>
     </div>
   );
-};  
+};
