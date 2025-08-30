@@ -17,6 +17,7 @@ import WaitingList from './pages/WaitingList';
 import Vapi from './pages/Vapi';
 import ClosingExceptions from './pages/ClosingExceptions';
 import OpeningExceptions from './pages/OpeningExceptions';
+import Reports from './pages/Reports'; // ✅ added
 
 // 🔐 Auth
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
@@ -161,6 +162,7 @@ function App() {
                     </ClosingExceptionsGate>
                   }
                 />
+                <Route path="reports" element={<Reports />} /> {/* ✅ mounted Reports page */}
 
                 {/* Default */}
                 <Route path="*" element={<Navigate to="/" replace />} />
