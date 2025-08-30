@@ -13,6 +13,7 @@ export const FEATURE = {
   ANALYTICS:     "analytics.component",
   OPENING_EXCEPTIONS: "openingexceptions.component",
   CLOSING_EXCEPTIONS: "closingexceptions.component",
+  REPORTS:       "reports.component",
 } as const;
 
 // Type helper → only allow valid feature slugs
