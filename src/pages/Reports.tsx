@@ -1,17 +1,5 @@
 // src/pages/Reports.tsx
 import React, { useState } from 'react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
-
-// ✅ new component
-import RevenueDetails from '../components/reports/RevenueDetails';
 
 export default function Reports() {
   // ---- Static demo data ----
@@ -22,13 +10,11 @@ export default function Reports() {
     mediaScontrino: { value: 35, sub: 'Dettagli →' },
   };
 
-  const [range] = useState<'day' | 'week'>('day'); // placeholder for future filters
-
-  const INCASSO_PER_BARBIERE = [
-    { name: 'Alket', value: 480 },
-    { name: 'Gino', value: 360 },
-    { name: 'Lisa', value: 290 },
-    { name: 'Marco', value: 120 },
+  // Per-barbiere (table)
+  const BARBERS = [
+    { name: 'Mario Rossi', revenue: 520, appointments: 14, percent: 41 },
+    { name: 'Luca Bianchi', revenue: 430, appointments: 11, percent: 34 },
+    { name: 'Anna Verdi', revenue: 310, appointments: 8, percent: 25 },
   ];
 
   const TRANSACTIONS = [
@@ -89,38 +75,44 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* ✅ Revenue Details (new component) */}
-      <RevenueDetails />
-
-      {/* Chart: Incasso per Barbiere */}
+      {/* Incasso per Barbiere (keep this one only) */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-gray-600">Incasso per Barbiere</p>
+          <h2 className="text-lg font-semibold text-black">Incasso per Barbiere</h2>
           <button className="text-sm text-gray-500 hover:underline">Dettagli →</button>
         </div>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={INCASSO_PER_BARBIERE}
-              margin={{ left: 8, right: 8, top: 8, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="name" tick={{ fill: '#6b7280' }} axisLine={{ stroke: '#e5e7eb' }} tickLine={false} />
-              <YAxis
-                tickFormatter={(v) => formatEUR(v as number)}
-                tick={{ fill: '#6b7280' }}
-                axisLine={{ stroke: '#e5e7eb' }}
-                tickLine={false}
-                width={80}
-              />
-              <Tooltip
-                formatter={(value: any) => [formatEUR(value as number), 'Incasso']}
-                labelStyle={{ color: '#6b7280' }}
-              />
-              <Bar dataKey="value" fill="#111827" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b border-gray-200 text-gray-500 text-sm">
+              <th className="py-2 text-left">Barbiere</th>
+              <th className="py-2 text-left">Incasso</th>
+              <th className="py-2 text-left">Appuntamenti</th>
+              <th className="py-2 text-left">% del Totale</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {BARBERS.map((b) => (
+              <tr key={b.name} className="align-top">
+                <td className="py-3">
+                  <p className="font-medium text-black">{b.name}</p>
+                </td>
+                <td className="py-3">{formatEUR(b.revenue)}</td>
+                <td className="py-3">{b.appointments}</td>
+                <td className="py-3 w-48">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700 w-10">{b.percent}%</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-2">
+                      <div
+                        className="bg-black h-2 rounded-full"
+                        style={{ width: `${b.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Transactions ledger (plain list, no summaries) */}
