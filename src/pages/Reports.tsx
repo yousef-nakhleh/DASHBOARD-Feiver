@@ -10,6 +10,9 @@ import {
   Tooltip,
 } from 'recharts';
 
+// ✅ new component
+import RevenueDetails from '../components/reports/RevenueDetails';
+
 export default function Reports() {
   // ---- Static demo data ----
   const KPIS = {
@@ -85,6 +88,9 @@ export default function Reports() {
           <button className="text-sm text-gray-500 mt-3 hover:underline">{KPIS.mediaScontrino.sub}</button>
         </div>
       </div>
+
+      {/* ✅ Revenue Details (new component) */}
+      <RevenueDetails />
 
       {/* Chart: Incasso per Barbiere */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
