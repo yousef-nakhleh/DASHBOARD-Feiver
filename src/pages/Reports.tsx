@@ -10,6 +10,9 @@ import {
   Tooltip,
 } from 'recharts';
 
+// ✅ new component
+import RevenueDetails from '../components/reports/RevenueDetails';
+
 export default function Reports() {
   // ---- Static demo data ----
   const KPIS = {
@@ -86,6 +89,9 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* ✅ Revenue Details (new component) */}
+      <RevenueDetails />
+
       {/* Chart: Incasso per Barbiere */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
@@ -152,4 +158,4 @@ export default function Reports() {
       </div>
     </div>
   );
-} 
+}
