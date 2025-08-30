@@ -3,7 +3,7 @@ import { useDrop, useDrag } from 'react-dnd';
 import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
 
-const slotHeight = 40;
+const slotHeight = 160;
 
 export const Calendar = ({
   timeSlots,
