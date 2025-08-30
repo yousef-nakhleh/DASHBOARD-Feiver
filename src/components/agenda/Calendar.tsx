@@ -23,14 +23,13 @@ export const Calendar = ({
 
   return (
     <div className="h-full w-full overflow-y-auto">
-      <div className="flex">
+      <div className="flex min-h-[1100px]">
         {/* Time labels */}
         <div className="bg-white border-r shrink-0">
           {timeSlots.map((slot, i) => (
             <div
               key={i}
-              style={{ height: slotHeight }}
-              className={`px-2 flex items-start pt-1 justify-end text-xs ${
+              className={`h-[${slotHeight}px] px-2 flex items-start pt-1 justify-end text-xs ${
                 slot.type === 'hour'
                   ? 'font-bold text-gray-800'
                   : slot.type === 'half'
@@ -140,8 +139,7 @@ const DayBarberColumn = ({
           <div
             key={slot.time}
             ref={drop}
-            style={{ height: slotHeight }}
-            className={`border-t border-gray-200 relative px-1 ${
+            className={`h-[40px] border-t border-gray-200 relative px-1 ${
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
             }`}
             onClick={() => {
@@ -150,6 +148,9 @@ const DayBarberColumn = ({
               }
             }}
           >
+            <span className="absolute top-0 right-2 transform -translate-y-1/2">
+              {slot.time}
+            </span>
             {apps.map((app) => (
               <DraggableAppointment
                 key={app.id}
@@ -223,4 +224,4 @@ const DraggableAppointment = ({ app, businessTimezone, onClick, flexBasis }) => 
       </div>
     </div>
   );
-};
+};  
