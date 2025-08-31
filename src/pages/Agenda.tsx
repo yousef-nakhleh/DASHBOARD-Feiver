@@ -1,3 +1,4 @@
+// src/pages/Agenda.tsx
 import {
   CalendarIcon,
   Plus,
@@ -25,10 +26,9 @@ import { useAuth } from '../components/auth/AuthContext';
 const generateTimeSlots = () => {
   const slots = [];
   for (let h = 6; h <= 21; h++) {
-    for (let m = 0; m < 60; m += 10) { // 🔄 15 → 10 minutes
+    for (let m = 0; m < 60; m += 10) { // 🔄 10-minute grid
       if (h === 21 && m > 0) break;
       const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      // Keep styling markers the same: hour, half, otherwise "quarter" (used just for lighter lines)
       const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
       slots.push({ time, type });
     }
@@ -76,7 +76,7 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  // Fetch business timezone (after auth/profile is ready)
+  // Fetch business timezone
   useEffect(() => {
     const fetchBusinessTimezone = async () => {
       if (authLoading) return;
@@ -100,13 +100,11 @@ const Agenda = () => {
       console.log("Skipping fetchAppointments: Invalid business_id type or value", profile?.business_id);
       return;
     }
-    console.log("Fetching appointments for business_id:", profile.business_id);
-
     if (!profile?.business_id) return;
 
     const dates = getDatesInView(selectedDate, viewMode);
 
-    // Calculate UTC range for the dates in view
+    // UTC range
     const startOfFirstDay = toUTCFromLocal({
       date: formatDateToYYYYMMDDLocal(dates[0]),
       time: '00:00',
@@ -120,7 +118,17 @@ const Agenda = () => {
 
     const { data, error } = await supabase
       .from('appointments')
-      .select(`id, appointment_date, contact:contact_id ( first_name, last_name ), barber_id, service_id, appointment_status, paid, duration_min, services ( name, price, duration_min )`)
+      .select(`
+        id,
+        appointment_date,
+        contact:contact_id ( first_name, last_name, phone_number_e164 ),  -- ✅ include phone
+        barber_id,
+        service_id,
+        appointment_status,
+        paid,
+        duration_min,
+        services ( name, price, duration_min )
+      `)
       .eq('business_id', profile.business_id)
       .gte('appointment_date', startOfFirstDay)
       .lte('appointment_date', endOfLastDay)
@@ -152,7 +160,7 @@ const Agenda = () => {
     fetchBarbers();
   }, [authLoading, profile?.business_id]);
 
-  // 🔴 Realtime
+  // Realtime
   useEffect(() => {
     if (authLoading || !profile?.business_id) return;
 
@@ -272,10 +280,10 @@ const Agenda = () => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Consolidated Header */}
+      {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Left side: Date navigation */}
+          {/* Left: day buttons + datepicker */}
           <div className="flex items-center gap-3">
             {dateButtons.map((date, i) => (
               <button
@@ -313,7 +321,7 @@ const Agenda = () => {
             </div>
           </div>
 
-          {/* Center: Search, Staff, View Mode */}
+          {/* Center: filters */}
           <div className="flex items-center gap-3">
             <Dropdown
               value={selectedBarber}
@@ -348,7 +356,7 @@ const Agenda = () => {
             />
           </div>
           
-          {/* Right side: New Appointment button */}
+          {/* Right: new appointment */}
           <button
             onClick={() => setShowCreateModal(true)}
             className="bg-black text-white px-6 py-2 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
@@ -358,7 +366,7 @@ const Agenda = () => {
         </div>
       </div>
 
-      {/* Main Calendar Container */}
+      {/* Main Calendar */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <div className="relative">
