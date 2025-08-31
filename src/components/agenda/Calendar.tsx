@@ -323,49 +323,41 @@ const DraggableAppointment = ({
 
   const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
 
-  // --- UI CHANGES ONLY (homogeneous card, bigger text, add phone, service not italic/grey) ---
   return (
     <div
       ref={drag}
       onClick={onClick}
-      className={`relative rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
+      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
         isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
-      } ${isPaid ? 'bg-green-100' : 'bg-blue-100'}`}
+      } ${
+        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
+      }`}
       style={{
-        // size based on 10-minute slots
+        // 🔹 size based on 10-minute slots
         height: `${(appointmentDuration / 10) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
         visibility: isOptimisticallyMoving ? 'visible' : undefined,
-        padding: '6px 10px',
       }}
     >
-      {/* Top row: time + duration */}
-      <div className="flex justify-between text-base font-semibold text-gray-900 leading-none">
+      <div className="flex justify-between text-xs font-medium text-gray-800">
         <span>{displayTime}</span>
         <span>{appointmentDuration} min</span>
       </div>
-
-      {/* Name + (phone) */}
-      <div className="flex items-center mt-1.5 text-[15px] font-semibold text-gray-900 truncate leading-tight">
-        <User size={16} className="mr-1.5 text-gray-600 flex-shrink-0" />
-        <span className="truncate">
-          {`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente'}
-        </span>
+      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
+        <div className="flex items-center">
+          <User size={14} className="mr-1 text-gray-500" />
+          <span className="truncate">
+            {`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente'}
+          </span>
+        </div>
+        {app.services?.name && (
+          <span className="text-xs italic text-gray-500 mt-1 truncate">
+            {app.services.name}
+          </span>
+        )}
       </div>
-      {app.contact?.phone_number_e164 && (
-        <div className="mt-0.5 text-sm text-gray-800 truncate leading-tight">
-          {app.contact.phone_number_e164}
-        </div>
-      )}
-
-      {/* Service (normal, black) */}
-      {app.services?.name && (
-        <div className="mt-1 text-sm text-black truncate leading-tight">
-          {app.services.name}
-        </div>
-      )}
     </div>
   );
-};
+}; 
