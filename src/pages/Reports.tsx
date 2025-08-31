@@ -82,11 +82,11 @@ export default function Reports() {
           'id,total,payment_method,status,completed_at,' +
           'barbers(name),' +
           'services(name),' +
-          appointments!transactions_appointment_id_fkey(
+          'appointments!transactions_appointment_id_fkey(
   appointment_date,
   duration_min,
   contacts(first_name,last_name)
-);
+)';
 
         const { data: txnsToday, error: txTodayErr } = await supabase
           .from('transactions')
