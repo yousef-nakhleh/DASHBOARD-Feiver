@@ -140,7 +140,7 @@ const Layout = () => {
           }`}
         >
           <div className="flex items-center justify-center h-16 px-6 border-b border-gray-800">
-            <h1 className="text-xl font-bold tracking-wider">Extro</h1>
+            <h1 className="text-xl font-bold tracking-wider">Feiver</h1>
           </div>
 
           <div className="flex-1 overflow-y-auto">
