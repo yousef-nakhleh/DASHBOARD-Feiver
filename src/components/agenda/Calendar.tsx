@@ -39,6 +39,8 @@ export const Calendar = ({
       <div className="flex min-h-[1100px]">
         {/* Time labels */}
         <div className="bg-white border-r shrink-0">
+          {/* ▼ dummy half-row to push first label fully into view */}
+          <div style={{ height: slotHeight / 2 }} className="relative w-16 pr-2" />
           {timeSlots.map((slot, i) => (
             <div
               key={i}
@@ -212,6 +214,8 @@ const DayBarberColumn = ({
         drop(el as any);
       }}
     >
+      {/* ▼ dummy half-row to align first visible slot */}
+      <div style={{ height: slotHeight / 2 }} className="border-t border-gray-200 relative px-1 pointer-events-none" />
       {timeSlots.map((slot, idx) => {
         const slotStart = new Date(`${date}T${slot.time}:00`);
         const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
