@@ -105,6 +105,31 @@ const DayBarberColumn = ({
   const columnRef = useRef<HTMLDivElement | null>(null);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
+  // 🔒 overlap check against current appointments (same date + barber)
+  const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
+    const end = new Date(start.getTime() + durationMin * 60_000);
+
+    return appointments.some((a) => {
+      if (a.appointment_status === 'cancelled') return false;
+      if (a.id === excludeId) return false;
+      if (a.barber_id !== barber.id) return false;
+
+      const localStart = toLocalFromUTC({
+        utcString: a.appointment_date,
+        timezone: businessTimezone,
+      });
+      const aDate = localStart.toFormat('yyyy-MM-dd');
+      if (aDate !== date) return false;
+
+      const aStart = localStart.toJSDate();
+      const aDuration = a.duration_min || a.services?.duration_min || 30;
+      const aEnd = new Date(aStart.getTime() + aDuration * 60_000);
+
+      // overlap if ranges intersect
+      return start < aEnd && end > aStart;
+    });
+  };
+
   const [{ isOver }, drop] = useDrop({
     accept: 'APPOINTMENT',
     drop: (draggedItem: any, monitor) => {
@@ -128,6 +153,17 @@ const DayBarberColumn = ({
       });
       const currentDate = currentLocal.toFormat('yyyy-MM-dd');
       const currentTime = currentLocal.toFormat('HH:mm');
+
+      // 🛑 PRECHECK: avoid overlaps before calling onDrop
+      const targetStart = new Date(`${date}T${targetSlot.time}:00`);
+      const durationMin =
+        draggedItem.duration_min || draggedItem.services?.duration_min || 30;
+
+      if (hasConflict(draggedItem.id, targetStart, durationMin)) {
+        // reject drop: do not call onDrop, clear dragging UI
+        setDraggingId(null);
+        return;
+      }
 
       // Only update if something actually changed (time/date/barber)
       if (
