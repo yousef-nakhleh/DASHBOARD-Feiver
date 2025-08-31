@@ -4,7 +4,7 @@ import { useDrop, useDrag } from 'react-dnd';
 import { toLocalFromUTC } from '../../lib/timeUtils';
 import AppointmentCard from './AppointmentCard';
 
-const slotHeight = 120; // triple base to visually stretch grid (10m per row)
+const slotHeight = 120; // 10m per row (visually stretched)
 
 export const Calendar = ({
   timeSlots,
@@ -43,7 +43,7 @@ export const Calendar = ({
             <div
               key={i}
               style={{ height: slotHeight }}
-              className="relative"
+              className="relative w-16 pr-2" // ← fixed gutter width so it doesn't collapse
             >
               <span
                 className={`absolute top-0 right-2 -translate-y-1/2 transform text-xs pointer-events-none ${
@@ -109,7 +109,7 @@ const DayBarberColumn = ({
   const columnRef = useRef<HTMLDivElement | null>(null);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  // 🔒 overlap check (same date + barber)
+  // overlap check (same date + barber)
   const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
     const end = new Date(start.getTime() + durationMin * 60_000);
 
@@ -148,7 +148,6 @@ const DayBarberColumn = ({
       const targetSlot = timeSlots[rowIndex];
       const newTime = `${targetSlot.time}:00`;
 
-      // Current values (local)
       const currentLocal = toLocalFromUTC({
         utcString: draggedItem.appointment_date,
         timezone: businessTimezone,
@@ -156,7 +155,7 @@ const DayBarberColumn = ({
       const currentDate = currentLocal.toFormat('yyyy-MM-dd');
       const currentTime = currentLocal.toFormat('HH:mm');
 
-      // 🛑 PRECHECK overlaps
+      // PRECHECK overlaps
       const targetStart = new Date(`${date}T${targetSlot.time}:00`);
       const durationMin =
         draggedItem.duration_min || draggedItem.services?.duration_min || 30;
@@ -166,7 +165,6 @@ const DayBarberColumn = ({
         return;
       }
 
-      // Persist if changed
       if (
         currentTime !== targetSlot.time ||
         currentDate !== date ||
@@ -215,7 +213,6 @@ const DayBarberColumn = ({
       }}
     >
       {timeSlots.map((slot, idx) => {
-        // 10-minute slot bounds
         const slotStart = new Date(`${date}T${slot.time}:00`);
         const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
 
@@ -313,7 +310,6 @@ const DraggableAppointment = ({
     if (isDragging) onDragStart();
   }, [isDragging, onDragStart]);
 
-  // Local time + display fields (computed here, no fetching)
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
@@ -334,7 +330,6 @@ const DraggableAppointment = ({
         isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
       }`}
       style={{
-        // Height controlled here; AppointmentCard fills the container
         height: `${(durationMin / 10) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
