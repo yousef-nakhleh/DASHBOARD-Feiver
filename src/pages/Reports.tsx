@@ -18,7 +18,7 @@ type TxnRow = {
   completed_at: string | null;
   barbers: { name: string | null } | null;
   services: { name: string | null } | null;
-  // Joined via appointment_id for client & duration
+  // Enriched via separate appointments fetch
   appointments: {
     appointment_date: string | null;
     duration_min: number | null;
@@ -77,20 +77,15 @@ export default function Reports() {
       setError(null);
 
       try {
-        // 1) Fetch transactions for today (with joins to show client & duration)
-        const baseSelect =
-          `id,total,payment_method,status,completed_at,
+        // 1) Primary fetch: transactions + direct FKs (barber, service)
+        const txSelect =
+          `id,appointment_id,total,payment_method,status,completed_at,
            barbers(name),
-           services(name),
-           appointments!transactions_appointment_id_fkey(
-             appointment_date,
-             duration_min,
-             contacts!appointments_contact_id_fkey(first_name,last_name)
-           )`;
+           services(name)`;
 
         const { data: txnsToday, error: txTodayErr } = await supabase
           .from('transactions')
-          .select(baseSelect)
+          .select(txSelect)
           .eq('business_id', businessId)
           .eq('status', 'succeeded')
           .gte('completed_at', startISO)
@@ -99,27 +94,71 @@ export default function Reports() {
 
         if (txTodayErr) throw txTodayErr;
 
-        let txns: TxnRow[] = (txnsToday || []) as TxnRow[];
+        let txns = (txnsToday || []) as Array<
+          Omit<TxnRow, 'appointments'> & { appointment_id: string | null }
+        >;
 
         // If empty for today, fallback to latest 5 overall so the section isn't empty
         if (txns.length === 0) {
           const { data: txnsLast5, error: txLastErr } = await supabase
             .from('transactions')
-            .select(baseSelect)
+            .select(txSelect)
             .eq('business_id', businessId)
             .eq('status', 'succeeded')
             .order('completed_at', { ascending: false })
             .limit(5);
           if (txLastErr) throw txLastErr;
-          txns = (txnsLast5 || []) as TxnRow[];
+          txns = (txnsLast5 || []) as Array<
+            Omit<TxnRow, 'appointments'> & { appointment_id: string | null }
+          >;
         }
 
-        // Money KPIs from today's transactions only (not from fallback)
+        // KPIs from today's transactions only
         const totalToday = (txnsToday || []).reduce((s, r: any) => s + Number(r.total || 0), 0);
         const countTxToday = (txnsToday || []).length;
         const avgToday = countTxToday > 0 ? totalToday / countTxToday : 0;
 
-        // 2) Numero appuntamenti: (paid = true) OR (status = 'pending')
+        // 2) Appointments enrich (only for rows that have an appointment_id)
+        const apptIds = Array.from(
+          new Set(txns.map(t => t.appointment_id).filter((v): v is string => !!v))
+        );
+
+        let apptMap = new Map<string, TxnRow['appointments']>();
+        if (apptIds.length > 0) {
+          const { data: appts, error: apptErr } = await supabase
+            .from('appointments')
+            .select(`id, appointment_date, duration_min, contacts(first_name,last_name)`)
+            .in('id', apptIds);
+
+          if (apptErr) throw apptErr;
+
+          (appts || []).forEach((a: any) => {
+            apptMap.set(a.id, {
+              appointment_date: a.appointment_date ?? null,
+              duration_min: a.duration_min ?? null,
+              contacts: a.contacts
+                ? {
+                    first_name: a.contacts.first_name ?? null,
+                    last_name: a.contacts.last_name ?? null,
+                  }
+                : null,
+            });
+          });
+        }
+
+        // 3) Merge: transactions + (optional) appointment details
+        const ledgerRows: TxnRow[] = txns.map(t => ({
+          id: t.id,
+          total: t.total,
+          payment_method: t.payment_method,
+          status: t.status,
+          completed_at: t.completed_at,
+          barbers: (t as any).barbers ?? null,
+          services: (t as any).services ?? null,
+          appointments: t.appointment_id ? apptMap.get(t.appointment_id) ?? null : null,
+        }));
+
+        // 4) Numero appuntamenti: (paid = true) OR (status = 'pending')
         const { count: appCount, error: appErr } = await supabase
           .from('appointments')
           .select('id', { count: 'exact', head: true })
@@ -130,23 +169,24 @@ export default function Reports() {
 
         if (appErr) throw appErr;
 
-        // 3) Per-barber aggregation from today's txns
-        const byBarber = new Map<string, BarberRow>();
+        // 5) Per-barber aggregation from today's txns
+        const byBarber = new Map<string, { name: string | null; revenue: number; appointments: number }>();
         (txnsToday || []).forEach((t: any) => {
           const key = t?.barbers?.name ?? '—';
-          const row =
-            byBarber.get(key) ?? { name: t?.barbers?.name ?? '—', revenue: 0, appointments: 0, percent: 0 };
+          const row = byBarber.get(key) ?? { name: t?.barbers?.name ?? '—', revenue: 0, appointments: 0 };
           row.revenue += Number(t.total || 0);
           row.appointments += 1;
           byBarber.set(key, row);
         });
-        const barberRows = Array.from(byBarber.values()).sort((a, b) => b.revenue - a.revenue);
-        barberRows.forEach((b) => {
-          b.percent = totalToday > 0 ? Math.round((b.revenue / totalToday) * 100) : 0;
-        });
+        const barberRows = Array.from(byBarber.values())
+          .map(b => ({
+            ...b,
+            percent: totalToday > 0 ? Math.round((b.revenue / totalToday) * 100) : 0,
+          }))
+          .sort((a, b) => b.revenue - a.revenue);
 
         if (!cancelled) {
-          setLedger(txns);
+          setLedger(ledgerRows);
           setIncassoTotale(totalToday);
           setMediaScontrino(avgToday);
           setNumeroAppuntamenti(appCount ?? 0);
