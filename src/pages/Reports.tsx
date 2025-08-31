@@ -93,7 +93,7 @@ export default function Reports() {
           .from('appointments')
           .select('id', { count: 'exact', head: true })
           .eq('business_id', businessId)
-          .in('appointment_status', ['confirmed'])
+          .or('paid.is.true,appointment_status.eq.pending')
           .gte('appointment_date', startISO)
           .lt('appointment_date', endISO);
 
