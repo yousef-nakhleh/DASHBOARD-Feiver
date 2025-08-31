@@ -25,7 +25,7 @@ import { useAuth } from '../components/auth/AuthContext';
 
 const generateTimeSlots = () => {
   const slots = [];
-  for (let h = 6; h <= 21; h++) {
+  for (let h = 7; h <= 21; h++) {
     for (let m = 0; m < 60; m += 10) { // 🔄 10-minute grid
       if (h === 21 && m > 0) break;
       const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
