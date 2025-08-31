@@ -1,9 +1,10 @@
+// src/components/agenda/Calendar.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { useDrop, useDrag } from 'react-dnd';
-import { User } from 'lucide-react';
 import { toLocalFromUTC } from '../../lib/timeUtils';
+import AppointmentCard from './AppointmentCard';
 
-const slotHeight = 120; // triple the base 40px
+const slotHeight = 120; // triple base to visually stretch grid (10m per row)
 
 export const Calendar = ({
   timeSlots,
@@ -11,10 +12,10 @@ export const Calendar = ({
   businessTimezone,
   onDrop,
   onClickAppointment,
-  onEmptySlotClick,      // ✅ nuova prop
+  onEmptySlotClick,
   barbers,
   selectedBarber,
-  datesInView = [], 
+  datesInView = [],
 }) => {
   const barbersToRender =
     selectedBarber === 'Tutti'
@@ -59,7 +60,7 @@ export const Calendar = ({
         <div className="flex-1 overflow-x-auto bg-white">
           <div className="flex min-w-full">
             {datesInView.map((date) => {
-              const dateStr = date.toISOString().split('T')[0]; 
+              const dateStr = date.toISOString().split('T')[0];
               return barbersToRender.map((barber) => (
                 <DayBarberColumn
                   key={`${dateStr}-${barber.id}`}
@@ -101,11 +102,10 @@ const DayBarberColumn = ({
   setPendingMove,
   setDraggingId,
 }) => {
-  // Column-level drop target
   const columnRef = useRef<HTMLDivElement | null>(null);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  // 🔒 overlap check against current appointments (same date + barber)
+  // 🔒 overlap check (same date + barber)
   const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
     const end = new Date(start.getTime() + durationMin * 60_000);
 
@@ -125,7 +125,6 @@ const DayBarberColumn = ({
       const aDuration = a.duration_min || a.services?.duration_min || 30;
       const aEnd = new Date(aStart.getTime() + aDuration * 60_000);
 
-      // overlap if ranges intersect
       return start < aEnd && end > aStart;
     });
   };
@@ -137,16 +136,15 @@ const DayBarberColumn = ({
       const rect = columnRef.current?.getBoundingClientRect();
       if (!client || !rect) return;
 
-      // Compute target slot index from cursor Y
       const offsetY = client.y - rect.top;
       let rowIndex = Math.floor(offsetY / slotHeight);
       if (rowIndex < 0) rowIndex = 0;
       if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
 
-      const targetSlot = timeSlots[rowIndex]; // { time: 'HH:mm', type: ... }
+      const targetSlot = timeSlots[rowIndex];
       const newTime = `${targetSlot.time}:00`;
 
-      // Current local time/date of the appointment
+      // Current values (local)
       const currentLocal = toLocalFromUTC({
         utcString: draggedItem.appointment_date,
         timezone: businessTimezone,
@@ -154,18 +152,17 @@ const DayBarberColumn = ({
       const currentDate = currentLocal.toFormat('yyyy-MM-dd');
       const currentTime = currentLocal.toFormat('HH:mm');
 
-      // 🛑 PRECHECK: avoid overlaps before calling onDrop
+      // 🛑 PRECHECK overlaps
       const targetStart = new Date(`${date}T${targetSlot.time}:00`);
       const durationMin =
         draggedItem.duration_min || draggedItem.services?.duration_min || 30;
 
       if (hasConflict(draggedItem.id, targetStart, durationMin)) {
-        // reject drop: do not call onDrop, clear dragging UI
         setDraggingId(null);
         return;
       }
 
-      // Only update if something actually changed (time/date/barber)
+      // Persist if changed
       if (
         currentTime !== targetSlot.time ||
         currentDate !== date ||
@@ -200,7 +197,6 @@ const DayBarberColumn = ({
     }),
   });
 
-  // Clear hover when pointer leaves
   useEffect(() => {
     if (!isOver) setHoverRow(null);
   }, [isOver]);
@@ -215,7 +211,7 @@ const DayBarberColumn = ({
       }}
     >
       {timeSlots.map((slot, idx) => {
-        // 🔹 each slot = 10 minutes
+        // 10-minute slot bounds
         const slotStart = new Date(`${date}T${slot.time}:00`);
         const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
 
@@ -313,51 +309,44 @@ const DraggableAppointment = ({
     if (isDragging) onDragStart();
   }, [isDragging, onDragStart]);
 
-  const isPaid = app.paid === true;
-
+  // Local time + display fields (computed here, no fetching)
   const localTime = toLocalFromUTC({
     utcString: app.appointment_date,
     timezone: businessTimezone,
   });
   const displayTime = localTime.toFormat('HH:mm');
 
-  const appointmentDuration = app.duration_min || app.services?.duration_min || 30;
+  const durationMin = app.duration_min || app.services?.duration_min || 30;
+  const clientName = `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente';
+  const serviceName = app.services?.name || '';
+  const phoneE164 = app.contact?.phone_number_e164 || '';
+  const paid = app.paid === true;
 
   return (
     <div
       ref={drag}
       onClick={onClick}
-      className={`relative z-10 border-l-4 px-2 py-1 rounded-sm text-sm shadow-sm overflow-hidden transition-shadow ${
+      className={`relative z-10 overflow-hidden transition-shadow ${
         isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
-      } ${
-        isPaid ? 'bg-green-100 border-green-500' : 'bg-blue-100 border-blue-500'
       }`}
       style={{
-        // 🔹 size based on 10-minute slots
-        height: `${(appointmentDuration / 10) * slotHeight}px`,
+        // Height controlled here; AppointmentCard fills the container
+        height: `${(durationMin / 10) * slotHeight}px`,
         flexBasis: `${flexBasis}%`,
         flexGrow: 1,
         flexShrink: 0,
         visibility: isOptimisticallyMoving ? 'visible' : undefined,
       }}
     >
-      <div className="flex justify-between text-xs font-medium text-gray-800">
-        <span>{displayTime}</span>
-        <span>{appointmentDuration} min</span>
-      </div>
-      <div className="flex flex-col mt-1 text-sm font-medium text-gray-700 truncate">
-        <div className="flex items-center">
-          <User size={14} className="mr-1 text-gray-500" />
-          <span className="truncate">
-            {`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente'}
-          </span>
-        </div>
-        {app.services?.name && (
-          <span className="text-xs italic text-gray-500 mt-1 truncate">
-            {app.services.name}
-          </span>
-        )}
-      </div>
+      <AppointmentCard
+        time={displayTime}
+        duration={durationMin}
+        clientName={clientName}
+        serviceName={serviceName}
+        phoneE164={phoneE164}
+        paid={paid}
+        onClick={onClick}
+      />
     </div>
   );
-}; 
+};
