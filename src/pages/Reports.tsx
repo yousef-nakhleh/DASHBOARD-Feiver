@@ -7,23 +7,29 @@ type BarberRow = {
   name: string | null;
   revenue: number;
   appointments: number;
-  percent: number; // computed against total revenue
+  percent: number;
 };
 
 type TxnRow = {
   id: string;
   total: number;
   payment_method: string | null;
+  status: string | null;
   completed_at: string | null;
   barbers: { name: string | null } | null;
   services: { name: string | null } | null;
+  // Joined via appointment_id for client & duration
+  appointments: {
+    appointment_date: string | null;
+    duration_min: number | null;
+    contacts: { name: string | null } | null;
+  } | null;
 };
 
 export default function Reports() {
   const { profile } = useAuth();
   const businessId = profile?.business_id ?? null;
 
-  // ---- UI state ----
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,16 +37,16 @@ export default function Reports() {
   const [incassoTotale, setIncassoTotale] = useState(0);
   const [mediaScontrino, setMediaScontrino] = useState(0);
   const [numeroAppuntamenti, setNumeroAppuntamenti] = useState(0);
-  const [nuoviClienti] = useState(0); // to be wired later if/when rule is defined
+  const [nuoviClienti] = useState(0); // wire later
 
   // Tables
   const [barbers, setBarbers] = useState<BarberRow[]>([]);
   const [ledger, setLedger] = useState<TxnRow[]>([]);
+  const [showAllLedger, setShowAllLedger] = useState(false);
 
-  // ---- Business day bounds (Europe/Rome, cutoff 24:00) ----
+  // Business day (Europe/Rome), cutoff 24:00
   const timeZone = 'Europe/Rome';
   const { startISO, endISO, label } = useMemo(() => {
-    // Build [00:00, 24:00) range for "today" in business TZ
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone,
       year: 'numeric',
@@ -71,24 +77,49 @@ export default function Reports() {
       setError(null);
 
       try {
-        // 1) Fetch transactions in range for ledger + money KPIs
-        const { data: txnsData, error: txnsErr } = await supabase
+        // 1) Fetch transactions for today (with joins to show client & duration)
+        const baseSelect =
+          'id,total,payment_method,status,completed_at,' +
+          'barbers(name),' +
+          'services(name),' +
+          appointments!transactions_appointment_id_fkey(
+  appointment_date,
+  duration_min,
+  contacts(first_name,last_name)
+);
+
+        const { data: txnsToday, error: txTodayErr } = await supabase
           .from('transactions')
-          .select('id,total,payment_method,completed_at,barbers(name),services(name)')
+          .select(baseSelect)
           .eq('business_id', businessId)
           .eq('status', 'succeeded')
           .gte('completed_at', startISO)
           .lt('completed_at', endISO)
-          .order('completed_at', { ascending: true });
+          .order('completed_at', { ascending: false });
 
-        if (txnsErr) throw txnsErr;
-        const txns = (txnsData || []) as TxnRow[];
+        if (txTodayErr) throw txTodayErr;
 
-        const total = txns.reduce((s, r) => s + Number(r.total || 0), 0);
-        const countTx = txns.length;
-        const avg = countTx > 0 ? total / countTx : 0;
+        let txns: TxnRow[] = (txnsToday || []) as TxnRow[];
 
-        // 2) Numero appuntamenti via count (IMPORTANT: head:true => data is null, use count!)
+        // If empty for today, fallback to latest 5 overall so the section isn't empty
+        if (txns.length === 0) {
+          const { data: txnsLast5, error: txLastErr } = await supabase
+            .from('transactions')
+            .select(baseSelect)
+            .eq('business_id', businessId)
+            .eq('status', 'succeeded')
+            .order('completed_at', { ascending: false })
+            .limit(5);
+          if (txLastErr) throw txLastErr;
+          txns = (txnsLast5 || []) as TxnRow[];
+        }
+
+        // Money KPIs from today's transactions only (not from fallback)
+        const totalToday = (txnsToday || []).reduce((s, r: any) => s + Number(r.total || 0), 0);
+        const countTxToday = (txnsToday || []).length;
+        const avgToday = countTxToday > 0 ? totalToday / countTxToday : 0;
+
+        // 2) Numero appuntamenti: (paid = true) OR (status = 'pending')
         const { count: appCount, error: appErr } = await supabase
           .from('appointments')
           .select('id', { count: 'exact', head: true })
@@ -99,24 +130,25 @@ export default function Reports() {
 
         if (appErr) throw appErr;
 
-        // 3) Per-barber aggregation from txns
+        // 3) Per-barber aggregation from today's txns
         const byBarber = new Map<string, BarberRow>();
-        for (const t of txns) {
-          const key = t.barbers?.name ?? '—';
-          const row = byBarber.get(key) ?? { name: t.barbers?.name ?? '—', revenue: 0, appointments: 0, percent: 0 };
+        (txnsToday || []).forEach((t: any) => {
+          const key = t?.barbers?.name ?? '—';
+          const row =
+            byBarber.get(key) ?? { name: t?.barbers?.name ?? '—', revenue: 0, appointments: 0, percent: 0 };
           row.revenue += Number(t.total || 0);
           row.appointments += 1;
           byBarber.set(key, row);
-        }
+        });
         const barberRows = Array.from(byBarber.values()).sort((a, b) => b.revenue - a.revenue);
-        for (const b of barberRows) {
-          b.percent = total > 0 ? Math.round((b.revenue / total) * 100) : 0;
-        }
+        barberRows.forEach((b) => {
+          b.percent = totalToday > 0 ? Math.round((b.revenue / totalToday) * 100) : 0;
+        });
 
         if (!cancelled) {
           setLedger(txns);
-          setIncassoTotale(total);
-          setMediaScontrino(avg);
+          setIncassoTotale(totalToday);
+          setMediaScontrino(avgToday);
           setNumeroAppuntamenti(appCount ?? 0);
           setBarbers(barberRows);
         }
@@ -135,6 +167,40 @@ export default function Reports() {
 
   const formatEUR = (n: number) =>
     new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n);
+
+  const renderLedgerRows = (rows: TxnRow[]) => {
+    const slice = showAllLedger ? rows : rows.slice(0, 5);
+    return slice.map((t) => {
+      const time =
+        t.completed_at &&
+        new Date(t.completed_at).toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      const date =
+        t.completed_at &&
+        new Date(t.completed_at).toLocaleDateString('it-IT', {
+          weekday: 'short',
+          day: '2-digit',
+          month: '2-digit',
+        });
+      const cliente = t.appointments?.contacts?.name ?? '—';
+      const servizio = t.services?.name ?? '—';
+      const durata = t.appointments?.duration_min ?? null;
+      const barbiere = t.barbers?.name ?? '—';
+      const metodo = t.payment_method ?? '—';
+      const totale = formatEUR(Number(t.total || 0));
+
+      return (
+        <tr key={t.id}>
+          <td className="py-2">{date} {time}</td>
+          <td className="py-2">{cliente}</td>
+          <td className="py-2">{servizio}</td>
+          <td className="py-2">{durata !== null ? `${durata}′` : '—'}</td>
+          <td className="py-2">{barbiere}</td>
+          <td className="py-2">{metodo}</td>
+          <td className="py-2">{totale}</td>
+        </tr>
+      );
+    });
+  };
 
   return (
     <div className="h-full space-y-6">
@@ -166,28 +232,24 @@ export default function Reports() {
       {/* KPI row */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Incasso Totale */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p className="text-gray-600 mb-2">Incasso Totale</p>
             <div className="text-4xl font-bold text-black">{formatEUR(incassoTotale)}</div>
             <button className="text-sm text-gray-500 mt-3 hover:underline">Dettagli →</button>
           </div>
 
-          {/* Numero Appuntamenti */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p className="text-gray-600 mb-2">Numero Appuntamenti</p>
             <div className="text-4xl font-bold text-black">{numeroAppuntamenti}</div>
             <button className="text-sm text-gray-500 mt-3 hover:underline">Dettagli →</button>
           </div>
 
-          {/* Nuovi Clienti (placeholder) */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p className="text-gray-600 mb-2">Nuovi Clienti</p>
             <div className="text-4xl font-bold text-black">{nuoviClienti}</div>
             <button className="text-sm text-gray-500 mt-3 hover:underline">Dettagli →</button>
           </div>
 
-          {/* Media Scontrino */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p className="text-gray-600 mb-2">Media Scontrino</p>
             <div className="text-4xl font-bold text-black">{formatEUR(mediaScontrino)}</div>
@@ -233,7 +295,7 @@ export default function Reports() {
               {barbers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-6 text-center text-gray-500">
-                    Nessun dato disponibile per oggi.
+                    Nessun dato disponibile.
                   </td>
                 </tr>
               )}
@@ -242,7 +304,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Transactions ledger */}
+      {/* Dettaglio Transazioni */}
       {!loading && !error && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
@@ -250,17 +312,31 @@ export default function Reports() {
             <div className="flex items-center gap-2">
               <button
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowAllLedger((v) => !v)}
+              >
+                {showAllLedger ? 'Mostra meno' : 'Mostra tutto'}
+              </button>
+              <button
+                className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                 onClick={() => {
-                  // CSV export for current ledger
-                  const header = ['Ora', 'Barbiere', 'Servizio', 'Totale', 'Metodo'];
+                  const header = ['Data/Ora', 'Cliente', 'Servizio', 'Durata', 'Barbiere', 'Metodo', 'Totale'];
                   const rows = ledger.map((t) => [
                     t.completed_at
-                      ? new Date(t.completed_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+                      ? `${new Date(t.completed_at).toLocaleDateString('it-IT', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: '2-digit',
+                        })} ${new Date(t.completed_at).toLocaleTimeString('it-IT', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}`
                       : '',
-                    t.barbers?.name ?? '',
+                    t.appointments?.contacts?.name ?? '',
                     t.services?.name ?? '',
-                    String(t.total ?? ''),
+                    t.appointments?.duration_min != null ? `${t.appointments.duration_min}′` : '',
+                    t.barbers?.name ?? '',
                     t.payment_method ?? '',
+                    String(t.total ?? ''),
                   ]);
                   const csv = [header, ...rows]
                     .map((r) => r.map((s) => `"${String(s).replace(/"/g, '""')}"`).join(';'))
@@ -269,7 +345,7 @@ export default function Reports() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `report-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.download = `transazioni-${new Date().toISOString().slice(0, 10)}.csv`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -278,34 +354,26 @@ export default function Reports() {
               </button>
             </div>
           </div>
+
           <table className="min-w-full">
             <thead>
               <tr className="border-b border-gray-200 text-gray-500 text-sm">
-                <th className="py-2 text-left">Ora</th>
-                <th className="py-2 text-left">Barbiere</th>
+                <th className="py-2 text-left">Data/Ora</th>
+                <th className="py-2 text-left">Cliente</th>
                 <th className="py-2 text-left">Servizio</th>
-                <th className="py-2 text-left">Totale</th>
+                <th className="py-2 text-left">Durata</th>
+                <th className="py-2 text-left">Barbiere</th>
                 <th className="py-2 text-left">Metodo</th>
+                <th className="py-2 text-left">Totale</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {ledger.map((t) => (
-                <tr key={t.id}>
-                  <td className="py-2">
-                    {t.completed_at
-                      ? new Date(t.completed_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-                      : '—'}
-                  </td>
-                  <td>{t.barbers?.name ?? '—'}</td>
-                  <td>{t.services?.name ?? '—'}</td>
-                  <td>{formatEUR(Number(t.total || 0))}</td>
-                  <td>{t.payment_method ?? '—'}</td>
-                </tr>
-              ))}
-              {ledger.length === 0 && (
+              {ledger.length > 0 ? (
+                renderLedgerRows(ledger)
+              ) : (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-500">
-                    Nessuna transazione per oggi.
+                  <td colSpan={7} className="py-6 text-center text-gray-500">
+                    Nessuna transazione.
                   </td>
                 </tr>
               )}
