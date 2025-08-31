@@ -1,80 +1,72 @@
+// src/components/agenda/AppointmentCard.tsx
 import React from 'react';
-import { Clock, User, Pencil } from 'lucide-react';
-import { useDrag } from 'react-dnd';
+import { User, Phone, Clock } from 'lucide-react';
 
-interface AppointmentCardProps {
-  time: string;
-  clientName: string;
-  service: string;
-  duration: number; // duration in minutes
-  stylist: string;
-  onEdit?: () => void; // <- nuova prop opzionale per aprire il modal
-}
+type AppointmentCardProps = {
+  time: string;              // 'HH:mm' (already localized)
+  duration: number;          // minutes
+  clientName: string;        // from contact first_name + last_name
+  serviceName?: string;      // from services.name
+  phoneE164?: string;        // from contact.phone_number_e164
+  paid?: boolean;            // appointment.paid
+  onClick?: () => void;      // optional click handler (open summary, etc.)
+};
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   time,
-  clientName,
-  service,
   duration,
-  stylist,
-  onEdit,
+  clientName,
+  serviceName,
+  phoneE164, 
+  paid = false,
+  onClick,
 }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'APPOINTMENT',
-    item: {
-      appointment_time: time,
-      customer_name: clientName,
-      service_id: service,
-      duration_min: duration,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const slotHeight = 40; // px per 15m
-  const height = (duration / 15) * slotHeight;
-
   return (
     <div
-      ref={drag}
-      className={`relative bg-blue-100 border-l-4 border-blue-500 rounded-sm shadow-sm transition-opacity ${
-        isDragging ? 'opacity-40' : ''
-      }`}
+      onClick={onClick}
+      className={`relative w-full h-full rounded-md shadow-sm overflow-hidden transition-shadow
+        ${paid ? 'bg-green-100' : 'bg-blue-100'}
+        hover:shadow-md cursor-pointer`}
       style={{
-        height: `${height}px`,
-        padding: '4px 8px',
+        // Parent controls height; card fills it.
+        // Keep inner layout compact so a 20m appointment fits all info in ~half the card visually.
+        padding: '8px 10px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        gap: '6px',
       }}
     >
-      <div className="text-xs font-medium text-gray-800 flex justify-between">
-        <span>{time}</span>
+      {/* Top row: time + duration */}
+      <div className="flex items-center justify-between text-[11px] font-medium text-gray-800 leading-none">
+        <span className="inline-flex items-center gap-1">
+          <Clock size={12} className="opacity-70" />
+          {time}
+        </span>
         <span>{duration} min</span>
       </div>
 
-      <div className="flex items-center text-sm font-medium text-gray-700 truncate mt-1">
-        <User size={14} className="mr-1 text-gray-500" />
-        <span className="truncate">{clientName}</span>
+      {/* Name (larger) */}
+      <div className="flex items-center gap-2">
+        <User size={14} className="text-gray-600 shrink-0" />
+        <span className="text-sm font-semibold text-gray-900 truncate">{clientName || 'Cliente'}</span>
       </div>
 
-      <div className="mt-1 text-gray-600 text-xs truncate">{service}</div>
+      {/* Service (regular, black) */}
+      {serviceName ? (
+        <div className="text-[12px] font-medium text-gray-900 truncate">
+          {serviceName}
+        </div>
+      ) : null}
 
-      {/* ✏️ Pulsante modifica */}
-      {onEdit && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation(); // previene il drag
-            onEdit();
-          }}
-          className="absolute bottom-1 right-1 text-gray-500 hover:text-blue-600"
-        >
-          <Pencil size={14} />
-        </button>
-      )}
+      {/* Phone (E.164) */}
+      {phoneE164 ? (
+        <div className="text-[11px] text-gray-700 inline-flex items-center gap-1 truncate">
+          <Phone size={12} className="opacity-70" />
+          <span className="truncate">{phoneE164}</span>
+        </div>
+      ) : null}
     </div>
   );
 };
 
-export default AppointmentCard; 
+export default AppointmentCard;
