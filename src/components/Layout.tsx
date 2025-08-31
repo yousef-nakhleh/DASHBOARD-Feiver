@@ -250,7 +250,7 @@ const Layout = () => {
                 className="absolute top-0 left-0 bottom-0 w-64 bg-black border-r border-gray-800 flex flex-col"
               >
                 <div className="flex items-center justify-between h-16 px-6 border-b border-gray-800">
-                  <h1 className="text-xl font-bold tracking-wider">Extro</h1>
+                  <h1 className="text-xl font-bold tracking-wider">Feiver</h1>
                   <button onClick={() => setIsSidebarOpen(false)}>
                     <X size={24} />
                   </button>
