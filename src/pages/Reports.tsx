@@ -22,7 +22,7 @@ type TxnRow = {
   appointments: {
     appointment_date: string | null;
     duration_min: number | null;
-    contacts: { name: string | null } | null;
+    contacts: { first_name: string | null; last_name: string | null } | null;
   } | null;
 };
 
@@ -82,11 +82,7 @@ export default function Reports() {
           'id,total,payment_method,status,completed_at,' +
           'barbers(name),' +
           'services(name),' +
-          'appointments!transactions_appointment_id_fkey(
-  appointment_date,
-  duration_min,
-  contacts(first_name,last_name)
-)';
+          'appointments!transactions_appointment_id_fkey(appointment_date,duration_min,contacts(first_name,last_name))';
 
         const { data: txnsToday, error: txTodayErr } = await supabase
           .from('transactions')
@@ -181,7 +177,9 @@ export default function Reports() {
           day: '2-digit',
           month: '2-digit',
         });
-      const cliente = t.appointments?.contacts?.name ?? '—';
+      const first = t.appointments?.contacts?.first_name ?? '';
+      const last = t.appointments?.contacts?.last_name ?? '';
+      const fullName = `${first} ${last}`.trim() || '—';
       const servizio = t.services?.name ?? '—';
       const durata = t.appointments?.duration_min ?? null;
       const barbiere = t.barbers?.name ?? '—';
@@ -191,7 +189,7 @@ export default function Reports() {
       return (
         <tr key={t.id}>
           <td className="py-2">{date} {time}</td>
-          <td className="py-2">{cliente}</td>
+          <td className="py-2">{fullName}</td>
           <td className="py-2">{servizio}</td>
           <td className="py-2">{durata !== null ? `${durata}′` : '—'}</td>
           <td className="py-2">{barbiere}</td>
@@ -320,24 +318,29 @@ export default function Reports() {
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                 onClick={() => {
                   const header = ['Data/Ora', 'Cliente', 'Servizio', 'Durata', 'Barbiere', 'Metodo', 'Totale'];
-                  const rows = ledger.map((t) => [
-                    t.completed_at
-                      ? `${new Date(t.completed_at).toLocaleDateString('it-IT', {
-                          weekday: 'short',
-                          day: '2-digit',
-                          month: '2-digit',
-                        })} ${new Date(t.completed_at).toLocaleTimeString('it-IT', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}`
-                      : '',
-                    t.appointments?.contacts?.name ?? '',
-                    t.services?.name ?? '',
-                    t.appointments?.duration_min != null ? `${t.appointments.duration_min}′` : '',
-                    t.barbers?.name ?? '',
-                    t.payment_method ?? '',
-                    String(t.total ?? ''),
-                  ]);
+                  const rows = ledger.map((t) => {
+                    const first = t.appointments?.contacts?.first_name ?? '';
+                    const last = t.appointments?.contacts?.last_name ?? '';
+                    const fullName = `${first} ${last}`.trim();
+                    return [
+                      t.completed_at
+                        ? `${new Date(t.completed_at).toLocaleDateString('it-IT', {
+                            weekday: 'short',
+                            day: '2-digit',
+                            month: '2-digit',
+                          })} ${new Date(t.completed_at).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}`
+                        : '',
+                      fullName,
+                      t.services?.name ?? '',
+                      t.appointments?.duration_min != null ? `${t.appointments.duration_min}′` : '',
+                      t.barbers?.name ?? '',
+                      t.payment_method ?? '',
+                      String(t.total ?? ''),
+                    ];
+                  });
                   const csv = [header, ...rows]
                     .map((r) => r.map((s) => `"${String(s).replace(/"/g, '""')}"`).join(';'))
                     .join('\n');
