@@ -43,15 +43,19 @@ export const Calendar = ({
             <div
               key={i}
               style={{ height: slotHeight }}
-              className={`px-2 flex items-start pt-1 justify-end text-xs ${
-                slot.type === 'hour'
-                  ? 'font-bold text-gray-800'
-                  : slot.type === 'half'
-                  ? 'text-gray-500'
-                  : 'text-gray-300'
-              }`}
+              className="relative"
             >
-              {slot.time}
+              <span
+                className={`absolute top-0 right-2 -translate-y-1/2 transform text-xs pointer-events-none ${
+                  slot.type === 'hour'
+                    ? 'font-bold text-gray-800'
+                    : slot.type === 'half'
+                    ? 'text-gray-500'
+                    : 'text-gray-300'
+                }`}
+              >
+                {slot.time}
+              </span>
             </div>
           ))}
         </div>
