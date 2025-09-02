@@ -41,6 +41,9 @@ import { ReportsGate } from './gates/ReportsGate'; // ✅ added
 import { SelectedBusinessProvider } from './components/auth/SelectedBusinessProvider';
 import BusinessSelector from './components/auth/BusinessSelector';
 
+// ✅ NEW: Invite accept handler
+import InviteAccept from './components/auth/InviteAccept';
+
 // ---------- Route guard ----------
 function RequireAuth() {
   const { user, loading } = useAuth();
@@ -74,8 +77,10 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public route */}
+          {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
+          {/* ✅ Invite/Reset accept endpoint */}
+          <Route path="/auth/invite" element={<InviteAccept />} />
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
