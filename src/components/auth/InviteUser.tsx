@@ -1,4 +1,4 @@
-// src/components/auth/InviteAccept.tsx
+// src/components/auth/InviteUser.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -17,7 +17,7 @@ function parseHashParams(hash: string): Record<string, string> {
   return out;
 }
 
-export default function InviteAccept() {
+export default function InviteUser() {
   const navigate = useNavigate();
   const location = useLocation();
 
