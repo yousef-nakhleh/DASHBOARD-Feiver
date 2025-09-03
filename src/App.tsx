@@ -44,6 +44,9 @@ import BusinessSelector from './components/auth/BusinessSelector';
 // ✅ NEW: Invite user handler
 import InviteUser from './components/auth/InviteUser';
 
+// ✅ NEW: Auth callback handler
+import AuthCallback from './components/auth/AuthCallback';
+
 // ---------- Route guard ----------
 function RequireAuth() {
   const { user, loading } = useAuth();
@@ -81,6 +84,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           {/* ✅ Invite/Reset user endpoint */}
           <Route path="/auth/invite" element={<InviteUser />} />
+          {/* ✅ Auth callback endpoint */}
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
