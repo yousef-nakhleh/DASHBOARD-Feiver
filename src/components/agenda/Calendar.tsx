@@ -16,7 +16,6 @@ export const Calendar = ({
   barbers,
   selectedBarber,
   datesInView = [],
-  // ⬇️ optional: if provided, called to persist duration changes
   onResizeDuration,
 }) => {
   const barbersToRender =
@@ -27,8 +26,8 @@ export const Calendar = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     id: string;
-    newDate: string;       // 'yyyy-MM-dd'
-    newTime: string;       // 'HH:mm:00'
+    newDate: string;
+    newTime: string;
     newBarberId: string;
   } | null>(null);
 
@@ -41,14 +40,9 @@ export const Calendar = ({
       <div className="flex min-h-[1100px]">
         {/* Time labels */}
         <div className="bg-white border-r shrink-0">
-          {/* ▼ dummy half-row to push first label fully into view */}
           <div style={{ height: slotHeight / 2 }} className="relative w-16 pr-2" />
           {timeSlots.map((slot, i) => (
-            <div
-              key={i}
-              style={{ height: slotHeight }}
-              className="relative w-16 pr-2"
-            >
+            <div key={i} style={{ height: slotHeight }} className="relative w-16 pr-2">
               <span
                 className={`absolute top-0 right-2 -translate-y-1/2 transform text-xs pointer-events-none ${
                   slot.type === 'hour'
@@ -110,12 +104,12 @@ const DayBarberColumn = ({
   pendingMove,
   setPendingMove,
   setDraggingId,
-  onResizeDuration, // optional
+  onResizeDuration,
 }) => {
   const columnRef = useRef<HTMLDivElement | null>(null);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
 
-  // ▼ resize state (local, per column)
+  // local resize state
   const [resizing, setResizing] = useState<{
     id: string;
     startY: number;
@@ -123,10 +117,8 @@ const DayBarberColumn = ({
     newDuration: number;
   } | null>(null);
 
-  // 🔒 overlap check (same date + barber)
   const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
     const end = new Date(start.getTime() + durationMin * 60_000);
-
     return appointments.some((a) => {
       if (a.appointment_status === 'cancelled') return false;
       if (a.id === excludeId) return false;
@@ -147,19 +139,18 @@ const DayBarberColumn = ({
     });
   };
 
-  // global mouse handlers while resizing
+  // mouse listeners during resize
   useEffect(() => {
     if (!resizing) return;
 
     const onMove = (e: MouseEvent) => {
       const deltaY = e.clientY - resizing.startY;
-      const steps = Math.round(deltaY / slotHeight); // 1 step = 10 min
+      const steps = Math.round(deltaY / slotHeight); // 10-min steps
       const candidate = Math.max(10, resizing.origDuration + steps * 10);
       setResizing((prev) => (prev ? { ...prev, newDuration: candidate } : prev));
     };
 
     const onUp = () => {
-      // commit or revert
       const currentApp = appointments.find((a) => a.id === resizing.id);
       if (currentApp) {
         const localStart = toLocalFromUTC({
@@ -168,7 +159,6 @@ const DayBarberColumn = ({
         }).toJSDate();
 
         const ok = !hasConflict(resizing.id, localStart, resizing.newDuration);
-
         if (ok && resizing.newDuration !== resizing.origDuration && onResizeDuration) {
           onResizeDuration(resizing.id, resizing.newDuration);
         }
@@ -206,10 +196,8 @@ const DayBarberColumn = ({
       const currentDate = currentLocal.toFormat('yyyy-MM-dd');
       const currentTime = currentLocal.toFormat('HH:mm');
 
-      // PRECHECK overlaps for move
       const targetStart = new Date(`${date}T${targetSlot.time}:00`);
-      const durationMin =
-        draggedItem.duration_min || draggedItem.services?.duration_min || 30;
+      const durationMin = draggedItem.duration_min || draggedItem.services?.duration_min || 30;
 
       if (hasConflict(draggedItem.id, targetStart, durationMin)) {
         setDraggingId(null);
@@ -228,11 +216,7 @@ const DayBarberColumn = ({
           newBarberId: barber.id,
         });
         setDraggingId(null);
-        onDrop(draggedItem.id, {
-          newTime,
-          newDate: date,
-          newBarberId: barber.id,
-        });
+        onDrop(draggedItem.id, { newTime, newDate: date, newBarberId: barber.id });
       }
     },
     hover: (_item, monitor) => {
@@ -245,9 +229,7 @@ const DayBarberColumn = ({
       if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
       setHoverRow(rowIndex);
     },
-    collect: (monitor) => ({
-      isOver: monitor.isOver({ shallow: true }),
-    }),
+    collect: (monitor) => ({ isOver: monitor.isOver({ shallow: true }) }),
   });
 
   useEffect(() => {
@@ -263,7 +245,6 @@ const DayBarberColumn = ({
         drop(el as any);
       }}
     >
-      {/* ▼ dummy half-row to align first visible slot */}
       <div style={{ height: slotHeight / 2 }} className="border-t border-gray-200 relative px-1 pointer-events-none" />
       {timeSlots.map((slot, idx) => {
         const slotStart = new Date(`${date}T${slot.time}:00`);
@@ -305,9 +286,7 @@ const DayBarberColumn = ({
               isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
             } ${highlight ? 'bg-blue-50/30' : ''}`}
             onClick={() => {
-              if (isEmpty) {
-                onEmptySlotClick?.(barber.id, date, slot.time);
-              }
+              if (isEmpty) onEmptySlotClick?.(barber.id, date, slot.time);
             }}
           >
             {apps.map((app) => (
@@ -319,14 +298,9 @@ const DayBarberColumn = ({
                 flexBasis={100}
                 onDragStart={() => setDraggingId(app.id)}
                 onDragEnd={() => setDraggingId(null)}
-                isOptimisticallyMoving={
-                  !!pendingMove && pendingMove.id === app.id
-                }
-                // ⬇️ resize plumbed through here
+                isOptimisticallyMoving={!!pendingMove && pendingMove.id === app.id}
                 isResizing={!!resizing && resizing.id === app.id}
-                resizingDuration={
-                  !!resizing && resizing.id === app.id ? resizing.newDuration : null
-                }
+                resizingDuration={!!resizing && resizing.id === app.id ? resizing.newDuration : null}
                 onStartResize={(id, origDuration, startClientY) => {
                   setResizing({ id, origDuration, newDuration: origDuration, startY: startClientY });
                 }}
@@ -347,7 +321,6 @@ const DraggableAppointment = ({
   onDragStart,
   onDragEnd,
   isOptimisticallyMoving,
-  // ⬇️ resize props
   isResizing,
   resizingDuration,
   onStartResize,
@@ -365,26 +338,21 @@ const DraggableAppointment = ({
 }) => {
   const durationMin = app.duration_min || app.services?.duration_min || 30;
 
+  const suppressClick = useRef(false);
+
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
     item: { ...app },
-    canDrag: () => !isResizing, // 🚫 disable drag while resizing
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: () => {
-      onDragEnd();
-    },
+    canDrag: () => !isResizing, // disable move while resizing
+    collect: (monitor) => ({ isDragging: monitor.isDragging() }),
+    end: () => onDragEnd(),
   });
 
   useEffect(() => {
     if (isDragging) onDragStart();
   }, [isDragging, onDragStart]);
 
-  const localTime = toLocalFromUTC({
-    utcString: app.appointment_date,
-    timezone: businessTimezone,
-  });
+  const localTime = toLocalFromUTC({ utcString: app.appointment_date, timezone: businessTimezone });
   const displayTime = localTime.toFormat('HH:mm');
 
   const clientName = `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente';
@@ -392,7 +360,6 @@ const DraggableAppointment = ({
   const phoneE164 = app.contact?.phone_number_e164 || '';
   const paid = app.paid === true;
 
-  // visual heights
   const effectiveDuration = isResizing && resizingDuration ? resizingDuration : durationMin;
   const totalHeightPx = (effectiveDuration / 10) * slotHeight;
   const originalHeightPx = (durationMin / 10) * slotHeight;
@@ -402,15 +369,16 @@ const DraggableAppointment = ({
     <div
       ref={drag}
       onClick={(e) => {
-        if (isResizing) {
-          e.stopPropagation(); // don’t open modal at end of resize
+        if (isResizing || suppressClick.current) {
+          e.stopPropagation();
+          suppressClick.current = false;
           return;
         }
         onClick();
       }}
       className={`relative z-10 overflow-hidden transition-shadow ${
         isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
-      }`}
+      } ${isResizing ? 'select-none' : ''}`} // smoother resize
       style={{
         height: `${totalHeightPx}px`,
         flexBasis: `${flexBasis}%`,
@@ -419,7 +387,7 @@ const DraggableAppointment = ({
         visibility: isOptimisticallyMoving ? 'visible' : undefined,
       }}
     >
-      {/* Base/original portion */}
+      {/* Original portion (same color) */}
       <div style={{ height: `${Math.min(originalHeightPx, totalHeightPx)}px` }}>
         <AppointmentCard
           time={displayTime}
@@ -432,19 +400,16 @@ const DraggableAppointment = ({
         />
       </div>
 
-      {/* Extension/reduction band (ghost) */}
+      {/* Ghost extension/reduction (lighter tint, NO lines) */}
       {extensionPx !== 0 && (
         <div
-          className={`absolute left-0 right-0 ${
-            extensionPx > 0 ? 'bottom-0' : 'top-0'
-          }`}
+          className={`absolute left-0 right-0 ${extensionPx > 0 ? 'bottom-0' : 'top-0'}`}
           style={{
             height: `${Math.abs(extensionPx)}px`,
             pointerEvents: 'none',
-            // lighter tint of the base color
-            backgroundColor: paid ? 'rgba(187, 247, 208, 0.6)' : 'rgba(191, 219, 254, 0.6)',
-            borderTop: extensionPx > 0 ? '1px dashed rgba(0,0,0,0.1)' : undefined,
-            borderBottom: extensionPx < 0 ? '1px dashed rgba(0,0,0,0.1)' : undefined,
+            backgroundColor: paid
+              ? 'rgba(187, 247, 208, 0.5)' // green-100 ~ 0.5
+              : 'rgba(191, 219, 254, 0.5)', // blue-100 ~ 0.5
           }}
         />
       )}
@@ -453,7 +418,9 @@ const DraggableAppointment = ({
       <div
         className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize"
         onMouseDown={(e) => {
+          e.preventDefault();
           e.stopPropagation();
+          suppressClick.current = true; // suppress the next click after resize
           onStartResize(app.id, durationMin, e.clientY);
         }}
       />
