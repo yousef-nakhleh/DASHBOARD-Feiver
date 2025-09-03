@@ -23,19 +23,18 @@ const AuthCallback: React.FC = () => {
     const rawType = (params.get("type") || "").toLowerCase();
 
     // Normalize the type for legacy verifyOtp
-    // Supabase accepts: 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change'
     const normalizedType =
       rawType === "invitation" ? "invite" : rawType; // sometimes Supabase sends 'invitation'
 
     async function run() {
       try {
-        // Prefer the modern code flow
+        // ✅ Modern PKCE flow (redirectTo lands here with ?code=)
         if (code) {
           setMessage("Verifica codice…");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (tokenHash && normalizedType) {
-          // Fallback: legacy token_hash flow
+          // ✅ Legacy fallback
           setMessage("Verifica token…");
           const { error } = await supabase.auth.verifyOtp({
             type: normalizedType as
@@ -48,13 +47,11 @@ const AuthCallback: React.FC = () => {
           });
           if (error) throw error;
         } else {
-          // Nothing meaningful in the URL
           throw new Error("Parametri di callback non validi.");
         }
 
         setStatus("done");
         setMessage("Accesso completato. Reindirizzamento…");
-        // Small delay so the user can read the message
         setTimeout(() => navigate("/", { replace: true }), 500);
       } catch (e: any) {
         setStatus("error");
@@ -63,7 +60,6 @@ const AuthCallback: React.FC = () => {
     }
 
     run();
-    // We only want to run this once for this URL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
