@@ -47,6 +47,9 @@ import InviteUser from './components/auth/InviteUser';
 // ✅ NEW: Auth callback handler
 import AuthCallback from './components/auth/AuthCallback';
 
+// ✅ NEW: Set password screen
+import SetPassword from './components/auth/SetPassword';
+
 // ---------- Route guard ----------
 function RequireAuth() {
   const { user, loading } = useAuth();
@@ -86,6 +89,8 @@ function App() {
           <Route path="/auth/invite" element={<InviteUser />} />
           {/* ✅ Auth callback endpoint */}
           <Route path="/auth/callback" element={<AuthCallback />} />
+          {/* ✅ Set password endpoint */}
+          <Route path="/auth/set-password" element={<SetPassword />} />
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
