@@ -1,174 +1,291 @@
 // src/components/agenda/AppointmentSummaryButton.tsx
-import React, { useMemo } from 'react';
-import { X, Check, Trash2, Repeat, Scissors, Printer, ChevronDown } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, Check, Trash2, Scissors, Repeat, Printer } from 'lucide-react';
+import { DateTime } from 'luxon';
+import { toLocalFromUTC } from '../../lib/timeUtils';
 
 type AppointmentSummaryButtonProps = {
-  position?: { top: number; left: number };
-  onClose?: () => void;
+  appointment: any;                 // enriched from Agenda (includes contact + services)
+  businessTimezone: string;
+  onClose: () => void;
+
+  // actions wired from Agenda
+  onUpdateDuration: (id: string, newDurationMin: number) => Promise<void>;
+  onCancel: (id: string) => Promise<void>;
+  onPay?: (appt: any) => void;       // open SlidingPanelPayment with prefill
 };
 
-const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
-  position,
+const Tab = {
+  SUMMARY: 'summary',
+  CLIENT: 'client',
+  CASH: 'cash',
+} as const;
+
+const chipBase =
+  'px-3 py-1 rounded-xl text-sm font-medium transition-colors border';
+const chipOn = `${chipBase} bg-black text-white border-black`;
+const chipOff = `${chipBase} bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200`;
+
+const ActionGhost =
+  'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800';
+
+export default function AppointmentSummaryButton({
+  appointment,
+  businessTimezone,
   onClose,
-}) => {
-  const style = useMemo<React.CSSProperties>(() => {
-    const top = position?.top ?? 120;
-    const left = position?.left ?? 460;
-    return {
-      position: 'absolute',
-      top,
-      left,
-      zIndex: 60,
-      transform: 'translateX(8px)',
-    };
-  }, [position]);
+  onUpdateDuration,
+  onCancel,
+  onPay,
+}: AppointmentSummaryButtonProps) {
+  const [tab, setTab] = useState<typeof Tab[keyof typeof Tab]>(Tab.SUMMARY);
+  const [saving, setSaving] = useState(false);
+
+  // Local editable duration (±5m)
+  const initialDuration =
+    appointment?.duration_min ?? appointment?.services?.duration_min ?? 30;
+  const [duration, setDuration] = useState<number>(initialDuration);
+
+  const local = useMemo(
+    () =>
+      toLocalFromUTC({
+        utcString: appointment.appointment_date,
+        timezone: businessTimezone,
+      }),
+    [appointment.appointment_date, businessTimezone]
+  );
+
+  const timeLabel = local.toFormat('HH:mm');
+  const dateLabel = local.toFormat('yyyy-LL-dd');
+
+  const clientName = `${appointment?.contact?.first_name || ''} ${
+    appointment?.contact?.last_name || ''
+  }`.trim();
+
+  const handleBump = async (delta: number) => {
+    const next = Math.max(5, duration + delta);
+    setDuration(next);
+  };
+
+  const handleSaveDuration = async () => {
+    if (duration === initialDuration) return;
+    setSaving(true);
+    try {
+      await onUpdateDuration(appointment.id, duration);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setSaving(true);
+    try {
+      await onCancel(appointment.id);
+      onClose(); // close after cancel
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
-      style={style}
-      className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden"
+      className="absolute z-50 top-4 left-4 w-[760px] max-h-[78vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col"
+      style={{ pointerEvents: 'auto' }}
     >
-      {/* Header (fixed) */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
         <div>
-          <h3 className="text-lg font-bold text-black leading-tight">Riepilogo Prenotazione</h3>
-          <p className="text-xs text-gray-500">Dettagli dell’appuntamento</p>
+          <h2 className="text-2xl font-bold text-black">Riepilogo Prenotazione</h2>
+          <p className="text-sm text-gray-500 -mt-0.5">Dettagli dell’appuntamento</p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
-            className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-black text-white hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-full bg-black text-white hover:bg-gray-800"
             title="Conferma"
-            type="button"
-          >
-            <Check size={16} />
-          </button>
-          <button
             onClick={onClose}
-            className="inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <Check size={18} />
+          </button>
+          <button
+            className="p-2 rounded-full hover:bg-gray-100"
             title="Chiudi"
-            type="button"
+            onClick={onClose}
           >
-            <X size={16} className="text-black" />
+            <X size={18} />
           </button>
         </div>
       </div>
 
-      {/* Body (scrollable, capped height) */}
-      <div className="max-h-[380px] overflow-y-auto">
-        <div className="p-4 space-y-4">
-          {/* Service row */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[14px] font-semibold text-gray-900 truncate">
-                Taglio Uomo con Shampoo
-              </div>
-              <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
-                <div className="text-gray-500">Con</div>
-                <div className="font-medium text-gray-900">Alket</div>
+      {/* Scrollable content */}
+      <div className="px-6 py-4 overflow-auto">
+        {/* Top facts (like your static mock) */}
+        <div className="space-y-2 text-[15px] text-gray-900">
+          <div className="font-semibold">{appointment?.services?.name ?? '—'}</div>
+          {/* Optional “source/ref” block reserved — omitted per your request */}
+          <div className="flex items-center gap-8">
+            <div>
+              <span className="text-gray-500 mr-2">Prezzo</span>
+              <span className="font-semibold">
+                € {appointment?.services?.price != null ? appointment.services.price.toFixed(2) : '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 mr-2">Data</span>
+              <span className="font-semibold">{dateLabel}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 mr-2">Orario</span>
+              <span className="font-semibold">{timeLabel}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 mr-2">Durata</span>
+              <span className="font-semibold">{duration} min</span>
+            </div>
+          </div>
+        </div>
 
-                <div className="text-gray-500">Note</div>
-                <div className="text-gray-800 whitespace-pre-line">
-                  Alban{'\n'}(shampoo){'\n'}Source: Treatwell{'\n'}
-                  Order Reference: T2157334518{'\n'}
-                  Booking Reference: bk_142692964
+        {/* Tabs */}
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            className={tab === Tab.SUMMARY ? chipOn : chipOff}
+            onClick={() => setTab(Tab.SUMMARY)}
+          >
+            Riepilogo
+          </button>
+          <button
+            className={tab === Tab.CLIENT ? chipOn : chipOff}
+            onClick={() => setTab(Tab.CLIENT)}
+          >
+            Info Cliente
+          </button>
+          <button
+            className={tab === Tab.CASH ? chipOn : chipOff}
+            onClick={() => setTab(Tab.CASH)}
+          >
+            Cassa
+          </button>
+        </div>
+
+        {/* Panels */}
+        <div className="mt-4">
+          {tab === Tab.SUMMARY && (
+            <div className="space-y-6">
+              {/* Duration editor (±5m) */}
+              <div className="p-4 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500">Durata</div>
+                    <div className="text-lg font-semibold">{duration} minuti</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                      onClick={() => handleBump(-5)}
+                    >
+                      −5m
+                    </button>
+                    <button
+                      className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                      onClick={() => handleBump(+5)}
+                    >
+                      +5m
+                    </button>
+                    <button
+                      disabled={saving || duration === initialDuration}
+                      onClick={handleSaveDuration}
+                      className={`px-4 py-2 rounded-xl text-white font-medium ${
+                        saving || duration === initialDuration
+                          ? 'bg-gray-300 cursor-not-allowed'
+                          : 'bg-black hover:bg-gray-800'
+                      }`}
+                    >
+                      Salva
+                    </button>
+                  </div>
                 </div>
+              </div>
 
-                <div className="text-gray-500">Prezzo</div>
-                <div className="font-semibold text-gray-900">€ 20,00</div>
+              {/* Quick facts */}
+              <div className="p-4 rounded-xl border border-gray-200">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-500">Cliente</div>
+                    <div className="font-medium">{clientName || 'Cliente'}</div>
+                    {appointment?.contact?.phone_number_e164 && (
+                      <div className="text-gray-600">
+                        {appointment.contact.phone_number_e164}
+                      </div>
+                    )}
+                    {appointment?.contact?.email && (
+                      <div className="text-gray-600">{appointment.contact.email}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Barbiere</div>
+                    <div className="font-medium">{appointment?.barbers?.name ?? '—'}</div>
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            <button
-              type="button"
-              className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-gray-100 text-gray-900 text-[11px] font-semibold border border-gray-200"
-              title="Durata"
-            >
-              0.30h <ChevronDown size={13} className="opacity-70" />
-            </button>
-          </div>
-
-          {/* Tabs mimic */}
-          <div className="flex items-center gap-1.5">
-            <span className="px-2.5 py-1.5 text-[11px] font-semibold rounded-full bg-black text-white">
-              Riepilogo
-            </span>
-            <span className="px-2.5 py-1.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-700">
-              Info Cliente
-            </span>
-            <span className="px-2.5 py-1.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-700">
-              Cassa
-            </span>
-          </div>
-
-          {/* Info Cliente block */}
-          <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Info Cliente</div>
-            <div className="grid grid-cols-2 gap-2 text-[12px]">
-              <div>
-                <div className="text-gray-500 text-[11px] mb-0.5">Nome</div>
-                <div className="font-medium text-gray-900">Gabriel</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-[11px] mb-0.5">Cognome</div>
-                <div className="font-medium text-gray-900">—</div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
-                <div className="font-medium text-gray-900">morminagabriel17@gmail.co</div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
-                <div className="font-medium text-gray-900">+39 000 000 0000</div>
+          {tab === Tab.CLIENT && (
+            <div className="p-4 rounded-xl border border-gray-200">
+              <h3 className="text-lg font-semibold mb-2">Info Cliente</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-gray-500">Nome</div>
+                  <div className="font-medium">{appointment?.contact?.first_name || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Cognome</div>
+                  <div className="font-medium">{appointment?.contact?.last_name || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Email</div>
+                  <div className="font-medium">{appointment?.contact?.email || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500">Telefono</div>
+                  <div className="font-medium">
+                    {appointment?.contact?.phone_number_e164 || '—'}
+                  </div>
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="mt-2 text-[11px] font-semibold text-white bg-red-500 rounded-md px-2.5 py-1.5 inline-flex">
-              Non ha dato i consensi per la privacy
+          {tab === Tab.CASH && (
+            <div className="p-4 rounded-xl border border-gray-200">
+              <h3 className="text-lg font-semibold mb-2">Cassa</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Apri la cassa per registrare il pagamento di questo appuntamento.
+              </p>
+              <button
+                className="px-4 py-2 rounded-xl bg-black text-white hover:bg-gray-800"
+                onClick={() => onPay?.(appointment)}
+              >
+                Apri Cassa
+              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Footer (fixed) */}
-      <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+      {/* Footer actions */}
+      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-white">
         <button
-          type="button"
-          className="inline-flex items-center gap-2 px-2.5 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-          title="Elimina"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-700 hover:bg-red-100"
+          disabled={saving}
+          onClick={handleCancel}
         >
-          <Trash2 size={16} />
-          <span className="text-sm font-medium">Elimina</span>
+          <Trash2 size={16} /> Elimina
         </button>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-            title="Taglia"
-          >
-            <Scissors size={16} />
-            <span className="text-sm font-medium">Taglia</span>
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-            title="Ripeti"
-          >
-            <Repeat size={16} />
-            <span className="text-sm font-medium">Ripeti</span>
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors"
-            title="Stampa"
-          >
-            <Printer size={16} />
-            <span className="text-sm font-medium">Stampa</span>
-          </button>
+        <div className="flex items-center gap-3">
+          <button className={ActionGhost}><Scissors size={16}/> Taglia</button>
+          <button className={ActionGhost}><Repeat size={16}/> Ripeti</button>
+          <button className={ActionGhost}><Printer size={16}/> Stampa</button>
         </div>
       </div>
     </div>
   );
-};
-
-export default AppointmentSummaryButton;
+}
