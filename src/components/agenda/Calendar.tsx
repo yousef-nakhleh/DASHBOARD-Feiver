@@ -16,8 +16,6 @@ export const Calendar = ({
   barbers,
   selectedBarber,
   datesInView = [],
-  // 🔹 optional: persistence for duration updates (Agenda will pass this)
-  onResizeDuration = (_id: string, _newMin: number) => {},
 }) => {
   const barbersToRender =
     selectedBarber === 'Tutti'
@@ -47,7 +45,7 @@ export const Calendar = ({
             <div
               key={i}
               style={{ height: slotHeight }}
-              className="relative w-16 pr-2"
+              className="relative w-16 pr-2" // ← fixed gutter width so it doesn't collapse
             >
               <span
                 className={`absolute top-0 right-2 -translate-y-1/2 transform text-xs pointer-events-none ${
@@ -85,7 +83,6 @@ export const Calendar = ({
                   pendingMove={pendingMove}
                   setPendingMove={setPendingMove}
                   setDraggingId={setDraggingId}
-                  onResizeDuration={onResizeDuration}
                 />
               ));
             })}
@@ -110,13 +107,9 @@ const DayBarberColumn = ({
   pendingMove,
   setPendingMove,
   setDraggingId,
-  onResizeDuration,
 }) => {
   const columnRef = useRef<HTMLDivElement | null>(null);
   const [hoverRow, setHoverRow] = useState<number | null>(null);
-
-  // 🔸 temp durations while resizing (per appointment id)
-  const [tempDurations, setTempDurations] = useState<Record<string, number>>({});
 
   // overlap check (same date + barber)
   const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
@@ -268,59 +261,20 @@ const DayBarberColumn = ({
               }
             }}
           >
-            {apps.map((app) => {
-              // base duration from DB/service
-              const baseDur =
-                app.duration_min || app.services?.duration_min || 30;
-              const effectiveDur =
-                tempDurations[app.id] !== undefined
-                  ? tempDurations[app.id]
-                  : baseDur;
-
-              // local start date (for conflict checks on resize end)
-              const localStart = toLocalFromUTC({
-                utcString: app.appointment_date,
-                timezone: businessTimezone,
-              }).toJSDate();
-
-              return (
-                <DraggableAppointment
-                  key={app.id}
-                  app={{ ...app, duration_min: effectiveDur }} // ⚑ override only for rendering height
-                  businessTimezone={businessTimezone}
-                  onClick={() => onClickAppointment?.(app)}
-                  flexBasis={100}
-                  onDragStart={() => setDraggingId(app.id)}
-                  onDragEnd={() => setDraggingId(null)}
-                  isOptimisticallyMoving={
-                    !!pendingMove && pendingMove.id === app.id
-                  }
-                  // ▼ resize hooks (UI-only + persist on end)
-                  onResizeTemp={(nextMin: number) => {
-                    setTempDurations((prev) => ({ ...prev, [app.id]: nextMin }));
-                  }}
-                  onResizeCommit={(finalMin: number) => {
-                    // reject if overlap
-                    if (hasConflict(app.id, localStart, finalMin)) {
-                      // revert temp height
-                      setTempDurations((prev) => {
-                        const copy = { ...prev };
-                        delete copy[app.id];
-                        return copy;
-                      });
-                      return;
-                    }
-                    // clear temp and persist
-                    setTempDurations((prev) => {
-                      const copy = { ...prev };
-                      delete copy[app.id];
-                      return copy;
-                    });
-                    onResizeDuration(app.id, finalMin);
-                  }}
-                />
-              );
-            })}
+            {apps.map((app) => (
+              <DraggableAppointment
+                key={app.id}
+                app={app}
+                businessTimezone={businessTimezone}
+                onClick={() => onClickAppointment?.(app)}
+                flexBasis={100}
+                onDragStart={() => setDraggingId(app.id)}
+                onDragEnd={() => setDraggingId(null)}
+                isOptimisticallyMoving={
+                  !!pendingMove && pendingMove.id === app.id
+                }
+              />
+            ))}
           </div>
         );
       })}
@@ -336,8 +290,6 @@ const DraggableAppointment = ({
   onDragStart,
   onDragEnd,
   isOptimisticallyMoving,
-  onResizeTemp,
-  onResizeCommit,
 }: {
   app: any;
   businessTimezone: string;
@@ -346,8 +298,6 @@ const DraggableAppointment = ({
   onDragStart: () => void;
   onDragEnd: () => void;
   isOptimisticallyMoving: boolean;
-  onResizeTemp: (nextMin: number) => void;
-  onResizeCommit: (finalMin: number) => void;
 }) => {
   const [{ isDragging }, drag] = useDrag({
     type: 'APPOINTMENT',
@@ -371,14 +321,10 @@ const DraggableAppointment = ({
   const displayTime = localTime.toFormat('HH:mm');
 
   const durationMin = app.duration_min || app.services?.duration_min || 30;
-  const clientName =
-    `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() ||
-    'Cliente';
+  const clientName = `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente';
   const serviceName = app.services?.name || '';
   const phoneE164 = app.contact?.phone_number_e164 || '';
   const paid = app.paid === true;
-
-  const pxPerMinute = slotHeight / 10; // 10m per row
 
   return (
     <div
@@ -403,11 +349,7 @@ const DraggableAppointment = ({
         phoneE164={phoneE164}
         paid={paid}
         onClick={onClick}
-        // ▼ resize hooks passed straight through
-        onResize={onResizeTemp}
-        onResizeEnd={onResizeCommit}
-        pxPerMinute={pxPerMinute}
       />
     </div>
   );
-};
+}; 
