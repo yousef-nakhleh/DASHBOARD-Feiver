@@ -9,7 +9,7 @@ import { supabase } from "../../lib/supabase";
  * - Legacy flow:?token_hash=...&type=magiclink|recovery|signup|invite|email_change
  *
  * On success: user session is stored by supabase-js, then we redirect smartly:
- *   - invite/signup OR no memberships → /auth/invite (set password / onboarding)
+ *   - invite/signup OR no memberships → /auth/set-password (force password creation)
  *   - otherwise → "/"
  */
 const AuthCallback: React.FC = () => {
@@ -51,7 +51,7 @@ const AuthCallback: React.FC = () => {
           throw new Error("Parametri di callback non validi.");
         }
 
-        // 2) Decide destination
+        // 2) Check memberships (optional)
         setMessage("Controllo permessi…");
         const { data: userRes } = await supabase.auth.getUser();
         const userId = userRes?.user?.id;
@@ -75,9 +75,9 @@ const AuthCallback: React.FC = () => {
         setMessage("Accesso completato. Reindirizzamento…");
 
         // 🔑 Redirect rule:
-        // - invited / signed-up / no membership → to password/onboarding
+        // - invited / signed-up / no membership → set password page
         // - else → into the app
-        const target = needsOnboarding ? "/auth/invite" : "/";
+        const target = needsOnboarding ? "/auth/set-password" : "/";
         setTimeout(() => navigate(target, { replace: true }), 400);
       } catch (e: any) {
         setStatus("error");
