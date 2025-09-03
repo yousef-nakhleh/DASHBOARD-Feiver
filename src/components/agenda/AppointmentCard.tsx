@@ -1,5 +1,5 @@
 // src/components/agenda/AppointmentCard.tsx
-import React, { useRef } from 'react';
+import React from 'react';
 import { User, Phone, Clock } from 'lucide-react';
 
 type AppointmentCardProps = {
@@ -10,14 +10,6 @@ type AppointmentCardProps = {
   phoneE164?: string;
   paid?: boolean;
   onClick?: () => void;
-
-  // ⬇️ NEW (minimal, to wire with the grid)
-  onResize?: (nextDurationMin: number) => void;     // live while dragging (optional)
-  onResizeEnd?: (finalDurationMin: number) => void; // when mouseup (optional)
-  pxPerMinute: number;                               // e.g. slotHeight / 10
-  stepMinutes?: number;                              // default 10
-  minMinutes?: number;                               // default 10
-  maxMinutes?: number;                               // optional clamp
 };
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
@@ -28,59 +20,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   phoneE164,
   paid = false,
   onClick,
-
-  // resize wiring
-  onResize,
-  onResizeEnd,
-  pxPerMinute,
-  stepMinutes = 10,
-  minMinutes = 10,
-  maxMinutes,
 }) => {
-  const dragState = useRef<{
-    startY: number;
-    startDuration: number;
-    active: boolean;
-  }>({ startY: 0, startDuration: duration, active: false });
-
-  const clampToStep = (mins: number) => {
-    const stepped = Math.round(mins / stepMinutes) * stepMinutes;
-    const minC = Math.max(stepped, minMinutes);
-    return typeof maxMinutes === 'number' ? Math.min(minC, maxMinutes) : minC;
-  };
-
-  const handleMouseDown: React.MouseEventHandler<HTMLDivElement> = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    dragState.current = {
-      startY: e.clientY,
-      startDuration: duration,
-      active: true,
-    };
-
-    const onMove = (ev: MouseEvent) => {
-      if (!dragState.current.active) return;
-      const deltaY = ev.clientY - dragState.current.startY;
-      const deltaMin = deltaY / pxPerMinute;
-      const next = clampToStep(dragState.current.startDuration + deltaMin);
-      if (onResize) onResize(next);
-    };
-
-    const onUp = (ev: MouseEvent) => {
-      if (!dragState.current.active) return;
-      const deltaY = ev.clientY - dragState.current.startY;
-      const deltaMin = deltaY / pxPerMinute;
-      const next = clampToStep(dragState.current.startDuration + deltaMin);
-      dragState.current.active = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      if (onResizeEnd) onResizeEnd(next);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
-
   return (
     <div
       onClick={onClick}
@@ -123,19 +63,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <span className="truncate">{phoneE164}</span>
         </div>
       ) : null}
-
-      {/* ⬇️ Bottom-only resize handle (tiny, invisible) */}
-      <div
-        onMouseDown={handleMouseDown}
-        className="absolute left-0 right-0 bottom-0"
-        style={{
-          height: 6,              // tiny grab zone
-          cursor: 'ns-resize',
-          // no visual change; keep it transparent
-        }}
-      />
     </div>
   );
 };
 
-export default AppointmentCard;
+export default AppointmentCard; 
