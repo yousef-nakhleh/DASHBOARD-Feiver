@@ -5,18 +5,17 @@ import { useNavigate } from "react-router-dom";
 
 const SetPassword: React.FC = () => {
   const navigate = useNavigate();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
-  // Basic guard: user must arrive with a valid session (came from invite/callback)
+  // Ensure the invite created a session. If not, send to login.
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        // No session -> send user to login or re-click invite link
         navigate("/login", { replace: true });
       }
     })();
@@ -24,52 +23,48 @@ const SetPassword: React.FC = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setErr(null);
+    setOk(null);
 
-    if (!password || password.length < 8) {
-      setError("La password deve avere almeno 8 caratteri.");
+    if (!pw || pw.length < 8) {
+      setErr("La password deve avere almeno 8 caratteri.");
       return;
     }
-    if (password !== confirm) {
-      setError("Le password non coincidono.");
+    if (pw !== pw2) {
+      setErr("Le password non coincidono.");
       return;
     }
 
+    setLoading(true);
     try {
-      setWorking(true);
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password: pw });
       if (error) throw error;
 
-      // Optional: refresh session to be safe
-      await supabase.auth.getSession();
-
-      setOk(true);
-      // Small delay then go to app root (or business selector)
+      setOk("Password impostata con successo. Ti reindirizziamo alla dashboard…");
       setTimeout(() => navigate("/", { replace: true }), 800);
-    } catch (err: any) {
-      setError(err?.message || "Errore durante l’aggiornamento della password.");
+    } catch (e: any) {
+      setErr(e?.message || "Errore impostando la password.");
     } finally {
-      setWorking(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="bg-white rounded-2xl shadow p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-black mb-2">Imposta password</h1>
+        <h1 className="text-2xl font-bold text-black mb-2">Imposta la password</h1>
         <p className="text-gray-600 mb-6">
-          Completa l’attivazione impostando una nuova password.
+          Hai accettato l’invito. Per completare l’accesso imposta una nuova password.
         </p>
 
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 text-red-700 px-4 py-2 text-sm">
-            {error}
+        {err && (
+          <div className="mb-4 rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm">
+            {err}
           </div>
         )}
-
         {ok && (
-          <div className="mb-4 rounded-lg bg-green-50 text-green-700 px-4 py-2 text-sm">
-            Password aggiornata! Reindirizzamento…
+          <div className="mb-4 rounded-lg bg-green-50 text-green-700 px-4 py-3 text-sm">
+            {ok}
           </div>
         )}
 
@@ -80,42 +75,41 @@ const SetPassword: React.FC = () => {
             </label>
             <input
               type="password"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimo 8 caratteri"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              placeholder="••••••••"
               autoComplete="new-password"
-              disabled={working || ok}
             />
+            <p className="text-xs text-gray-500 mt-1">Minimo 8 caratteri.</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Conferma password
+              Ripeti password
             </label>
             <input
               type="password"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
+              value={pw2}
+              onChange={(e) => setPw2(e.target.value)}
+              placeholder="••••••••"
               autoComplete="new-password"
-              disabled={working || ok}
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-black text-white px-4 py-3 rounded-xl font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-            disabled={working || ok}
+            disabled={loading}
+            className="w-full bg-black text-white rounded-xl px-4 py-3 font-medium hover:bg-gray-800 transition-colors disabled:opacity-60"
           >
-            {working ? "Salvataggio…" : "Imposta password"}
+            {loading ? "Salvataggio…" : "Imposta password"}
           </button>
         </form>
 
         <button
           onClick={() => navigate("/login")}
-          className="mt-4 w-full text-sm text-gray-600 hover:text-black underline"
-          disabled={working}
+          className="w-full mt-4 text-sm text-gray-600 hover:text-black underline"
         >
           Torna al login
         </button>
