@@ -225,16 +225,6 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  // 🔹 NEW: persist duration change (called by Calendar on resize commit)
-  const updateAppointmentDuration = async (id: string, newDurationMin: number) => {
-    await supabase
-      .from('appointments')
-      .update({ duration_min: newDurationMin })
-      .eq('id', id);
-
-    fetchAppointments();
-  };
-
   const handleDelete = async () => {
     if (!selectedAppointment) return;
     await supabase
@@ -408,8 +398,6 @@ const Agenda = () => {
               setSlotPrefill({ barberId, date, time });
               setShowCreateModal(true);
             }}
-            // 🔹 pass duration persistence for resize
-            onResizeDuration={updateAppointmentDuration}
           />
         </div>
       </div>
@@ -482,5 +470,5 @@ const Agenda = () => {
     </div>
   );
 };
-
+ 
 export default Agenda;
