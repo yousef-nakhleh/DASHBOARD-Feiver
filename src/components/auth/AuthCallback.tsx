@@ -69,6 +69,7 @@ const AuthCallback: React.FC = () => {
         const needsOnboarding =
           normalizedType === "invite" ||
           normalizedType === "signup" ||
+            normalizedType === "magiclink" ||
           !hasMembership;
 
         setStatus("done");
