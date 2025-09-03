@@ -12,6 +12,7 @@ import { toUTCFromLocal } from '../lib/timeUtils';
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
+import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
 import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import Dropdown from '../components/ui/Dropdown';
 import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
@@ -59,6 +60,7 @@ const Agenda = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentPanel, setShowPaymentPanel] = useState(false);
   const [showHeaderExceptionModal, setShowHeaderExceptionModal] = useState(false);
   const [headerExceptionType, setHeaderExceptionType] = useState<'open' | 'closed'>('closed');
@@ -315,7 +317,7 @@ const Agenda = () => {
               </button>
               {showDatePicker && (
                 <div className="absolute z-50 top-10">
-                  < DatePicker
+                  <DatePicker
                     selected={selectedDate}
                     onChange={(date) => {
                       setSelectedDate(date as Date);
@@ -418,8 +420,22 @@ const Agenda = () => {
           businessTimezone={businessTimezone}
           onClose={() => setSelectedAppointment(null)}
           onPay={handlePay}
+          onEdit={() => setShowEditModal(true)}
           onDelete={handleDelete}
         /> 
+      )}
+
+      {showEditModal && selectedAppointment && (
+        <EditAppointmentModal
+          appointment={selectedAppointment}
+          businessTimezone={businessTimezone}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => {
+            setShowEditModal(false);
+            setSelectedAppointment(null);
+            fetchAppointments();
+          }}
+        />
       )}
 
       {showCreateModal && (
@@ -467,4 +483,4 @@ const Agenda = () => {
   );
 };
 
-export default Agenda;
+export default Agenda; 
