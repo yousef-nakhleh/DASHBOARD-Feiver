@@ -1,355 +1,486 @@
-// src/components/agenda/Calendar.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { useDrop, useDrag } from 'react-dnd';
-import { toLocalFromUTC } from '../../lib/timeUtils';
-import AppointmentCard from './AppointmentCard';
+// src/pages/Agenda.tsx
+import {
+  CalendarIcon,
+  Plus,
+  Search,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { formatDateToYYYYMMDDLocal } from '../lib/utils';
+import { toUTCFromLocal } from '../lib/timeUtils';
 
-const slotHeight = 120; // 10m per row (visually stretched)
+import { Calendar } from '../components/agenda/Calendar';
+import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
+import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
+import EditAppointmentModal from '../components/agenda/EditAppointmentModal';
+import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
+import Dropdown from '../components/ui/Dropdown';
+import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 
-export const Calendar = ({
-  timeSlots,
-  appointments,
-  businessTimezone,
-  onDrop,
-  onClickAppointment,
-  onEmptySlotClick,
-  barbers,
-  selectedBarber,
-  datesInView = [],
-}) => {
-  const barbersToRender =
-    selectedBarber === 'Tutti'
-      ? barbers
-      : barbers.filter((b) => b.id === selectedBarber);
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [pendingMove, setPendingMove] = useState<{
-    id: string;
-    newDate: string;       // 'yyyy-MM-dd'
-    newTime: string;       // 'HH:mm:00'
-    newBarberId: string;
+// 🔐 Auth
+import { useAuth } from '../components/auth/AuthContext';
+
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let h = 7; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 10) { // 🔄 10-minute grid
+      if (h === 21 && m > 0) break;
+      const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const type = m === 0 ? 'hour' : m === 30 ? 'half' : 'quarter';
+      slots.push({ time, type });
+    }
+  }
+  return slots;
+};
+
+const getDatesInView = (baseDate, mode) => {
+  const count = mode === 'day' ? 1 : mode === '3day' ? 3 : 7;
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+};
+
+const formatShort = (d: Date) =>
+  d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }).toUpperCase();
+
+const Agenda = () => {
+  const { profile, loading: authLoading } = useAuth();
+
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
+  const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
+  const [showHeaderExceptionModal, setShowHeaderExceptionModal] = useState(false);
+  const [headerExceptionType, setHeaderExceptionType] = useState<'open' | 'closed'>('closed');
+  const [paymentPrefill, setPaymentPrefill] = useState({});
+  const [viewMode, setViewMode] = useState<'day' | '3day' | 'week'>('day');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const [slotPrefill, setSlotPrefill] = useState<{
+    date: string;
+    time: string;
+    barberId: string;
   } | null>(null);
 
+  const timeSlots = generateTimeSlots();
+
+  // Fetch business timezone
   useEffect(() => {
-    if (pendingMove) setPendingMove(null);
-  }, [appointments]);
+    const fetchBusinessTimezone = async () => {
+      if (authLoading) return;
+      if (!profile?.business_id) return;
 
-  return (
-    <div className="h-full w-full overflow-y-auto">
-      <div className="flex min-h-[1100px]">
-        {/* Time labels */}
-        <div className="bg-white border-r shrink-0">
-          {/* ▼ dummy half-row to push first label fully into view */}
-          <div style={{ height: slotHeight / 2 }} className="relative w-16 pr-2" />
-          {timeSlots.map((slot, i) => (
-            <div
-              key={i}
-              style={{ height: slotHeight }}
-              className="relative w-16 pr-2" // ← fixed gutter width so it doesn't collapse
-            >
-              <span
-                className={`absolute top-0 right-2 -translate-y-1/2 transform text-xs pointer-events-none ${
-                  slot.type === 'hour'
-                    ? 'font-bold text-gray-800'
-                    : slot.type === 'half'
-                    ? 'text-gray-500'
-                    : 'text-gray-300'
-                }`}
-              >
-                {slot.time}
-              </span>
-            </div>
-          ))}
-        </div>
+      const { data, error } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', profile.business_id)
+        .single();
 
-        {/* Appointment Grid */}
-        <div className="flex-1 overflow-x-auto bg-white">
-          <div className="flex min-w-full">
-            {datesInView.map((date) => {
-              const dateStr = date.toISOString().split('T')[0];
-              return barbersToRender.map((barber) => (
-                <DayBarberColumn
-                  key={`${dateStr}-${barber.id}`}
-                  date={dateStr}
-                  businessTimezone={businessTimezone}
-                  barber={barber}
-                  timeSlots={timeSlots}
-                  appointments={appointments}
-                  onDrop={onDrop}
-                  onClickAppointment={onClickAppointment}
-                  onEmptySlotClick={onEmptySlotClick}
-                  totalBarbers={barbersToRender.length}
-                  draggingId={draggingId}
-                  pendingMove={pendingMove}
-                  setPendingMove={setPendingMove}
-                  setDraggingId={setDraggingId}
-                />
-              ));
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    fetchBusinessTimezone();
+  }, [authLoading, profile?.business_id]);
 
-const DayBarberColumn = ({
-  date,
-  businessTimezone,
-  barber,
-  timeSlots,
-  appointments,
-  onDrop,
-  onClickAppointment,
-  onEmptySlotClick,
-  totalBarbers,
-  draggingId,
-  pendingMove,
-  setPendingMove,
-  setDraggingId,
-}) => {
-  const columnRef = useRef<HTMLDivElement | null>(null);
-  const [hoverRow, setHoverRow] = useState<number | null>(null);
+  const fetchAppointments = async () => {
+    if (typeof profile?.business_id !== 'string' || !profile.business_id) {
+      console.log("Skipping fetchAppointments: Invalid business_id type or value", profile?.business_id);
+      return;
+    }
+    if (!profile?.business_id) return;
 
-  // overlap check (same date + barber)
-  const hasConflict = (excludeId: string, start: Date, durationMin: number) => {
-    const end = new Date(start.getTime() + durationMin * 60_000);
+    const dates = getDatesInView(selectedDate, viewMode);
 
-    return appointments.some((a) => {
-      if (a.appointment_status === 'cancelled') return false;
-      if (a.id === excludeId) return false;
-      if (a.barber_id !== barber.id) return false;
-
-      const localStart = toLocalFromUTC({
-        utcString: a.appointment_date,
-        timezone: businessTimezone,
-      });
-      const aDate = localStart.toFormat('yyyy-MM-dd');
-      if (aDate !== date) return false;
-
-      const aStart = localStart.toJSDate();
-      const aDuration = a.duration_min || a.services?.duration_min || 30;
-      const aEnd = new Date(aStart.getTime() + aDuration * 60_000);
-
-      return start < aEnd && end > aStart;
+    // UTC range
+    const startOfFirstDay = toUTCFromLocal({
+      date: formatDateToYYYYMMDDLocal(dates[0]),
+      time: '00:00',
+      timezone: businessTimezone,
     });
+    const endOfLastDay = toUTCFromLocal({
+      date: formatDateToYYYYMMDDLocal(dates[dates.length - 1]),
+      time: '23:59',
+      timezone: businessTimezone,
+    });
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(`
+        id,
+        appointment_date,
+        contact:contact_id ( first_name, last_name, phone_number_e164 ),  
+        barber_id,
+        service_id,
+        appointment_status,
+        paid,
+        duration_min,
+        services ( name, price, duration_min )
+      `)
+      .eq('business_id', profile.business_id)
+      .gte('appointment_date', startOfFirstDay)
+      .lte('appointment_date', endOfLastDay)
+      .in('appointment_status', ['pending', 'confirmed']);
+
+    if (error) console.error('Errore fetch appointments:', error.message);
+    setAppointments(data || []);
   };
 
-  const [{ isOver }, drop] = useDrop({
-    accept: 'APPOINTMENT',
-    drop: (draggedItem: any, monitor) => {
-      const client = monitor.getClientOffset();
-      const rect = columnRef.current?.getBoundingClientRect();
-      if (!client || !rect) return;
+  const fetchBarbers = async () => {
+    if (!profile?.business_id) return;
 
-      const offsetY = client.y - rect.top;
-      let rowIndex = Math.floor(offsetY / slotHeight);
-      if (rowIndex < 0) rowIndex = 0;
-      if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
+    const { data, error } = await supabase
+      .from('barbers')
+      .select('*')
+      .eq('business_id', profile.business_id);
 
-      const targetSlot = timeSlots[rowIndex];
-      const newTime = `${targetSlot.time}:00`;
-
-      const currentLocal = toLocalFromUTC({
-        utcString: draggedItem.appointment_date,
-        timezone: businessTimezone,
-      });
-      const currentDate = currentLocal.toFormat('yyyy-MM-dd');
-      const currentTime = currentLocal.toFormat('HH:mm');
-
-      // PRECHECK overlaps
-      const targetStart = new Date(`${date}T${targetSlot.time}:00`);
-      const durationMin =
-        draggedItem.duration_min || draggedItem.services?.duration_min || 30;
-
-      if (hasConflict(draggedItem.id, targetStart, durationMin)) {
-        setDraggingId(null);
-        return;
-      }
-
-      if (
-        currentTime !== targetSlot.time ||
-        currentDate !== date ||
-        draggedItem.barber_id !== barber.id
-      ) {
-        setPendingMove({
-          id: draggedItem.id,
-          newDate: date,
-          newTime,
-          newBarberId: barber.id,
-        });
-        setDraggingId(null);
-        onDrop(draggedItem.id, {
-          newTime,
-          newDate: date,
-          newBarberId: barber.id,
-        });
-      }
-    },
-    hover: (_item, monitor) => {
-      const client = monitor.getClientOffset();
-      const rect = columnRef.current?.getBoundingClientRect();
-      if (!client || !rect) return;
-      const offsetY = client.y - rect.top;
-      let rowIndex = Math.floor(offsetY / slotHeight);
-      if (rowIndex < 0) rowIndex = 0;
-      if (rowIndex > timeSlots.length - 1) rowIndex = timeSlots.length - 1;
-      setHoverRow(rowIndex);
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver({ shallow: true }),
-    }),
-  });
+    if (error) console.error('Errore fetch barbers:', error.message);
+    setBarbers(data || []);
+  };
 
   useEffect(() => {
-    if (!isOver) setHoverRow(null);
-  }, [isOver]);
+    if (authLoading) return;
+    fetchAppointments();
+  }, [selectedDate, viewMode, businessTimezone, authLoading, profile?.business_id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    fetchBarbers();
+  }, [authLoading, profile?.business_id]);
+
+  // Realtime
+  useEffect(() => {
+    if (authLoading || !profile?.business_id) return;
+
+    const channel = supabase
+      .channel(`appointments-realtime-${profile.business_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `business_id=eq.${profile.business_id}`,
+        },
+        () => {
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authLoading, profile?.business_id]);
+
+  const handleExceptionSelect = (value: string) => {
+    if (value === 'apertura') {
+      setHeaderExceptionType('open');
+      setShowHeaderExceptionModal(true);
+    } else if (value === 'chiusura') {
+      setHeaderExceptionType('closed');
+      setShowHeaderExceptionModal(true);
+    }
+  };
+
+  const handleExceptionModalClose = () => {
+    setShowHeaderExceptionModal(false);
+  };
+
+  const handleExceptionModalSave = () => {
+    setShowHeaderExceptionModal(false);
+    fetchAppointments();
+  };
+
+  const updateAppointmentTime = async (
+    id: string,
+    { newTime, newDate, newBarberId }: { newTime: string; newDate: string; newBarberId: string }
+  ) => {
+    const newAppointmentStart = toUTCFromLocal({
+      date: newDate,
+      time: newTime,
+      timezone: businessTimezone,
+    });
+
+    await supabase
+      .from('appointments')
+      .update({
+        appointment_date: newAppointmentStart,
+        barber_id: newBarberId,
+      })
+      .eq('id', id);
+
+    fetchAppointments();
+  };
+
+  // 🔹 NEW: persist duration change (called by Calendar on resize commit)
+  const updateAppointmentDuration = async (id: string, newDurationMin: number) => {
+    await supabase
+      .from('appointments')
+      .update({ duration_min: newDurationMin })
+      .eq('id', id);
+
+    fetchAppointments();
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAppointment) return;
+    await supabase
+      .from('appointments')
+      .update({ appointment_status: 'cancelled' })
+      .eq('id', selectedAppointment.id);
+    setSelectedAppointment(null);
+    fetchAppointments();
+  };
+
+  const handlePay = () => {
+    if (!selectedAppointment) return;
+    setPaymentPrefill({
+      appointment_id: selectedAppointment.id,
+      barber_id: selectedAppointment.barber_id,
+      service_id: selectedAppointment.service_id,
+      price: selectedAppointment.services?.price || 0,
+      customer_name: `${selectedAppointment.contact?.first_name || ''} ${selectedAppointment.contact?.last_name || ''}`.trim(),
+    });
+    setShowPaymentPanel(true);
+  };
+
+  const filtered =
+    selectedBarber === 'Tutti'
+      ? appointments.filter(
+          (app) =>
+            `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim().toLowerCase().includes(searchQuery.toLowerCase()) ||
+            app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : appointments.filter(
+          (app) =>
+            (`${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim().toLowerCase().includes(searchQuery.toLowerCase()) ||
+              app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+            app.barber_id === selectedBarber
+        );
+
+  const dateButtons = [0, 1, 2].map((offset) => {
+    const d = new Date(selectedDate);
+    d.setDate(selectedDate.getDate() + offset);
+    return d;
+  });
+
+  if (!authLoading && !profile?.business_id) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-600">
+          Profilo non configurato: nessun <code>business_id</code> collegato.
+          Contatta l'amministratore.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="flex flex-col border-r"
-      style={{ width: `${100 / totalBarbers}%` }}
-      ref={(el) => {
-        columnRef.current = el;
-        drop(el as any);
-      }}
-    >
-      {/* ▼ dummy half-row to align first visible slot */}
-      <div style={{ height: slotHeight / 2 }} className="border-t border-gray-200 relative px-1 pointer-events-none" />
-      {timeSlots.map((slot, idx) => {
-        const slotStart = new Date(`${date}T${slot.time}:00`);
-        const slotEnd = new Date(slotStart.getTime() + 10 * 60_000);
-
-        const apps = appointments.filter((a) => {
-          if (a.appointment_status === 'cancelled') return false;
-
-          const isPending = pendingMove && pendingMove.id === a.id;
-          const effectiveBarberId = isPending ? pendingMove!.newBarberId : a.barber_id;
-          if (effectiveBarberId !== barber.id) return false;
-
-          if (isPending) {
-            const pendingDate = pendingMove!.newDate;
-            const pendingTime = pendingMove!.newTime;
-            if (pendingDate !== date) return false;
-            const pendingStart = new Date(`${pendingDate}T${pendingTime}`);
-            return pendingStart >= slotStart && pendingStart < slotEnd;
-          } else {
-            const localAppointment = toLocalFromUTC({
-              utcString: a.appointment_date,
-              timezone: businessTimezone,
-            });
-            const appointmentDate = localAppointment.toFormat('yyyy-MM-dd');
-            if (appointmentDate !== date) return false;
-            const appointmentStart = localAppointment.toJSDate();
-            return appointmentStart >= slotStart && appointmentStart < slotEnd;
-          }
-        });
-
-        const isEmpty = apps.length === 0;
-        const highlight = isOver && hoverRow === idx;
-
-        return (
-          <div
-            key={slot.time}
-            style={{ height: slotHeight }}
-            className={`border-t border-gray-200 relative px-1 ${
-              isEmpty ? 'hover:bg-gray-100 cursor-pointer' : ''
-            } ${highlight ? 'bg-blue-50/30' : ''}`}
-            onClick={() => {
-              if (isEmpty) {
-                onEmptySlotClick?.(barber.id, date, slot.time);
-              }
-            }}
-          >
-            {apps.map((app) => (
-              <DraggableAppointment
-                key={app.id}
-                app={app}
-                businessTimezone={businessTimezone}
-                onClick={() => onClickAppointment?.(app)}
-                flexBasis={100}
-                onDragStart={() => setDraggingId(app.id)}
-                onDragEnd={() => setDraggingId(null)}
-                isOptimisticallyMoving={
-                  !!pendingMove && pendingMove.id === app.id
-                }
-              />
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: day buttons + datepicker */}
+          <div className="flex items-center gap-3">
+            {dateButtons.map((date, i) => (
+              <button
+                key={i}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  selectedDate.toDateString() === date.toDateString()
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => setSelectedDate(date)}
+              >
+                {formatShort(date)}
+              </button>
             ))}
+            <div className="relative">
+              <button
+                onClick={() => setShowDatePicker((prev) => !prev)}
+                className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <CalendarIcon size={18} />
+              </button>
+              {showDatePicker && (
+                <div className="absolute z-50 top-10">
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={(date) => {
+                      setSelectedDate(date as Date);
+                      setShowDatePicker(false);
+                    }}
+                    inline
+                    locale="it"
+                  />
+                </div>
+              )}
+            </div>
           </div>
-        );
-      })}
+
+          {/* Center: filters */}
+          <div className="flex items-center gap-3">
+            <Dropdown
+              value={selectedBarber}
+              onChange={setSelectedBarber}
+              options={[
+                { value: 'Tutti', label: 'Tutti' },
+                ...barbers.map(barber => ({ value: barber.id, label: barber.name }))
+              ]}
+              className="w-40"
+            />
+            
+            <Dropdown
+              value={viewMode}
+              onChange={(value) => setViewMode(value as 'day' | '3day' | 'week')}
+              options={[
+                { value: 'day', label: 'Giorno' },
+                { value: '3day', label: '3 Giorni' },
+                { value: 'week', label: 'Settimana' }
+              ]}
+              className="w-32"
+            />
+            
+            <Dropdown
+              value=""
+              onChange={handleExceptionSelect}
+              options={[
+                { value: '', label: 'Eccezione' },
+                { value: 'apertura', label: 'Apertura' },
+                { value: 'chiusura', label: 'Chiusura' }
+              ]}
+              className="w-32"
+            />
+          </div>
+          
+          {/* Right: new appointment */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-black text-white px-6 py-2 rounded-xl flex items-center hover:bg-gray-800 transition-all duration-200 font-medium"
+          >
+            <Plus size={18} className="mr-2" /> Nuovo Appuntamento
+          </button>
+        </div>
+      </div>
+
+      {/* Main Calendar */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div className="relative">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Cerca cliente o servizio"
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <Calendar
+            timeSlots={timeSlots}
+            appointments={filtered}
+            businessTimezone={businessTimezone}
+            barbers={barbers || []}
+            selectedBarber={selectedBarber}
+            datesInView={getDatesInView(selectedDate, viewMode)}
+            onDrop={updateAppointmentTime}
+            onClickAppointment={(app) => setSelectedAppointment(app)}
+            onEmptySlotClick={(barberId, date, time) => {
+              setSlotPrefill({ barberId, date, time });
+              setShowCreateModal(true);
+            }}
+            // 🔹 pass duration persistence for resize
+            onResizeDuration={updateAppointmentDuration}
+          />
+        </div>
+      </div>
+
+      {selectedAppointment && (
+        <AppointmentSummaryBanner
+          appointment={selectedAppointment}
+          businessTimezone={businessTimezone}
+          onClose={() => setSelectedAppointment(null)}
+          onPay={handlePay}
+          onEdit={() => setShowEditModal(true)}
+          onDelete={handleDelete}
+        /> 
+      )}
+
+      {showEditModal && selectedAppointment && (
+        <EditAppointmentModal
+          appointment={selectedAppointment}
+          businessTimezone={businessTimezone}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => {
+            setShowEditModal(false);
+            setSelectedAppointment(null);
+            fetchAppointments();
+          }}
+        />
+      )}
+
+      {showCreateModal && (
+        <CreateAppointmentModal
+          businessTimezone={businessTimezone}
+          initialBarberId={slotPrefill?.barberId}
+          initialDate={slotPrefill?.date}
+          initialTime={slotPrefill?.time}
+          onClose={() => {
+            setShowCreateModal(false);
+            setSlotPrefill(null);
+          }}
+          onCreated={() => {
+            setShowCreateModal(false);
+            setSlotPrefill(null);
+            fetchAppointments();
+          }}
+        />
+      )}
+
+      <SlidingPanelPayment
+        visible={showPaymentPanel}
+        prefill={paymentPrefill}
+        onClose={() => setShowPaymentPanel(false)}
+        businessId={profile?.business_id}
+        onSuccess={() => {
+          setShowPaymentPanel(false);
+          fetchAppointments();
+        }}
+      />
+
+      {showHeaderExceptionModal && (
+        <AvailabilityExceptionFormModal 
+          isOpen={showHeaderExceptionModal}
+          onClose={handleExceptionModalClose}
+          onSave={handleExceptionModalSave}
+          barbers={barbers}
+          businessId={profile?.business_id || ''}
+          businessTimezone={businessTimezone}
+          exceptionType={headerExceptionType}
+          defaultValues={null}
+        />
+      )}
     </div>
   );
 };
 
-const DraggableAppointment = ({
-  app,
-  businessTimezone,
-  onClick,
-  flexBasis,
-  onDragStart,
-  onDragEnd,
-  isOptimisticallyMoving,
-}: {
-  app: any;
-  businessTimezone: string;
-  onClick: () => void;
-  flexBasis: number;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  isOptimisticallyMoving: boolean;
-}) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'APPOINTMENT',
-    item: { ...app },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: () => {
-      onDragEnd();
-    },
-  });
-
-  useEffect(() => {
-    if (isDragging) onDragStart();
-  }, [isDragging, onDragStart]);
-
-  const localTime = toLocalFromUTC({
-    utcString: app.appointment_date,
-    timezone: businessTimezone,
-  });
-  const displayTime = localTime.toFormat('HH:mm');
-
-  const durationMin = app.duration_min || app.services?.duration_min || 30;
-  const clientName = `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim() || 'Cliente';
-  const serviceName = app.services?.name || '';
-  const phoneE164 = app.contact?.phone_number_e164 || '';
-  const paid = app.paid === true;
-
-  return (
-    <div
-      ref={drag}
-      onClick={onClick}
-      className={`relative z-10 overflow-hidden transition-shadow ${
-        isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:shadow-md'
-      }`}
-      style={{
-        height: `${(durationMin / 10) * slotHeight}px`,
-        flexBasis: `${flexBasis}%`,
-        flexGrow: 1,
-        flexShrink: 0,
-        visibility: isOptimisticallyMoving ? 'visible' : undefined,
-      }}
-    >
-      <AppointmentCard
-        time={displayTime}
-        duration={durationMin}
-        clientName={clientName}
-        serviceName={serviceName}
-        phoneE164={phoneE164}
-        paid={paid}
-        onClick={onClick}
-      />
-    </div>
-  );
-}; 
+export default Agenda;
