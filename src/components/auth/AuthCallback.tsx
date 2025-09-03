@@ -8,7 +8,9 @@ import { supabase } from "../../lib/supabase";
  * - New flow:   ?code=...&type=magiclink|recovery|signup|invite|email_change
  * - Legacy flow:?token_hash=...&type=magiclink|recovery|signup|invite|email_change
  *
- * On success: user session is stored by supabase-js, then we redirect accordingly.
+ * On success: user session is stored by supabase-js, then we redirect smartly:
+ *   - invite/signup OR no memberships → /auth/invite (set password / onboarding)
+ *   - otherwise → "/"
  */
 const AuthCallback: React.FC = () => {
   const { search } = useLocation();
@@ -28,13 +30,12 @@ const AuthCallback: React.FC = () => {
 
     async function run() {
       try {
-        // ✅ Modern PKCE flow (redirectTo lands here with ?code=)
+        // 1) Establish session
         if (code) {
           setMessage("Verifica codice…");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (tokenHash && normalizedType) {
-          // ✅ Legacy fallback
           setMessage("Verifica token…");
           const { error } = await supabase.auth.verifyOtp({
             type: normalizedType as
@@ -50,16 +51,34 @@ const AuthCallback: React.FC = () => {
           throw new Error("Parametri di callback non validi.");
         }
 
+        // 2) Decide destination
+        setMessage("Controllo permessi…");
+        const { data: userRes } = await supabase.auth.getUser();
+        const userId = userRes?.user?.id;
+
+        let hasMembership = false;
+        if (userId) {
+          const { data: m } = await supabase
+            .from("memberships")
+            .select("id")
+            .eq("user_id", userId)
+            .limit(1);
+          hasMembership = !!(m && m.length > 0);
+        }
+
+        const needsOnboarding =
+          normalizedType === "invite" ||
+          normalizedType === "signup" ||
+          !hasMembership;
+
         setStatus("done");
         setMessage("Accesso completato. Reindirizzamento…");
 
-        // 👇 NEW: Decide where to send the user based on type
-        const target =
-          normalizedType === "invite" || normalizedType === "signup"
-            ? "/auth/invite"
-            : "/";
-
-        setTimeout(() => navigate(target, { replace: true }), 500);
+        // 🔑 Redirect rule:
+        // - invited / signed-up / no membership → to password/onboarding
+        // - else → into the app
+        const target = needsOnboarding ? "/auth/invite" : "/";
+        setTimeout(() => navigate(target, { replace: true }), 400);
       } catch (e: any) {
         setStatus("error");
         setMessage(e?.message || "Errore durante l’autenticazione.");
@@ -67,7 +86,6 @@ const AuthCallback: React.FC = () => {
     }
 
     run();
-    // We only want to run this once for this URL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
@@ -76,9 +94,7 @@ const AuthCallback: React.FC = () => {
       <div className="bg-white rounded-2xl shadow p-8 max-w-md w-full text-center">
         <div
           className={`mx-auto mb-4 h-12 w-12 rounded-full flex items-center justify-center ${
-            status === "error"
-              ? "bg-red-100 text-red-700"
-              : "bg-black text-white"
+            status === "error" ? "bg-red-100 text-red-700" : "bg-black text-white"
           }`}
         >
           {status === "error" ? "!" : "✓"}
