@@ -8,7 +8,7 @@ import { supabase } from "../../lib/supabase";
  * - New flow:   ?code=...&type=magiclink|recovery|signup|invite|email_change
  * - Legacy flow:?token_hash=...&type=magiclink|recovery|signup|invite|email_change
  *
- * On success: user session is stored by supabase-js, then we redirect to "/".
+ * On success: user session is stored by supabase-js, then we redirect accordingly.
  */
 const AuthCallback: React.FC = () => {
   const { search } = useLocation();
@@ -52,7 +52,14 @@ const AuthCallback: React.FC = () => {
 
         setStatus("done");
         setMessage("Accesso completato. Reindirizzamento…");
-        setTimeout(() => navigate("/", { replace: true }), 500);
+
+        // 👇 NEW: Decide where to send the user based on type
+        const target =
+          normalizedType === "invite" || normalizedType === "signup"
+            ? "/auth/invite"
+            : "/";
+
+        setTimeout(() => navigate(target, { replace: true }), 500);
       } catch (e: any) {
         setStatus("error");
         setMessage(e?.message || "Errore durante l’autenticazione.");
@@ -60,6 +67,7 @@ const AuthCallback: React.FC = () => {
     }
 
     run();
+    // We only want to run this once for this URL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
