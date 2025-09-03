@@ -1,5 +1,5 @@
 // src/components/agenda/AppointmentSummaryButton.tsx
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Check, Trash2, Repeat, Scissors, Printer, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -7,30 +7,18 @@ type AppointmentSummaryButtonProps = {
   position?: { top: number; left: number };
   onClose?: () => void;
 
-  // 🔹 dynamic data
-  appointment: {
-    id: string;
-    appointment_date: string;
-    duration_min?: number;
-    paid?: boolean;
-    appointment_status?: string;
-    service_id?: string;
-    barber_id?: string;
-    services?: { name?: string; price?: number; duration_min?: number } | null;
-    contact?: {
-      first_name?: string | null;
-      last_name?: string | null;
-      email?: string | null;
-      phone_number_e164?: string | null;
-    } | null;
-    // optional convenience fields if you already have them
-    barber_name?: string;
-    notes?: string | null;
-  };
+  // 🔹 dynamic bits
+  appointment: any; // expects: id, contact (first_name,last_name,email,phone_number_e164), services(name,price,duration_min), duration_min, barber?.name
+  onAfterUpdate?: () => void;        // refresh agenda after save/delete
+  onOpenCash?: (appointmentId: string) => void; // open your cash panel
+};
 
-  // 🔹 optional parent hooks
-  onAfterUpdate?: () => void;     // e.g. refetch calendar
-  onOpenCash?: (appointmentId: string) => void;
+const minutesToHourLabel = (min: number) => {
+  // 25 -> "0.25h", 30 -> "0.30h", 95 -> "1.35h"
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const frac = (m < 10 ? `0${m}` : `${m}`);
+  return `${h}.${frac}h`;
 };
 
 const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
@@ -40,78 +28,50 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   onAfterUpdate,
   onOpenCash,
 }) => {
-  // ---- layout/position (unchanged) ----
   const style = useMemo<React.CSSProperties>(() => {
     const top = position?.top ?? 120;
     const left = position?.left ?? 460;
-    return {
-      position: 'absolute',
-      top,
-      left,
-      zIndex: 60,
-      transform: 'translateX(8px)',
-    };
+    return { position: 'absolute', top, left, zIndex: 60, transform: 'translateX(8px)' };
   }, [position]);
 
-  // ---- derived display fields (no UI changes) ----
-  const serviceName =
-    appointment?.services?.name ?? '—';
-  const price =
-    typeof appointment?.services?.price === 'number'
-      ? new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(appointment.services!.price!)
-      : '—';
-  const barberName = appointment?.barber_name ?? 'Alket'; // fallback to keep identical visual
-  const durationMin = appointment?.duration_min ?? appointment?.services?.duration_min ?? 30;
+  // ---------------- state ----------------
+  const [activeTab, setActiveTab] = useState<'riepilogo' | 'cliente' | 'cassa'>('riepilogo');
+  const [showDurationMenu, setShowDurationMenu] = useState(false);
 
-  const fullName = `${appointment?.contact?.first_name ?? ''} ${appointment?.contact?.last_name ?? ''}`.trim() || 'Gabriel';
-  const email = appointment?.contact?.email ?? 'morminagabriel17@gmail.co';
-  const phone = appointment?.contact?.phone_number_e164 ?? '+39 000 000 0000';
+  // pending changes: nothing is saved until ✓
+  const [pending, setPending] = useState<{ duration_min?: number }>({});
+  const effectiveDuration =
+    pending.duration_min ?? appointment.duration_min ?? appointment.services?.duration_min ?? 30;
 
-  // ---- duration dropdown (5m steps) ----
-  const [showDurMenu, setShowDurMenu] = useState(false);
-  const [localDuration, setLocalDuration] = useState<number>(durationMin);
-  useEffect(() => setLocalDuration(durationMin), [durationMin]);
-
-  // build compact list around current duration (keep menu small like the UI)
-  const durationOptions = useMemo(() => {
-    const base = durationMin;
-    const values = new Set<number>();
-    // -15m .. +45m around current, step 5m
-    for (let d = base - 15; d <= base + 45; d += 5) {
-      if (d >= 5 && d <= 240) values.add(d);
-    }
-    // also include the service default if present
-    if (appointment?.services?.duration_min) values.add(appointment.services.duration_min);
-    return Array.from(values).sort((a, b) => a - b);
-  }, [durationMin, appointment?.services?.duration_min]);
-
-  const durMenuRef = useRef<HTMLDivElement | null>(null);
+  // contact: use embedded if present, otherwise hydrate once
+  const [contact, setContact] = useState<any>(appointment.contact || null);
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (!durMenuRef.current) return;
-      if (!durMenuRef.current.contains(e.target as Node)) setShowDurMenu(false);
+    let ignore = false;
+    const load = async () => {
+      if (appointment?.contact?.first_name || !appointment?.contact_id) return;
+      const { data } = await supabase
+        .from('contacts')
+        .select('first_name,last_name,email,phone_number_e164')
+        .eq('id', appointment.contact_id)
+        .single();
+      if (!ignore && data) setContact(data);
     };
-    if (showDurMenu) document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [showDurMenu]);
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [appointment?.contact, appointment?.contact_id]);
 
-  const asHoursLabel = (m: number) => {
-    // keep your exact label pattern "0.30h"
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    const parts = [];
-    parts.push(h.toString());
-    parts.push('.');
-    parts.push(min.toString().padStart(2, '0'));
-    return `${parts.join('')}h`;
-  };
+  // ---------------- actions ----------------
+  const handleConfirm = async () => {
+    const updates: any = {};
+    if (typeof pending.duration_min === 'number') updates.duration_min = pending.duration_min;
 
-  const updateDuration = async (newMin: number) => {
-    setLocalDuration(newMin);
-    // persist
-    await supabase.from('appointments').update({ duration_min: newMin }).eq('id', appointment.id);
-    setShowDurMenu(false);
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('appointments').update(updates).eq('id', appointment.id);
+    }
     onAfterUpdate?.();
+    onClose?.();
   };
 
   const handleDelete = async () => {
@@ -123,11 +83,25 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
     onClose?.();
   };
 
+  const durationOptions = useMemo(() => {
+    // 5-minute steps (kept reasonable to avoid huge list)
+    const opts: number[] = [];
+    for (let m = 5; m <= 180; m += 5) opts.push(m);
+    return opts;
+  }, []);
+
+  // basic fields
+  const serviceName = appointment?.services?.name ?? '—';
+  const price = typeof appointment?.services?.price === 'number' ? appointment.services.price : null;
+  const barberName = appointment?.barber?.name ?? '—';
+
+  const firstName = contact?.first_name ?? '—';
+  const lastName = contact?.last_name ?? '—';
+  const email = contact?.email ?? '—';
+  const phone = contact?.phone_number_e164 ?? '—';
+
   return (
-    <div
-      style={style}
-      className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden"
-    >
+    <div style={style} className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden">
       {/* Header (fixed) */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div>
@@ -136,6 +110,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
         </div>
         <div className="flex items-center gap-1.5">
           <button
+            onClick={handleConfirm}
             className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-black text-white hover:bg-gray-800 transition-colors"
             title="Conferma"
             type="button"
@@ -160,46 +135,51 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[14px] font-semibold text-gray-900 truncate">
-                {serviceName || 'Taglio Uomo con Shampoo'}
+                {serviceName}
               </div>
+
+              {/* ⚠️ NOTE section removed as requested */}
+
               <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
                 <div className="text-gray-500">Con</div>
                 <div className="font-medium text-gray-900">{barberName}</div>
 
-                <div className="text-gray-500">Note</div>
-                <div className="text-gray-800 whitespace-pre-line">
-                  {appointment?.notes
-                    ? appointment.notes
-                    : `Alban\n(shampoo)\nSource: Treatwell\nOrder Reference: T2157334518\nBooking Reference: bk_142692964`}
-                </div>
-
                 <div className="text-gray-500">Prezzo</div>
-                <div className="font-semibold text-gray-900">{price || '€ 20,00'}</div>
+                <div className="font-semibold text-gray-900">
+                  {price !== null ? `€ ${price.toFixed(2).replace('.', ',')}` : '—'}
+                </div>
               </div>
             </div>
 
-            {/* Duration button + dropdown (same visual) */}
-            <div className="relative" ref={durMenuRef}>
+            {/* Duration (pending until ✓) */}
+            <div className="relative shrink-0">
               <button
                 type="button"
-                className="shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-gray-100 text-gray-900 text-[11px] font-semibold border border-gray-200"
+                onClick={() => setShowDurationMenu(v => !v)}
+                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-gray-100 text-gray-900 text-[11px] font-semibold border border-gray-200"
                 title="Durata"
-                onClick={() => setShowDurMenu(v => !v)}
               >
-                {asHoursLabel(localDuration)} <ChevronDown size={13} className="opacity-70" />
+                {minutesToHourLabel(effectiveDuration)} <ChevronDown size={13} className="opacity-70" />
               </button>
 
-              {showDurMenu && (
-                <div className="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-50">
-                  {durationOptions.map((m) => (
+              {showDurationMenu && (
+                <div
+                  className="absolute right-0 mt-1 w-28 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-10"
+                  onMouseLeave={() => setShowDurationMenu(false)}
+                >
+                  {durationOptions.map(m => (
                     <button
                       key={m}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] ${
-                        m === localDuration ? 'bg-gray-100 font-semibold' : 'hover:bg-gray-50'
+                      type="button"
+                      onClick={() => {
+                        setPending(p => ({ ...p, duration_min: m }));
+                        // DO NOT save here; only on ✓
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 ${
+                        m === effectiveDuration ? 'font-semibold text-gray-900' : 'text-gray-700'
                       }`}
-                      onClick={() => updateDuration(m)}
                     >
-                      {asHoursLabel(m)}
+                      {minutesToHourLabel(m)}
                     </button>
                   ))}
                 </div>
@@ -207,51 +187,99 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </div>
           </div>
 
-          {/* Tabs mimic (static look) */}
+          {/* Tabs */}
           <div className="flex items-center gap-1.5">
-            <span className="px-2.5 py-1.5 text-[11px] font-semibold rounded-full bg-black text-white">
-              Riepilogo
-            </span>
-            <span className="px-2.5 py-1.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-700">
-              Info Cliente
-            </span>
             <button
+              className={`px-2.5 py-1.5 text-[11px] rounded-full ${
+                activeTab === 'riepilogo' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
+              }`}
+              onClick={() => setActiveTab('riepilogo')}
               type="button"
-              className="px-2.5 py-1.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-700"
-              onClick={() => onOpenCash?.(appointment.id)}
+            >
+              Riepilogo
+            </button>
+            <button
+              className={`px-2.5 py-1.5 text-[11px] rounded-full ${
+                activeTab === 'cliente' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
+              }`}
+              onClick={() => setActiveTab('cliente')}
+              type="button"
+            >
+              Info Cliente
+            </button>
+            <button
+              className={`px-2.5 py-1.5 text-[11px] rounded-full ${
+                activeTab === 'cassa' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
+              }`}
+              onClick={() => setActiveTab('cassa')}
+              type="button"
             >
               Cassa
             </button>
           </div>
 
-          {/* Info Cliente block */}
-          <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Info Cliente</div>
-            <div className="grid grid-cols-2 gap-2 text-[12px]">
-              <div>
-                <div className="text-gray-500 text-[11px] mb-0.5">Nome</div>
-                <div className="font-medium text-gray-900">{fullName.split(' ')[0] || '—'}</div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-[11px] mb-0.5">Cognome</div>
+          {/* Panels (layout unchanged) */}
+          {activeTab === 'riepilogo' && (
+            <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50 text-[12px] text-gray-800">
+              <div className="grid grid-cols-2 gap-y-1.5">
+                <div className="text-gray-500">Servizio</div>
+                <div className="font-medium text-gray-900">{serviceName}</div>
+                <div className="text-gray-500">Durata</div>
+                <div className="font-medium text-gray-900">{minutesToHourLabel(effectiveDuration)}</div>
+                <div className="text-gray-500">Prezzo</div>
                 <div className="font-medium text-gray-900">
-                  {fullName.split(' ').slice(1).join(' ') || '—'}
+                  {price !== null ? `€ ${price.toFixed(2).replace('.', ',')}` : '—'}
                 </div>
               </div>
-              <div className="col-span-2">
-                <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
-                <div className="font-medium text-gray-900">{email}</div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
-                <div className="font-medium text-gray-900">{phone}</div>
-              </div>
             </div>
+          )}
 
-            <div className="mt-2 text-[11px] font-semibold text-white bg-red-500 rounded-md px-2.5 py-1.5 inline-flex">
-              Non ha dato i consensi per la privacy
+          {activeTab === 'cliente' && (
+            <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
+              <div className="text-sm font-semibold text-gray-900 mb-2">Info Cliente</div>
+              <div className="grid grid-cols-2 gap-2 text-[12px]">
+                <div>
+                  <div className="text-gray-500 text-[11px] mb-0.5">Nome</div>
+                  <div className="font-medium text-gray-900">{firstName}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-[11px] mb-0.5">Cognome</div>
+                  <div className="font-medium text-gray-900">{lastName || '—'}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
+                  <div className="font-medium text-gray-900 break-all">{email}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
+                  <div className="font-medium text-gray-900 break-all">{phone}</div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'cassa' && (
+            <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
+              <div className="text-sm font-semibold text-gray-900 mb-2">Riepilogo Cassa</div>
+              <div className="text-[12px] grid grid-cols-[80px_1fr] gap-y-1.5 gap-x-3">
+                <div className="text-gray-500">Servizio</div>
+                <div className="font-medium text-gray-900">{serviceName}</div>
+                <div className="text-gray-500">Prezzo</div>
+                <div className="font-semibold text-gray-900">
+                  {price !== null ? `€ ${price.toFixed(2).replace('.', ',')}` : '—'}
+                </div>
+              </div>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => onOpenCash?.(appointment.id)}
+                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                >
+                  Vai alla cassa
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -259,9 +287,9 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
       <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
         <button
           type="button"
+          onClick={handleDelete}
           className="inline-flex items-center gap-2 px-2.5 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
           title="Elimina"
-          onClick={handleDelete}
         >
           <Trash2 size={16} />
           <span className="text-sm font-medium">Elimina</span>
