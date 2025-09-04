@@ -7,18 +7,17 @@ type AppointmentSummaryButtonProps = {
   position?: { top: number; left: number };
   onClose?: () => void;
 
-  // 🔹 dynamic bits
-  appointment: any; // expects: id, contact (first_name,last_name,email,phone_number_e164), services(name,price,duration_min), duration_min, barber?.name
-  onAfterUpdate?: () => void;        // refresh agenda after save/delete
-  onOpenCash?: (appointmentId: string) => void; // open your cash panel
+  // expects joined appointment:
+  // { id, contact?, contact_id, services?, duration_min?, barber? }
+  appointment: any;
+  onAfterUpdate?: () => void;              // refresh agenda after save/delete
+  onOpenCash?: (appointmentId: string) => void; // shortcut to cassa
 };
 
 const minutesToHourLabel = (min: number) => {
-  // 25 -> "0.25h", 30 -> "0.30h", 95 -> "1.35h"
   const h = Math.floor(min / 60);
   const m = min % 60;
-  const frac = (m < 10 ? `0${m}` : `${m}`);
-  return `${h}.${frac}h`;
+  return `${h}.${String(m).padStart(2, '0')}h`;
 };
 
 const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
@@ -28,26 +27,28 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   onAfterUpdate,
   onOpenCash,
 }) => {
+  // Anchor near the card, no backdrop.
   const style = useMemo<React.CSSProperties>(() => {
     const top = position?.top ?? 120;
     const left = position?.left ?? 460;
     return { position: 'absolute', top, left, zIndex: 60, transform: 'translateX(8px)' };
   }, [position]);
 
-  // ---------------- state ----------------
+  // Tabs
   const [activeTab, setActiveTab] = useState<'riepilogo' | 'cliente' | 'cassa'>('riepilogo');
+
+  // Duration (pending until ✓)
   const [showDurationMenu, setShowDurationMenu] = useState(false);
-
-  // pending changes: nothing is saved until ✓
   const [pending, setPending] = useState<{ duration_min?: number }>({});
-  const effectiveDuration =
-    pending.duration_min ?? appointment.duration_min ?? appointment.services?.duration_min ?? 30;
+  const baseDuration =
+    appointment.duration_min ?? appointment.services?.duration_min ?? 30;
+  const effectiveDuration = pending.duration_min ?? baseDuration;
 
-  // contact: use embedded if present, otherwise hydrate once
+  // Contact (hydrate if not embedded)
   const [contact, setContact] = useState<any>(appointment.contact || null);
   useEffect(() => {
     let ignore = false;
-    const load = async () => {
+    (async () => {
       if (appointment?.contact?.first_name || !appointment?.contact_id) return;
       const { data } = await supabase
         .from('contacts')
@@ -55,18 +56,16 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
         .eq('id', appointment.contact_id)
         .single();
       if (!ignore && data) setContact(data);
-    };
-    load();
-    return () => {
-      ignore = true;
-    };
+    })();
+    return () => { ignore = true; };
   }, [appointment?.contact, appointment?.contact_id]);
 
-  // ---------------- actions ----------------
+  // Save ✓
   const handleConfirm = async () => {
     const updates: any = {};
-    if (typeof pending.duration_min === 'number') updates.duration_min = pending.duration_min;
-
+    if (typeof pending.duration_min === 'number' && pending.duration_min !== baseDuration) {
+      updates.duration_min = pending.duration_min;
+    }
     if (Object.keys(updates).length > 0) {
       await supabase.from('appointments').update(updates).eq('id', appointment.id);
     }
@@ -74,6 +73,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
     onClose?.();
   };
 
+  // Delete -> cancelled
   const handleDelete = async () => {
     await supabase
       .from('appointments')
@@ -83,14 +83,14 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
     onClose?.();
   };
 
-  const durationOptions = useMemo(() => {
-    // 5-minute steps (kept reasonable to avoid huge list)
-    const opts: number[] = [];
-    for (let m = 5; m <= 180; m += 5) opts.push(m);
-    return opts;
+  // Duration options (5m steps)
+  const durationOptions: number[] = useMemo(() => {
+    const arr: number[] = [];
+    for (let m = 5; m <= 180; m += 5) arr.push(m);
+    return arr;
   }, []);
 
-  // basic fields
+  // Derived fields
   const serviceName = appointment?.services?.name ?? '—';
   const price = typeof appointment?.services?.price === 'number' ? appointment.services.price : null;
   const barberName = appointment?.barber?.name ?? '—';
@@ -101,8 +101,11 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   const phone = contact?.phone_number_e164 ?? '—';
 
   return (
-    <div style={style} className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden">
-      {/* Header (fixed) */}
+    <div
+      style={style}
+      className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden"
+    >
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div>
           <h3 className="text-lg font-bold text-black leading-tight">Riepilogo Prenotazione</h3>
@@ -128,17 +131,17 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
         </div>
       </div>
 
-      {/* Body (scrollable, capped height) */}
+      {/* Body */}
       <div className="max-h-[380px] overflow-y-auto">
         <div className="p-4 space-y-4">
-          {/* Service row */}
+          {/* Title row (matches your approved UI) */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[14px] font-semibold text-gray-900 truncate">
                 {serviceName}
               </div>
 
-              {/* ⚠️ NOTE section removed as requested */}
+              {/* NOTE removed per your instruction */}
 
               <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
                 <div className="text-gray-500">Con</div>
@@ -151,7 +154,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
               </div>
             </div>
 
-            {/* Duration (pending until ✓) */}
+            {/* Duration: choose now, save on ✓ */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -171,10 +174,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                     <button
                       key={m}
                       type="button"
-                      onClick={() => {
-                        setPending(p => ({ ...p, duration_min: m }));
-                        // DO NOT save here; only on ✓
-                      }}
+                      onClick={() => setPending(p => ({ ...p, duration_min: m }))}
                       className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 ${
                         m === effectiveDuration ? 'font-semibold text-gray-900' : 'text-gray-700'
                       }`}
@@ -218,14 +218,16 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </button>
           </div>
 
-          {/* Panels (layout unchanged) */}
+          {/* Panels */}
           {activeTab === 'riepilogo' && (
             <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50 text-[12px] text-gray-800">
               <div className="grid grid-cols-2 gap-y-1.5">
                 <div className="text-gray-500">Servizio</div>
                 <div className="font-medium text-gray-900">{serviceName}</div>
+
                 <div className="text-gray-500">Durata</div>
                 <div className="font-medium text-gray-900">{minutesToHourLabel(effectiveDuration)}</div>
+
                 <div className="text-gray-500">Prezzo</div>
                 <div className="font-medium text-gray-900">
                   {price !== null ? `€ ${price.toFixed(2).replace('.', ',')}` : '—'}
@@ -283,7 +285,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
         </div>
       </div>
 
-      {/* Footer (fixed) */}
+      {/* Footer */}
       <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
         <button
           type="button"
