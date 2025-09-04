@@ -1,203 +1,184 @@
-// src/components/auth/InviteUser.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from './AuthProvider'
 
-type Phase = "verifying" | "set-password" | "saving" | "done" | "error";
-
-function parseHashParams(hash: string): Record<string, string> {
-  // hash like: #access_token=...&refresh_token=...&type=invite
-  const out: Record<string, string> = {};
-  const s = hash.startsWith("#") ? hash.slice(1) : hash;
-  for (const pair of s.split("&")) {
-    if (!pair) continue;
-    const [k, v] = pair.split("=");
-    if (k) out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-  }
-  return out;
-}
-
+/**
+ * InviteUser (SetPassword) page
+ *
+ * Purpose:
+ *  - Landing page for Supabase invite links (ConfirmationURL)
+ *  - Uses the temporary session contained in the URL to authenticate the user
+ *  - Prompts the user to set a new password and (optionally) attach membership
+ *  - Redirects to the dashboard on success
+ */
 export default function InviteUser() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useNavigate()
+  const { supabase, user, session, loading } = useAuth()
+  const [params] = useSearchParams()
 
-  const [phase, setPhase] = useState<Phase>("verifying");
-  const [error, setError] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  // 1) Establish a session from the URL (invite/reset/magic link)
+  // Optional: capture business_id from a signed query param or state
+  const businessId = useMemo(() => params.get('business_id') ?? undefined, [params])
+
+  // Guard: if we already have a logged user with a password set, skip
   useEffect(() => {
-    let cancelled = false;
-
-    const bootstrap = async () => {
-      try {
-        // A) Newer flow: `?code=...` (PKCE / email links with code param)
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
-
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          // Clean the URL
-          window.history.replaceState({}, "", url.pathname);
-          if (!cancelled) setPhase("set-password");
-          return;
-        }
-
-        // B) Older flow: #access_token & #refresh_token in hash
-        const hashParams = parseHashParams(window.location.hash);
-        const access_token = hashParams["access_token"];
-        const refresh_token = hashParams["refresh_token"];
-
-        if (access_token && refresh_token) {
-          const { error } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-          if (error) throw error;
-          // Clean the URL
-          window.history.replaceState({}, "", url.pathname);
-          if (!cancelled) setPhase("set-password");
-          return;
-        }
-
-        // If we got here, nothing to exchange
-        throw new Error("Link non valido o scaduto.");
-      } catch (e: any) {
-        if (!cancelled) {
-          setError(e?.message ?? "Errore durante la verifica del link.");
-          setPhase("error");
-        }
+    if (!loading && user && session) {
+      // If this isn't an invite flow, but user is signed in, we can route away
+      // Keep the invite flow if URL contains ?mode=invite or type=signup
+      const mode = params.get('mode') || params.get('type')
+      if (!mode || (mode !== 'invite' && mode !== 'signup')) {
+        // Existing session not from invite; send to app
+        // (Keep this simple; adjust to your router structure)
+        // navigate('/dashboard', { replace: true })
       }
-    };
+    }
+  }, [loading, user, session, params])
 
-    bootstrap();
-    return () => {
-      cancelled = true;
-    };
-  }, [location.key]);
-
-  // 2) Submit new password
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
+    setError(null)
+    if (!session) {
+      setError('Your invite link is missing or expired. Please request a new invite.')
+      return
+    }
     if (password.length < 8) {
-      setError("La password deve contenere almeno 8 caratteri.");
-      return;
+      setError('Password must be at least 8 characters.')
+      return
     }
     if (password !== confirm) {
-      setError("Le password non coincidono.");
-      return;
+      setError('Passwords do not match.')
+      return
     }
-    setError(null);
-    setPhase("saving");
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-      setError(error.message);
-      setPhase("set-password");
-      return;
-    }
-    setPhase("done");
-    // small pause then go to app login/home
-    setTimeout(() => navigate("/", { replace: true }), 800);
-  };
 
-  // ---- UI ----
-  if (phase === "verifying") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">Verifica invito…</div>
-      </div>
-    );
+    setSubmitting(true)
+    try {
+      // 1) Set password using the temporary session from invite link
+      const { error: updateErr } = await supabase.auth.updateUser({ password })
+      if (updateErr) throw updateErr
+
+      // 2) Optionally attach membership via your API (recommended server-side)
+      //    Do NOT trust business_id from the URL unless signed/validated server-side.
+      //    Example (uncomment and replace with your endpoint):
+      // if (businessId) {
+      //   const res = await fetch('/api/attach-membership', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json' },
+      //     credentials: 'include',
+      //     body: JSON.stringify({ business_id: businessId }),
+      //   })
+      //   if (!res.ok) {
+      //     const { message } = await res.json().catch(() => ({ message: 'Failed to attach membership' }))
+      //     throw new Error(message)
+      //   }
+      // }
+
+      setSuccess(true)
+      // 3) Route to dashboard (or your next step)
+      navigate('/dashboard', { replace: true })
+    } catch (err: any) {
+      setError(err?.message || 'Something went wrong while setting your password.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  if (phase === "error") {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-black mb-2">Link non valido</h1>
-          <p className="text-gray-600 mb-4">
-            {error || "Si è verificato un errore durante la verifica del link."}
-          </p>
+      <div className="min-h-[60vh] grid place-items-center">
+        <div className="text-sm opacity-70">Loading…</div>
+      </div>
+    )
+  }
+
+  // If no session after loading, the invite link is invalid/expired
+  if (!session) {
+    return (
+      <div className="mx-auto max-w-md p-6">
+        <h1 className="text-2xl font-semibold mb-2">Invite link invalid or expired</h1>
+        <p className="text-sm opacity-80 mb-6">
+          Your invite link could not be verified. Please request a new invitation or use password reset.
+        </p>
+        <div className="flex gap-3">
           <button
-            onClick={() => navigate("/login")}
-            className="w-full rounded-xl bg-black text-white py-3 hover:bg-gray-800 transition"
+            onClick={() => navigate('/auth/request-invite')}
+            className="px-4 py-2 rounded-xl border text-sm"
           >
-            Torna al login
+            Request new invite
+          </button>
+          <button
+            onClick={() => navigate('/auth/reset')}
+            className="px-4 py-2 rounded-xl border text-sm"
+          >
+            Reset password
           </button>
         </div>
       </div>
-    );
+    )
   }
 
-  if (phase === "done") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-          <div className="text-black font-medium">Password impostata! 🎉</div>
-        </div>
-      </div>
-    );
-  }
-
-  // set-password / saving
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-black mb-2">Imposta la tua password</h1>
-        <p className="text-gray-600 mb-6">
-          Completa l'invito impostando una nuova password per il tuo account.
-        </p>
+    <div className="mx-auto max-w-md p-6">
+      <h1 className="text-2xl font-semibold">Set your password</h1>
+      <p className="text-sm opacity-80 mt-1 mb-6">
+        Welcome{user?.email ? `, ${user.email}` : ''}! Create a password to complete your account.
+      </p>
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="password" className="block text-sm mb-1">New password</label>
+          <input
+            id="password"
+            type="password"
+            className="w-full rounded-xl border px-3 py-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            minLength={8}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="confirm" className="block text-sm mb-1">Confirm password</label>
+          <input
+            id="confirm"
+            type="password"
+            className="w-full rounded-xl border px-3 py-2"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            minLength={8}
+            required
+          />
+        </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-red-50 text-red-700 px-4 py-3 text-sm">
+          <div className="rounded-xl border border-red-300 bg-red-50 text-red-700 text-sm px-3 py-2">
             {error}
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Nuova password</label>
-            <input
-              type="password"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 8 caratteri"
-              autoComplete="new-password"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Conferma password</label>
-            <input
-              type="password"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Ripeti la password"
-              autoComplete="new-password"
-              required
-            />
-          </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-xl px-4 py-2 border text-sm disabled:opacity-60"
+        >
+          {submitting ? 'Saving…' : 'Save password'}
+        </button>
 
-          <button
-            type="submit"
-            disabled={phase === "saving"}
-            className="w-full rounded-xl bg-black text-white py-3 hover:bg-gray-800 transition disabled:opacity-60"
-          >
-            {phase === "saving" ? "Salvataggio…" : "Imposta password"}
-          </button>
+        {success && (
+          <p className="text-xs opacity-70">Password saved. Redirecting…</p>
+        )}
+      </form>
 
-          <button
-            type="button"
-            onClick={() => navigate("/login")}
-            className="w-full mt-2 rounded-xl bg-gray-100 text-gray-800 py-3 hover:bg-gray-200 transition"
-          >
-            Annulla
-          </button>
-        </form>
+      {/* Optional helper / debug info */}
+      <div className="mt-6 text-xs opacity-70 space-y-1">
+        <div>Invite mode: {params.get('mode') || params.get('type') || 'n/a'}</div>
+        {businessId && <div>Business: {businessId}</div>}
       </div>
     </div>
-  );
+  )
 }
