@@ -20,7 +20,7 @@ import OpeningExceptions from './pages/OpeningExceptions';
 import Reports from './pages/Reports'; // ✅ added
 
 // 🔐 Auth
-import { AuthProvider, useAuth } from './components/auth/AuthProvider';
+import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import LoginPage from './components/auth/LoginPage';
 
 // ✅ Features
@@ -37,15 +37,18 @@ import { OpeningExceptionsGate } from './gates/OpeningExceptionsGate';
 import { ClosingExceptionsGate } from './gates/ClosingExceptionsGate';
 import { ReportsGate } from './gates/ReportsGate'; // ✅ added
 
-// ✅ Business selection context & selector
+// ✅ NEW: Business selection context & selector
 import { SelectedBusinessProvider } from './components/auth/SelectedBusinessProvider';
 import BusinessSelector from './components/auth/BusinessSelector';
 
-// ✅ Invite user landing
+// ✅ NEW: Invite user handler
 import InviteUser from './components/auth/InviteUser';
 
-// ✅ NEW: Auth error page
-import AuthError from './components/auth/AuthError';
+// ✅ NEW: Auth callback handler
+import AuthCallback from './components/auth/AuthCallback';
+
+// ✅ NEW: Set password screen
+import SetPassword from './components/auth/SetPassword';
 
 // ---------- Route guard ----------
 function RequireAuth() {
@@ -82,10 +85,12 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
-
-          {/* ✅ Invite/Reset handlers */}
+          {/* ✅ Invite/Reset user endpoint */}
           <Route path="/auth/invite" element={<InviteUser />} />
-          <Route path="/auth/error" element={<AuthError />} />
+          {/* ✅ Auth callback endpoint */}
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          {/* ✅ Set password endpoint */}
+          <Route path="/auth/set-password" element={<SetPassword />} />
 
           {/* Protected */}
           <Route element={<RequireAuth />}>
