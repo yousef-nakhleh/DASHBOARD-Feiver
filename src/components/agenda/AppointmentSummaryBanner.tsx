@@ -57,7 +57,19 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
 
   // —— contact (hydrate if not provided) ——
   const [contact, setContact] = useState<any>(appointment?.contact || null);
-  const [contactDraft, setContactDraft] = useState<any | null>(null);
+
+  // Draft mirrors EditContactModal fields (UI remains this page’s)
+  const [contactDraft, setContactDraft] = useState<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone_prefix: string;
+    phone_number_raw: string;
+    phone_number_e164: string;
+    birthdate: string | null;
+    notes: string;
+  } | null>(null);
+
   const [savingContact, setSavingContact] = useState(false);
 
   useEffect(() => {
@@ -66,7 +78,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
       if (appointment?.contact?.first_name || !appointment?.contact_id) return;
       const { data } = await supabase
         .from('contacts')
-        .select('first_name,last_name,email,phone_number_e164')
+        .select('first_name,last_name,email,phone_number_e164,phone_prefix,phone_number_raw,birthdate,notes')
         .eq('id', appointment.contact_id)
         .single();
       if (!cancelled && data) setContact(data);
@@ -79,11 +91,18 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   // Prepare editable draft when switching to "cliente"
   useEffect(() => {
     if (activeTab === 'cliente') {
+      const phone_prefix = contact?.phone_prefix ?? '+39';
+      const phone_number_raw = contact?.phone_number_raw ?? '';
+      const phone_number_e164 = contact?.phone_number_e164 ?? (phone_prefix && phone_number_raw ? `${phone_prefix}${phone_number_raw}` : '');
       setContactDraft({
         first_name: contact?.first_name ?? '',
         last_name: contact?.last_name ?? '',
         email: contact?.email ?? '',
-        phone_number_e164: contact?.phone_number_e164 ?? '',
+        phone_prefix,
+        phone_number_raw,
+        phone_number_e164,
+        birthdate: contact?.birthdate ?? null,
+        notes: contact?.notes ?? '',
       });
     }
   }, [activeTab, contact]);
@@ -114,17 +133,30 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   const saveContact = async () => {
     if (!appointment?.contact_id || !contactDraft) return;
     setSavingContact(true);
+
+    // Build E.164
+    const e164 = (contactDraft.phone_prefix || '') + (contactDraft.phone_number_raw || '');
+    const payload = {
+      first_name: contactDraft.first_name,
+      last_name: contactDraft.last_name,
+      email: contactDraft.email,
+      phone_prefix: contactDraft.phone_prefix,
+      phone_number_raw: contactDraft.phone_number_raw,
+      phone_number_e164: e164 || null,
+      birthdate: contactDraft.birthdate || null,
+      notes: contactDraft.notes || null,
+    };
+
     await supabase
       .from('contacts')
-      .update({
-        first_name: contactDraft.first_name,
-        last_name: contactDraft.last_name,
-        email: contactDraft.email,
-        phone_number_e164: contactDraft.phone_number_e164,
-      })
+      .update(payload)
       .eq('id', appointment.contact_id);
+
     setSavingContact(false);
-    setContact({ ...contactDraft });
+    setContact({
+      ...contact,
+      ...payload,
+    });
     onAfterUpdate?.();
   };
 
@@ -173,14 +205,14 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
       {/* Body (scrollable, capped height) */}
       <div className="max-h-[380px] overflow-y-auto">
         <div className="p-4 space-y-4">
-          {/* Top section (ONLY on Riepilogo). NOTE removed. */}
+          {/* Top section ONLY on Riepilogo */}
           {activeTab === 'riepilogo' && (
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[14px] font-semibold text-gray-900 break-words">
                   {serviceName}
                 </div>
-                <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
+                <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text=[12px] text-[12px]">
                   <div className="text-gray-500">Con</div>
                   <div className="font-medium text-gray-900">{barberName}</div>
                   <div className="text-gray-500">Prezzo</div>
@@ -252,7 +284,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </button>
           </div>
 
-          {/* Riepilogo page (kept exactly, plus the small summary card) */}
+          {/* Riepilogo page */}
           {activeTab === 'riepilogo' && (
             <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50 text-[12px] text-gray-800">
               <div className="grid grid-cols-2 gap-y-1.5">
@@ -289,7 +321,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </div>
           )}
 
-          {/* Info Cliente page (no riepilogo block above; own header row + back) */}
+          {/* Info Cliente page (extended fields, same UI style) */}
           {activeTab === 'cliente' && (
             <>
               <div className="flex items-center justify-center relative">
@@ -322,6 +354,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                       className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                     />
                   </div>
+
                   <div className="col-span-2">
                     <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
                     <input
@@ -331,15 +364,59 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                       className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                     />
                   </div>
-                  <div className="col-span-2">
+
+                  {/* Phone prefix + raw (like EditContactModal) */}
+                  <div className="col-span-1">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Prefisso</div>
+                    <select
+                      value={contactDraft?.phone_prefix ?? '+39'}
+                      onChange={(e) =>
+                        setContactDraft(d => ({ ...(d || {}), phone_prefix: e.target.value }))
+                      }
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    >
+                      {/* Keep simple like EditContactModal default */}
+                      <option value="+39">+39</option>
+                    </select>
+                  </div>
+                  <div className="col-span-1">
                     <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
                     <input
-                      value={contactDraft?.phone_number_e164 ?? ''}
-                      onChange={(e) => setContactDraft(d => ({ ...(d || {}), phone_number_e164: e.target.value }))}
+                      value={contactDraft?.phone_number_raw ?? ''}
+                      onChange={(e) =>
+                        setContactDraft(d => ({ ...(d || {}), phone_number_raw: e.target.value }))
+                      }
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Birthdate */}
+                  <div className="col-span-2">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Data di nascita</div>
+                    <input
+                      type="date"
+                      value={contactDraft?.birthdate ?? ''}
+                      onChange={(e) =>
+                        setContactDraft(d => ({ ...(d || {}), birthdate: e.target.value || null }))
+                      }
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div className="col-span-2">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Note</div>
+                    <textarea
+                      rows={3}
+                      value={contactDraft?.notes ?? ''}
+                      onChange={(e) =>
+                        setContactDraft(d => ({ ...(d || {}), notes: e.target.value }))
+                      }
                       className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                     />
                   </div>
                 </div>
+
                 <div className="mt-3 flex justify-end">
                   <button
                     onClick={saveContact}
@@ -353,7 +430,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </>
           )}
 
-          {/* Cassa page (no riepilogo block above; own header row + back) */}
+          {/* Cassa page (mini mirror + CTA) */}
           {activeTab === 'cassa' && (
             <>
               <div className="flex items-center justify-center relative">
