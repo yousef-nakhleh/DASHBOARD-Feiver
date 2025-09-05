@@ -1,120 +1,94 @@
-// src/components/auth/AuthCallback.tsx
-import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
 /**
- * Handles Supabase auth redirects:
- * - New flow:   ?code=...&type=magiclink|recovery|signup|invite|email_change
- * - Legacy flow:?token_hash=...&type=magiclink|recovery|signup|invite|email_change
- *
- * On success: user session is stored by supabase-js, then we redirect smartly:
- *   - invite/signup OR no memberships → /auth/set-password (force password creation)
- *   - otherwise → "/"
+ * AuthCallback
+ * - Consumes Supabase invite/magic/recovery/OAuth tokens from URL
+ * - Establishes a browser session
+ * - Redirects to ?next=... or /complete-account
+ * - On failure → /auth/error
  */
-const AuthCallback: React.FC = () => {
-  const { search } = useLocation();
+export default function AuthCallback() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<"working" | "done" | "error">("working");
-  const [message, setMessage] = useState<string>("Completamento autenticazione…");
+  const location = useLocation();
+  const [error, setError] = useState<string | null>(null);
+
+  // Determine the target after successful session setup
+  const next = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const n = params.get("next");
+    return n && n.startsWith("/") ? n : "/complete-account";
+  }, [location.search]);
 
   useEffect(() => {
-    const params = new URLSearchParams(search);
-    const code = params.get("code");
-    const tokenHash = params.get("token_hash");
-    const rawType = (params.get("type") || "").toLowerCase();
-
-    // Normalize the type for legacy verifyOtp
-    const normalizedType =
-      rawType === "invitation" ? "invite" : rawType; // sometimes Supabase sends 'invitation'
-
-    async function run() {
+    const run = async () => {
       try {
-        // 1) Establish session
-        if (code) {
-          setMessage("Verifica codice…");
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-        } else if (tokenHash && normalizedType) {
-          setMessage("Verifica token…");
-          const { error } = await supabase.auth.verifyOtp({
-            type: normalizedType as
-              | "signup"
-              | "invite"
-              | "magiclink"
-              | "recovery"
-              | "email_change",
-            token_hash: tokenHash,
+        // Parse both query (?code=...) and hash (#access_token=...&refresh_token=...)
+        const url = new URL(window.location.href);
+        const hasCode = url.searchParams.get("code");
+        const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        let establishErr: string | null = null;
+
+        if (hasCode) {
+          // New-style links (OTP/OAuth) → exchange code for session
+          const { error } = await supabase.auth.exchangeCodeForSession(url.searchParams.get("code")!);
+          if (error) establishErr = error.message;
+        } else if (accessToken && refreshToken) {
+          // Legacy hash tokens → set session directly
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
           });
-          if (error) throw error;
+          if (error) establishErr = error.message;
         } else {
-          throw new Error("Parametri di callback non validi.");
+          establishErr = "Missing auth parameters.";
         }
 
-        // 2) Check memberships (optional)
-        setMessage("Controllo permessi…");
-        const { data: userRes } = await supabase.auth.getUser();
-        const userId = userRes?.user?.id;
-
-        let hasMembership = false;
-        if (userId) {
-          const { data: m } = await supabase
-            .from("memberships")
-            .select("id")
-            .eq("user_id", userId)
-            .limit(1);
-          hasMembership = !!(m && m.length > 0);
+        if (establishErr) {
+          setError(establishErr);
+          // small delay so the message is visible if you show this page briefly
+          setTimeout(() => navigate("/auth/error", { replace: true }), 300);
+          return;
         }
 
-        const needsOnboarding =
-          normalizedType === "invite" ||
-          normalizedType === "signup" ||
-            normalizedType === "magiclink" ||
-          !hasMembership;
+        // Clean up URL (remove tokens) before navigating
+        try {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.hash = "";
+          // keep only "next" if present
+          const onlyNext = new URLSearchParams(cleanUrl.search);
+          const keep = onlyNext.get("next");
+          cleanUrl.search = keep ? `?next=${encodeURIComponent(keep)}` : "";
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        } catch {
+          // no-op if URL API fails (older browsers)
+        }
 
-        setStatus("done");
-        setMessage("Accesso completato. Reindirizzamento…");
-
-        // 🔑 Redirect rule:
-        // - invited / signed-up / no membership → set password page
-        // - else → into the app
-        const target = needsOnboarding ? "/auth/set-password" : "/";
-        setTimeout(() => navigate(target, { replace: true }), 400);
+        navigate(next, { replace: true });
       } catch (e: any) {
-        setStatus("error");
-        setMessage(e?.message || "Errore durante l’autenticazione.");
+        setError(e?.message || "Unexpected error.");
+        setTimeout(() => navigate("/auth/error", { replace: true }), 300);
       }
-    }
+    };
 
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-2xl shadow p-8 max-w-md w-full text-center">
-        <div
-          className={`mx-auto mb-4 h-12 w-12 rounded-full flex items-center justify-center ${
-            status === "error" ? "bg-red-100 text-red-700" : "bg-black text-white"
-          }`}
-        >
-          {status === "error" ? "!" : "✓"}
+    <div className="min-h-screen grid place-items-center bg-gray-50">
+      <div className="w-full max-w-sm bg-white p-6 rounded-xl shadow text-center">
+        <div className="animate-pulse text-gray-700 mb-2">Verifica in corso…</div>
+        <div className="text-sm text-gray-500">
+          Stiamo completando l’accesso in modo sicuro.
+          {error ? <div className="mt-3 text-red-600">{error}</div> : null}
         </div>
-        <h1 className="text-xl font-semibold text-black mb-2">
-          {status === "error" ? "Autenticazione fallita" : "Autenticazione"}
-        </h1>
-        <p className="text-gray-600">{message}</p>
-        {status === "error" && (
-          <button
-            onClick={() => (window.location.href = "/login")}
-            className="mt-6 px-5 py-2 rounded-xl bg-black text-white hover:bg-gray-800 transition-colors"
-          >
-            Torna al login
-          </button>
-        )}
       </div>
     </div>
   );
-};
-
-export default AuthCallback;
+}
