@@ -19,7 +19,7 @@ type AppointmentSummaryButtonProps = {
   // dynamic data/control
   appointment: any; // expects: id, contact{...}, contact_id, services{name,price,duration_min}, duration_min, barber?.name
   onAfterUpdate?: () => void;         // refresh agenda after save/delete/confirm
-  onOpenCash?: (appointmentId: string) => void; // open "Riepilogo pagamento" flow
+  onOpenCash?: (appointmentId: string) => void; // (kept) not used here anymore
 };
 
 const minutesToHourLabel = (min: number) => {
@@ -31,12 +31,21 @@ const minutesToHourLabel = (min: number) => {
 
 const DURATION_MIN_OPTIONS = Array.from({ length: (180 - 5) / 5 + 1 }, (_, i) => 5 + i * 5); // 5..180 step 5
 
+// UI -> DB mapping for payment methods
+type UiPaymentMethod = 'Contanti' | 'POS' | 'Satispay' | 'Altro';
+type DbPaymentMethod = 'Cash' | 'POS' | 'Satispay' | 'Other';
+const UI_TO_DB: Record<UiPaymentMethod, DbPaymentMethod> = {
+  Contanti: 'Cash',
+  POS: 'POS',
+  Satispay: 'Satispay',
+  Altro: 'Other',
+};
+
 const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
   position,
   onClose,
   appointment,
   onAfterUpdate,
-  onOpenCash,
 }) => {
   // —— position (unchanged UI) ——
   const style = useMemo<React.CSSProperties>(() => {
@@ -160,19 +169,95 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
     onAfterUpdate?.();
   };
 
+  // —— Cassa state (summary + payment) ——
+  const [payMethod, setPayMethod] = useState<UiPaymentMethod>('Contanti');
+  const [payNote,   setPayNote]   = useState('');
+  const [paying,    setPaying]    = useState(false);
+  const [paidOk,    setPaidOk]    = useState(false);
+
   // —— derived fields for UI (no layout changes) ——
   const serviceName = appointment?.services?.name ?? '—';
   const priceNum =
     typeof appointment?.services?.price === 'number'
       ? appointment.services.price
-      : null;
-  const priceLabel = priceNum !== null ? `€ ${priceNum.toFixed(2).replace('.', ',')}` : '—';
+      : 0;
+  const priceLabel = `€ ${priceNum.toFixed(2).replace('.', ',')}`;
   const barberName = appointment?.barber?.name ?? '—';
 
   const firstName = contact?.first_name ?? '—';
   const lastName = contact?.last_name ?? '—';
   const email = contact?.email ?? '—';
   const phone = contact?.phone_number_e164 ?? '—';
+
+  // Create transaction + items, mark appointment as paid
+  const confirmPayment = async () => {
+    if (!appointment?.id) return;
+    try {
+      setPaying(true);
+      setPaidOk(false);
+
+      // Get business_id, service_id, barber_id directly from DB to avoid extra props
+      const { data: apptRow, error: apptErr } = await supabase
+        .from('appointments')
+        .select('id, business_id, service_id, barber_id, paid')
+        .eq('id', appointment.id)
+        .single();
+      if (apptErr || !apptRow) throw apptErr || new Error('Appointment not found');
+
+      // Don’t double-charge
+      if (apptRow.paid) {
+        setPaidOk(true);
+        setPaying(false);
+        return;
+      }
+
+      const dbMethod: DbPaymentMethod = UI_TO_DB[payMethod];
+
+      // Insert transaction
+      const { data: tx, error: txErr } = await supabase
+        .from('transactions')
+        .insert({
+          business_id: apptRow.business_id,
+          appointment_id: appointment.id,
+          barber_id: apptRow.barber_id ?? null,
+          payment_method: dbMethod,
+          total: priceNum,
+          status: 'succeeded',
+          completed_at: new Date().toISOString(),
+          note: payNote || null,
+        })
+        .select('id')
+        .single();
+      if (txErr || !tx) throw txErr || new Error('Transaction insert failed');
+
+      // Insert single service line
+      const { error: itemsErr } = await supabase.from('transaction_items').insert({
+        transaction_id: tx.id,
+        item_type: 'service',
+        item_ref_id: apptRow.service_id ?? null,
+        item_name_snapshot: serviceName,
+        quantity: 1,
+        unit_price: priceNum,
+        discount_type: 'none',
+        discount_value: 0,
+        tax_rate: 0,
+        tax_amount: 0,
+        line_total: priceNum,
+        barber_id: apptRow.barber_id ?? null,
+      });
+      if (itemsErr) throw itemsErr;
+
+      // Mark appointment as paid
+      await supabase.from('appointments').update({ paid: true }).eq('id', appointment.id);
+
+      setPaidOk(true);
+      onAfterUpdate?.();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <div style={style} className="bg-white rounded-2xl shadow-xl border border-gray-100 w-[460px] overflow-hidden">
@@ -202,7 +287,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
         </div>
       </div>
 
-      {/* Body (scrollable, capped height) */}
+      {/* Body (scrollable, capped height) — stays same height for all tabs */}
       <div className="max-h-[380px] overflow-y-auto">
         <div className="p-4 space-y-4">
           {/* Top section ONLY on Riepilogo */}
@@ -365,7 +450,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                     />
                   </div>
 
-                  {/* Phone prefix + raw (like EditContactModal) */}
+                  {/* Phone prefix + raw */}
                   <div className="col-span-1">
                     <div className="text-gray-500 text-[11px] mb-0.5">Prefisso</div>
                     <select
@@ -375,7 +460,6 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                       }
                       className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                     >
-                      {/* Keep simple like EditContactModal default */}
                       <option value="+39">+39</option>
                     </select>
                   </div>
@@ -390,7 +474,6 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                     />
                   </div>
 
-                  {/* Birthdate */}
                   <div className="col-span-2">
                     <div className="text-gray-500 text-[11px] mb-0.5">Data di nascita</div>
                     <input
@@ -403,7 +486,6 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
                     />
                   </div>
 
-                  {/* Notes */}
                   <div className="col-span-2">
                     <div className="text-gray-500 text-[11px] mb-0.5">Note</div>
                     <textarea
@@ -430,7 +512,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </>
           )}
 
-          {/* Cassa page (mini mirror + CTA) */}
+          {/* Cassa page — now shows inline "Riepilogo pagamento" with confirm */}
           {activeTab === 'cassa' && (
             <>
               <div className="flex items-center justify-center relative">
@@ -446,21 +528,63 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
               </div>
 
               <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
-                <div className="text-[12px] grid grid-cols-[80px_1fr] gap-y-1.5 gap-x-3">
-                  <div className="text-gray-500">Servizio</div>
-                  <div className="font-medium text-gray-900 break-words">{serviceName}</div>
-                  <div className="text-gray-500">Durata</div>
-                  <div className="font-medium text-gray-900">{minutesToHourLabel(effectiveDuration)}</div>
-                  <div className="text-gray-500">Prezzo</div>
-                  <div className="font-semibold text-gray-900">{priceLabel}</div>
+                {/* Riepilogo pagamento (compact) */}
+                <div className="text-sm font-semibold text-gray-900 mb-2">Riepilogo pagamento</div>
+
+                <div className="space-y-2 text-[12px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">{serviceName}</span>
+                    <span className="text-black font-medium">{priceLabel}</span>
+                  </div>
+
+                  <div className="border-t border-gray-200 my-2" />
+
+                  <div className="flex items-center justify-between text-[13px]">
+                    <span className="text-gray-700 font-semibold">Totale</span>
+                    <span className="text-black font-bold">{priceLabel}</span>
+                  </div>
                 </div>
-                <div className="mt-3">
+
+                <div className="border-t border-gray-200 my-3" />
+
+                {/* Metodo di pagamento */}
+                <div className="space-y-1.5">
+                  <label className="block text-[12px] font-semibold text-black">Metodo di pagamento</label>
+                  <select
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value as UiPaymentMethod)}
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-[13px]"
+                  >
+                    <option>Contanti</option>
+                    <option>POS</option>
+                    <option>Satispay</option>
+                    <option>Altro</option>
+                  </select>
+                </div>
+
+                {/* Note */}
+                <div className="space-y-1.5 mt-3">
+                  <label className="block text-[12px] font-semibold text-black">Note</label>
+                  <input
+                    value={payNote}
+                    onChange={(e) => setPayNote(e.target.value)}
+                    placeholder="Nota facoltativa per la ricevuta"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-[13px]"
+                  />
+                </div>
+
+                {/* Confirm button */}
+                <div className="mt-4">
                   <button
                     type="button"
-                    onClick={() => onOpenCash?.(appointment.id)}
-                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                    onClick={confirmPayment}
+                    disabled={paying || paidOk}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${paidOk
+                      ? 'bg-gray-200 text-gray-600 cursor-default'
+                      : 'bg-black text-white hover:bg-gray-800'
+                      }`}
                   >
-                    Vai alla cassa
+                    {paidOk ? 'Pagamento registrato' : paying ? 'Conferma…' : 'Conferma pagamento'}
                   </button>
                 </div>
               </div>
