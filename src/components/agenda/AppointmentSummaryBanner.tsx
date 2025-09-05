@@ -1,6 +1,15 @@
 // src/components/agenda/AppointmentSummaryButton.tsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Check, Trash2, Repeat, Scissors, Printer, ChevronDown } from 'lucide-react';
+import {
+  X,
+  Check,
+  Trash2,
+  Repeat,
+  Scissors,
+  Printer,
+  ChevronDown,
+  ChevronLeft
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type AppointmentSummaryButtonProps = {
@@ -164,55 +173,53 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
       {/* Body (scrollable, capped height) */}
       <div className="max-h-[380px] overflow-y-auto">
         <div className="p-4 space-y-4">
-          {/* Top section (as in template; NOTE removed; duration dropdown defers save) */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[14px] font-semibold text-gray-900 break-words">
-                {serviceName}
-              </div>
-
-              <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
-                <div className="text-gray-500">Con</div>
-                <div className="font-medium text-gray-900">{barberName}</div>
-
-                {/* NOTE line removed by request */}
-
-                <div className="text-gray-500">Prezzo</div>
-                <div className="font-semibold text-gray-900">{priceLabel}</div>
-              </div>
-            </div>
-
-            {/* Duration selector (pending) */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDurMenu(v => !v)}
-                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-gray-100 text-gray-900 text-[11px] font-semibold border border-gray-200"
-                title="Durata"
-              >
-                {minutesToHourLabel(effectiveDuration)} <ChevronDown size={13} className="opacity-70" />
-              </button>
-              {showDurMenu && (
-                <div
-                  className="absolute right-0 mt-1 w-28 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-10"
-                  onMouseLeave={() => setShowDurMenu(false)}
-                >
-                  {DURATION_MIN_OPTIONS.map(m => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setPendingDuration(m)} // ✅ select only; save with ✓
-                      className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 ${
-                        m === effectiveDuration ? 'font-semibold text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      {minutesToHourLabel(m)}
-                    </button>
-                  ))}
+          {/* Top section (ONLY on Riepilogo). NOTE removed. */}
+          {activeTab === 'riepilogo' && (
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[14px] font-semibold text-gray-900 break-words">
+                  {serviceName}
                 </div>
-              )}
+                <div className="mt-2 grid grid-cols-[68px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
+                  <div className="text-gray-500">Con</div>
+                  <div className="font-medium text-gray-900">{barberName}</div>
+                  <div className="text-gray-500">Prezzo</div>
+                  <div className="font-semibold text-gray-900">{priceLabel}</div>
+                </div>
+              </div>
+
+              {/* Duration selector (pending) */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDurMenu(v => !v)}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md bg-gray-100 text-gray-900 text-[11px] font-semibold border border-gray-200"
+                  title="Durata"
+                >
+                  {minutesToHourLabel(effectiveDuration)} <ChevronDown size={13} className="opacity-70" />
+                </button>
+                {showDurMenu && (
+                  <div
+                    className="absolute right-0 mt-1 w-28 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg z-10"
+                    onMouseLeave={() => setShowDurMenu(false)}
+                  >
+                    {DURATION_MIN_OPTIONS.map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setPendingDuration(m)} // select only; save with ✓
+                        className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-gray-50 ${
+                          m === effectiveDuration ? 'font-semibold text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        {minutesToHourLabel(m)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tabs */}
           <div className="flex items-center gap-1.5">
@@ -220,7 +227,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
               className={`px-2.5 py-1.5 text-[11px] rounded-full ${
                 activeTab === 'riepilogo' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
               }`}
-              onClick={() => setActiveTab('riepilogo')}
+              onClick={() => { setActiveTab('riepilogo'); setShowDurMenu(false); }}
               type="button"
             >
               Riepilogo
@@ -229,7 +236,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
               className={`px-2.5 py-1.5 text-[11px] rounded-full ${
                 activeTab === 'cliente' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
               }`}
-              onClick={() => setActiveTab('cliente')}
+              onClick={() => { setActiveTab('cliente'); setShowDurMenu(false); }}
               type="button"
             >
               Info Cliente
@@ -238,7 +245,7 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
               className={`px-2.5 py-1.5 text-[11px] rounded-full ${
                 activeTab === 'cassa' ? 'font-semibold bg-black text-white' : 'font-medium bg-gray-100 text-gray-700'
               }`}
-              onClick={() => setActiveTab('cassa')}
+              onClick={() => { setActiveTab('cassa'); setShowDurMenu(false); }}
               type="button"
             >
               Cassa
@@ -282,79 +289,105 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
             </div>
           )}
 
-          {/* Info Cliente page (editable mirror of Contacts) */}
+          {/* Info Cliente page (no riepilogo block above; own header row + back) */}
           {activeTab === 'cliente' && (
-            <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
-              <div className="text-sm font-semibold text-gray-900 mb-2">Info Cliente</div>
-              <div className="grid grid-cols-2 gap-3 text-[12px]">
-                <div className="col-span-1">
-                  <div className="text-gray-500 text-[11px] mb-0.5">Nome</div>
-                  <input
-                    value={contactDraft?.first_name ?? ''}
-                    onChange={(e) => setContactDraft(d => ({ ...(d || {}), first_name: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <div className="text-gray-500 text-[11px] mb-0.5">Cognome</div>
-                  <input
-                    value={contactDraft?.last_name ?? ''}
-                    onChange={(e) => setContactDraft(d => ({ ...(d || {}), last_name: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
-                  <input
-                    type="email"
-                    value={contactDraft?.email ?? ''}
-                    onChange={(e) => setContactDraft(d => ({ ...(d || {}), email: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
-                  <input
-                    value={contactDraft?.phone_number_e164 ?? ''}
-                    onChange={(e) => setContactDraft(d => ({ ...(d || {}), phone_number_e164: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={saveContact}
-                  disabled={savingContact}
-                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
-                >
-                  {savingContact ? 'Salvataggio…' : 'Salva modifiche'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Cassa page (mini mirror + CTA) */}
-          {activeTab === 'cassa' && (
-            <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
-              <div className="text-sm font-semibold text-gray-900 mb-2">Riepilogo Cassa</div>
-              <div className="text-[12px] grid grid-cols-[80px_1fr] gap-y-1.5 gap-x-3">
-                <div className="text-gray-500">Servizio</div>
-                <div className="font-medium text-gray-900 break-words">{serviceName}</div>
-                <div className="text-gray-500">Durata</div>
-                <div className="font-medium text-gray-900">{minutesToHourLabel(effectiveDuration)}</div>
-                <div className="text-gray-500">Prezzo</div>
-                <div className="font-semibold text-gray-900">{priceLabel}</div>
-              </div>
-              <div className="mt-3">
+            <>
+              <div className="flex items-center justify-center relative">
                 <button
                   type="button"
-                  onClick={() => onOpenCash?.(appointment.id)}
-                  className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                  onClick={() => setActiveTab('riepilogo')}
+                  className="absolute left-0 inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
+                  aria-label="Torna al riepilogo"
                 >
-                  Vai alla cassa
+                  <ChevronLeft size={16} />
                 </button>
+                <div className="text-sm font-semibold text-gray-900">Info Cliente</div>
               </div>
-            </div>
+
+              <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
+                <div className="grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="col-span-1">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Nome</div>
+                    <input
+                      value={contactDraft?.first_name ?? ''}
+                      onChange={(e) => setContactDraft(d => ({ ...(d || {}), first_name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Cognome</div>
+                    <input
+                      value={contactDraft?.last_name ?? ''}
+                      onChange={(e) => setContactDraft(d => ({ ...(d || {}), last_name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Email</div>
+                    <input
+                      type="email"
+                      value={contactDraft?.email ?? ''}
+                      onChange={(e) => setContactDraft(d => ({ ...(d || {}), email: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-gray-500 text-[11px] mb-0.5">Telefono</div>
+                    <input
+                      value={contactDraft?.phone_number_e164 ?? ''}
+                      onChange={(e) => setContactDraft(d => ({ ...(d || {}), phone_number_e164: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={saveContact}
+                    disabled={savingContact}
+                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
+                  >
+                    {savingContact ? 'Salvataggio…' : 'Salva modifiche'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Cassa page (no riepilogo block above; own header row + back) */}
+          {activeTab === 'cassa' && (
+            <>
+              <div className="flex items-center justify-center relative">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('riepilogo')}
+                  className="absolute left-0 inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-gray-100"
+                  aria-label="Torna al riepilogo"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="text-sm font-semibold text-gray-900">Cassa</div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 p-3.5 bg-gray-50">
+                <div className="text-[12px] grid grid-cols-[80px_1fr] gap-y-1.5 gap-x-3">
+                  <div className="text-gray-500">Servizio</div>
+                  <div className="font-medium text-gray-900 break-words">{serviceName}</div>
+                  <div className="text-gray-500">Durata</div>
+                  <div className="font-medium text-gray-900">{minutesToHourLabel(effectiveDuration)}</div>
+                  <div className="text-gray-500">Prezzo</div>
+                  <div className="font-semibold text-gray-900">{priceLabel}</div>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => onOpenCash?.(appointment.id)}
+                    className="px-3 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                  >
+                    Vai alla cassa
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
