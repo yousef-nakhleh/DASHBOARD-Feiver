@@ -224,7 +224,6 @@ const AppointmentSummaryButton: React.FC<AppointmentSummaryButtonProps> = ({
           total: priceNum,
           status: 'succeeded',
           completed_at: new Date().toISOString(),
-          note: payNote || null,
         })
         .select('id')
         .single();
