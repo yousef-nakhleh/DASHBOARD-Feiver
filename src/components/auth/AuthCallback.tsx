@@ -1,4 +1,27 @@
-useEffect(() => {
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
+
+/**
+ * AuthCallback
+ * - Consumes Supabase invite/magic/recovery/OAuth tokens from URL
+ * - Establishes a browser session
+ * - Redirects to ?next=... or /complete-account
+ * - On failure → /auth/error
+ */
+export default function AuthCallback() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [error, setError] = useState<string | null>(null);
+
+  // Determine the target after successful session setup
+  const next = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const n = params.get("next");
+    return n && n.startsWith("/") ? n : "/complete-account";
+  }, [location.search]);
+
+  useEffect(() => {
   const run = async () => {
     try {
       // 0) If we ALREADY have a session, just continue (no need for tokens)
@@ -64,3 +87,16 @@ useEffect(() => {
   run();
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
+
+  return (
+    <div className="min-h-screen grid place-items-center bg-gray-50">
+      <div className="w-full max-w-sm bg-white p-6 rounded-xl shadow text-center">
+        <div className="animate-pulse text-gray-700 mb-2">Verifica in corso…</div>
+        <div className="text-sm text-gray-500">
+          Stiamo completando l’accesso in modo sicuro.
+          {error ? <div className="mt-3 text-red-600">{error}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
