@@ -21,17 +21,16 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
       const { data: s } = await supabase.auth.getSession();
       const session = s.session;
       if (!session) {
-        // preserve attempted location for after-login redirect if you want
         navigate("/login", { replace: true, state: { from: location.pathname } });
         return;
       }
 
       // 2) Check memberships for this user
-     const { data: row, error } = await supabase
-  .from("memberships")
-  .select("user_id,business_id,role")
-  .eq("user_id", session.user.id)
-  .maybeSingle();
+      const { data: membership, error } = await supabase
+        .from("memberships")
+        .select("business_id, role")
+        .eq("user_id", session.user.id)
+        .maybeSingle(); // returns one row or null
 
       if (error) {
         console.error("Membership check failed:", error.message);
@@ -39,7 +38,7 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
         return;
       }
 
-      if (!rows || rows.length === 0) {
+      if (!membership) {
         navigate("/pending-access", { replace: true });
         return;
       }
