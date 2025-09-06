@@ -1,23 +1,15 @@
-import React, { useEffect, useState, PropsWithChildren } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
-/**
- * Wrap your /dashboard routes with <MembershipGuard>.
- * - If NO session → /login
- * - If session BUT NO memberships → /pending-access
- * - If session + memberships → render children (dashboard)
- */
-export default function MembershipGuard({ children }: PropsWithChildren) {
+export default function MembershipGuard() {
   const navigate = useNavigate();
   const location = useLocation();
-
   const [checking, setChecking] = useState(true);
-  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     const run = async () => {
-      // 1) Require session
+      // 1) Require session (RequireAuth should have done this, but be safe)
       const { data: s } = await supabase.auth.getSession();
       const session = s.session;
       if (!session) {
@@ -25,12 +17,12 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
         return;
       }
 
-      // 2) Check memberships for this user
+      // 2) Check memberships
       const { data: membership, error } = await supabase
         .from("memberships")
         .select("business_id, role")
         .eq("user_id", session.user.id)
-        .maybeSingle(); // returns one row or null
+        .maybeSingle();
 
       if (error) {
         console.error("Membership check failed:", error.message);
@@ -43,8 +35,6 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
         return;
       }
 
-      // 3) Allowed
-      setAllowed(true);
       setChecking(false);
     };
 
@@ -52,7 +42,7 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (checking && !allowed) {
+  if (checking) {
     return (
       <div className="min-h-screen grid place-items-center bg-gray-50">
         <div className="w-full max-w-sm bg-white p-6 rounded-xl shadow text-center">
@@ -63,5 +53,5 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
     );
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }
