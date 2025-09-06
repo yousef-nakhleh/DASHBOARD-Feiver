@@ -41,7 +41,7 @@ import { ReportsGate } from './gates/ReportsGate';
 import { SelectedBusinessProvider } from './components/auth/SelectedBusinessProvider';
 import BusinessSelector from './components/auth/BusinessSelector';
 
-// ❌ REMOVED old trials
+// ❌ REMOVED old trials (do not mount these)
 // import InviteUser from './components/auth/InviteUser';
 // import SetPassword from './components/auth/SetPassword';
 
@@ -88,23 +88,21 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* ✅ Auth callback endpoint */}
+          {/* ✅ Auth callback endpoint (invite link lands here) */}
           <Route path="/auth/callback" element={<AuthCallback />} />
+
           {/* ✅ First-time completion (set password + profile) */}
-          <Route path="/complete-account" element={<CompleteProfile />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
+
           {/* ✅ Auth error + pending access */}
           <Route path="/auth/error" element={<AuthError />} />
           <Route path="/pending-access" element={<PendingAccess />} />
 
-          {/* ❌ Removed old trial routes */}
-          {/* <Route path="/auth/invite" element={<InviteUser />} /> */}
-          {/* <Route path="/auth/set-password" element={<SetPassword />} /> */}
-
-          {/* Protected */}
+          {/* Protected (session required) */}
           <Route element={<RequireAuth />}>
-            {/* ✅ NEW: MembershipGuard decides dashboard access vs pending */}
+            {/* ✅ MembershipGuard only wraps the dashboard/private area (NOT onboarding) */}
             <Route element={<MembershipGuard />}>
-              {/* ✅ Mount SelectedBusinessProvider for all protected routes */}
+              {/* ✅ Business context for all protected routes */}
               <Route element={<SelectedBusinessProvider><Outlet /></SelectedBusinessProvider>}>
                 <Route element={<WithFeatures />}>
                   <Route
