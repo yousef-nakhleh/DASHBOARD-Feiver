@@ -27,11 +27,11 @@ export default function MembershipGuard({ children }: PropsWithChildren) {
       }
 
       // 2) Check memberships for this user
-      const { data: rows, error } = await supabase
-        .from("memberships")
-        .select("id, business_id, role")
-        .eq("user_id", session.user.id)
-        .limit(1);
+     const { data: row, error } = await supabase
+  .from("memberships")
+  .select("user_id,business_id,role")
+  .eq("user_id", session.user.id)
+  .maybeSingle();
 
       if (error) {
         console.error("Membership check failed:", error.message);
