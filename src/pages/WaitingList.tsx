@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Clock, User, Phone, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toLocalFromUTC } from '../lib/timeUtils';
-import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ added
 
 interface WaitingListItem {
   id: string;
@@ -14,7 +14,7 @@ interface WaitingListItem {
 }
 
 const WaitingList: React.FC = () => {
-  const { profile } = useAuth(); // business scope
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use provider business id
   const [waitingList, setWaitingList] = useState<WaitingListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,18 +26,18 @@ const WaitingList: React.FC = () => {
   // Fetch business timezone when business_id is available
   useEffect(() => {
     (async () => {
-      if (!profile?.business_id) return;
+      if (!effectiveBusinessId) return;
       const { data, error } = await supabase
         .from('business')
         .select('timezone')
-        .eq('id', profile.business_id)
+        .eq('id', effectiveBusinessId)
         .single();
       if (!error && data?.timezone) setBusinessTimezone(data.timezone);
     })();
-  }, [profile?.business_id]);
+  }, [effectiveBusinessId]);
 
   const fetchWaitingList = async () => {
-    if (!profile?.business_id) {
+    if (!effectiveBusinessId) {
       setWaitingList([]);
       setLoading(false);
       return;
@@ -48,7 +48,7 @@ const WaitingList: React.FC = () => {
       const { data, error } = await supabase
         .from('waiting_list')
         .select('id, customer_name, phone_number_e164, start_time, end_time, created_at')
-        .eq('business_id', profile.business_id)
+        .eq('business_id', effectiveBusinessId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -65,21 +65,21 @@ const WaitingList: React.FC = () => {
   useEffect(() => {
     fetchWaitingList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.business_id]);
+  }, [effectiveBusinessId]);
 
   // 🔴 Realtime: refresh waiting list on INSERT / UPDATE / DELETE for this business
   useEffect(() => {
-    if (!profile?.business_id) return;
+    if (!effectiveBusinessId) return;
 
     const channel = supabase
-      .channel(`waiting-list-realtime-${profile.business_id}`)
+      .channel(`waiting-list-realtime-${effectiveBusinessId}`)
       .on(
         'postgres_changes',
         {
           event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'waiting_list',
-          filter: `business_id=eq.${profile.business_id}`,
+          filter: `business_id=eq.${effectiveBusinessId}`,
         },
         () => {
           // simply refetch to keep UI logic untouched
@@ -91,7 +91,7 @@ const WaitingList: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.business_id]); // ← only depends on business scope
+  }, [effectiveBusinessId]); // ← only depends on business scope
 
   // ---- format helpers (use business timezone) -------------------------
   const fmtTime = (utc: string) => {
