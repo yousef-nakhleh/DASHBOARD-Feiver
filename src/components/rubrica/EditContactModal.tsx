@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
+import { useSelectedBusiness } from '../auth/SelectedBusinessProvider';
 
 interface Contact {
   id: string;
@@ -48,6 +49,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
   defaultValues,
 }) => {
   const { profile } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -99,7 +101,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
       setFormError('Inserisci un indirizzo email valido.');
       return;
     }
-    if (!profile?.business_id) {
+    if (!effectiveBusinessId) {
       setFormError("Profilo non configurato. Contatta l'amministratore.");
       return;
     }
@@ -123,7 +125,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
         notes: notes.trim() || null,
       })
       .eq('id', defaultValues.id)
-      .eq('business_id', profile.business_id); // Ensure we only update contacts from this business
+      .eq('business_id', effectiveBusinessId); // ✅ use effectiveBusinessId
 
     setSaving(false);
 
