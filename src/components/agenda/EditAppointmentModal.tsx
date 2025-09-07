@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import PaymentForm from '@/components/payment/PaymentForm';
 import { toUTCFromLocal, toLocalFromUTC } from '@/lib/timeUtils';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useSelectedBusiness } from '@/components/auth/SelectedBusinessProvider'; // ✅ NEW import
 
 interface Props {
   appointment: any;
@@ -25,6 +26,7 @@ const TIMES: string[] = (() => {
 
 export default function EditAppointmentModal({ appointment, businessTimezone, onClose, onUpdated }: Props) {
   const { profile } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW line
   const [tab, setTab] = useState<'edit' | 'payment'>('edit');
   const [edited, setEdited] = useState<any>(() => {
     // Convert UTC appointment_start to local time for editing
@@ -279,7 +281,7 @@ useEffect(() => {
                 price:          edited.services?.price ?? 0,
                 customer_name:  edited.customer_name,
               }}
-              businessId={profile?.business_id}
+              businessId={effectiveBusinessId} {/* ✅ changed */}
               onSuccess={() => {
                 onUpdated();
                 onClose();
