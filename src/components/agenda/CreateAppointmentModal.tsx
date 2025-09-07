@@ -6,6 +6,7 @@ import NewContactForm from '../rubrica/NewContactForm';
 import { UserRoundSearch, X, Plus } from 'lucide-react';
 import { toUTCFromLocal } from '../../lib/timeUtils';
 import { useAuth } from '../auth/AuthContext';
+import { useSelectedBusiness } from '../auth/SelectedBusinessProvider'; // ✅ NEW import
 
 type Props = {
   businessTimezone: string;
@@ -25,7 +26,8 @@ const CreateAppointmentModal: React.FC<Props> = ({
   initialTime = '',
 }) => {
   const { profile } = useAuth();
-  const businessId = profile?.business_id;
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW line
+  const businessId = effectiveBusinessId; // ✅ CHANGED (was: profile?.business_id)
 
   // UI state
   const [customerName, setCustomerName] = useState('');
@@ -273,7 +275,7 @@ const CreateAppointmentModal: React.FC<Props> = ({
 
             {/* Servizio */}
             <div>
-              <label className="block text-sm font-semibold text-black mb-2">Servizio</label>
+              <label className="block text.sm font-semibold text.black mb-2">Servizio</label>
               <select
                 value={selectedService}
                 onChange={handleServiceChange}
