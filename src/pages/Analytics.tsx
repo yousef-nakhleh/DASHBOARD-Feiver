@@ -11,6 +11,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
 
 // Utility: simple currency formatter (EUR)
 const formatEUR = (n: number) =>
@@ -75,7 +76,7 @@ const RANGE_TABS: { key: keyof typeof SERIES; label: string }[] = [
 ];
 
 export default function CassaOverviewStatic() {
-  const { profile } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ CHANGED (was: const { profile } = useAuth();)
   const [range, setRange] = useState<keyof typeof SERIES>('month');
 
   // Static KPIs (can be wired later)
