@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
+import { useSelectedBusiness } from '../auth/SelectedBusinessProvider'; // ✅ NEW
 
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
-  const { profile } = useAuth(); // 👈 take business_id from context
+  const { profile } = useAuth(); // (kept; harmless if elsewhere uses it)
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -23,7 +25,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
   };
 
   const handleSave = async () => {
-    if (!profile?.business_id) {
+    if (!effectiveBusinessId) { // ✅ changed
       alert('Profilo non configurato (manca business_id). Contatta l’amministratore.');
       return;
     }
@@ -33,7 +35,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
     // Upload avatar to Supabase Storage (optional)
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop();
-      const fileName = `${profile.business_id}/${Date.now()}.${ext}`; // 👈 bucket path namespaced by business
+      const fileName = `${effectiveBusinessId}/${Date.now()}.${ext}`; // ✅ changed
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, avatarFile);
@@ -56,7 +58,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
         phone,
         email,
         avatar_url: avatarUrl,
-        business_id: profile.business_id,         // 👈 dynamic
+        business_id: effectiveBusinessId,         // ✅ changed
       }])
       .select()
       .single();
@@ -73,7 +75,7 @@ const NewStaffModal = ({ open, onOpenChange, onCreated }) => {
       .map((a) => ({
         ...a,
         barber_id: newStaff.id,
-        business_id: profile.business_id,        // 👈 dynamic
+        business_id: effectiveBusinessId,        // ✅ changed
       }));
 
     if (availabilityInserts.length > 0) {
