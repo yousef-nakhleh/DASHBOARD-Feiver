@@ -5,6 +5,7 @@ import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
 
 /* 🟡 Query + Cache: module-scope cache with TTL */
 const CONTACTS_CACHE_TTL_MS = 60_000; // 60s; adjust as you prefer
@@ -14,7 +15,9 @@ const contactsCache = new Map<
 >(); 
 
 const Contacts: React.FC = () => {
-  const { profile, authLoading } = useAuth();
+  const { loading: authLoading } = useAuth(); // ✅ use only loading from Auth
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use business from provider
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showCreateContactForm, setShowCreateContactForm] = useState(false);
@@ -88,11 +91,12 @@ const Contacts: React.FC = () => {
     contactsCache.set(businessId, { data: enriched, ts: now });
   }, []);
 
+  // ✅ Initial fetch uses effectiveBusinessId
   useEffect(() => {
-    if (profile?.business_id) {
-      fetchClients(profile.business_id);
+    if (effectiveBusinessId) {
+      fetchClients(effectiveBusinessId);
     }
-  }, [fetchClients, profile?.business_id]);
+  }, [fetchClients, effectiveBusinessId]);
 
   const filteredClients = clients.filter(
     client =>
@@ -122,10 +126,11 @@ const Contacts: React.FC = () => {
   const handleEditContactSave = () => {
     setShowEditContactModal(false);
     setEditingContact(null);
-    fetchClients(profile.business_id);
+    fetchClients(effectiveBusinessId as string); // ✅ changed
   };
 
-  if (authLoading || !profile?.business_id) {
+  // ✅ Guard uses effectiveBusinessId
+  if (authLoading || !effectiveBusinessId) {
     return <div className="p-6 text-gray-500">Caricamento contatti…</div>;
   }
 
@@ -208,7 +213,7 @@ const Contacts: React.FC = () => {
               <NewContactForm 
                 onCreated={() => {
                   setShowCreateContactForm(false);
-                  fetchClients(profile.business_id);
+                  fetchClients(effectiveBusinessId as string); // ✅ changed (famous line #1)
                 }} 
                 onCancel={() => setShowCreateContactForm(false)}
               />
@@ -300,7 +305,7 @@ const Contacts: React.FC = () => {
       {showCreateModal && (
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={() => fetchClients(profile.business_id)}
+          onCreated={() => fetchClients(effectiveBusinessId as string)} // ✅ changed (famous line #2)
         />
       )}
 
@@ -319,4 +324,4 @@ const Contacts: React.FC = () => {
   );
 };
 
-export default Contacts; 
+export default Contacts;
