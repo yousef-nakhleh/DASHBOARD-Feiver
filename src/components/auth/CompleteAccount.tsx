@@ -41,10 +41,9 @@ const { data: profs, error: profErr } = await supabase
 
 const prof = profs && profs.length > 0 ? profs[0] : null;
 
-      if (profErr && profErr.code !== "PGRST116") {
-        // ignore "No rows" (PGRST116). Any other error: show but still allow form.
-        console.warn("profile fetch error:", profErr.message);
-      }
+      if (profErr) {
+  console.warn("profile fetch error:", profErr.message);
+}
 
       if (prof?.account_completed) {
         setExistingCompleted(true);
