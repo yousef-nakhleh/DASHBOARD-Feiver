@@ -1,4 +1,4 @@
-// src/pages/Agenda.tsx
+// src/pages/Agenda.tsx 
 import {
   CalendarIcon,
   Plus,
@@ -21,7 +21,6 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 // 🔐 Auth
 import { useAuth } from '../components/auth/AuthContext';
-import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -50,7 +49,6 @@ const formatShort = (d: Date) =>
 
 const Agenda = () => {
   const { profile, loading: authLoading } = useAuth();
-  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use business from provider
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -80,12 +78,12 @@ const Agenda = () => {
   useEffect(() => {
     const fetchBusinessTimezone = async () => {
       if (authLoading) return;
-      if (!effectiveBusinessId) return;
+      if (!profile?.business_id) return;
 
       const { data, error } = await supabase
         .from('business')
         .select('timezone')
-        .eq('id', effectiveBusinessId)
+        .eq('id', profile.business_id)
         .single();
 
       if (!error && data?.timezone) {
@@ -93,14 +91,14 @@ const Agenda = () => {
       }
     };
     fetchBusinessTimezone();
-  }, [authLoading, effectiveBusinessId]);
+  }, [authLoading, profile?.business_id]);
 
   const fetchAppointments = async () => {
-    if (typeof effectiveBusinessId !== 'string' || !effectiveBusinessId) {
-      console.log("Skipping fetchAppointments: Invalid business_id type or value", effectiveBusinessId);
+    if (typeof profile?.business_id !== 'string' || !profile.business_id) {
+      console.log("Skipping fetchAppointments: Invalid business_id type or value", profile?.business_id);
       return;
     }
-    if (!effectiveBusinessId) return;
+    if (!profile?.business_id) return;
 
     const dates = getDatesInView(selectedDate, viewMode);
 
@@ -129,7 +127,7 @@ const Agenda = () => {
         duration_min,
         services ( name, price, duration_min )
       `)
-      .eq('business_id', effectiveBusinessId)
+      .eq('business_id', profile.business_id)
       .gte('appointment_date', startOfFirstDay)
       .lte('appointment_date', endOfLastDay)
       .in('appointment_status', ['pending', 'confirmed']);
@@ -139,12 +137,12 @@ const Agenda = () => {
   };
 
   const fetchBarbers = async () => {
-    if (!effectiveBusinessId) return;
+    if (!profile?.business_id) return;
 
     const { data, error } = await supabase
       .from('barbers')
       .select('*')
-      .eq('business_id', effectiveBusinessId);
+      .eq('business_id', profile.business_id);
 
     if (error) console.error('Errore fetch barbers:', error.message);
     setBarbers(data || []);
@@ -153,26 +151,26 @@ const Agenda = () => {
   useEffect(() => {
     if (authLoading) return;
     fetchAppointments();
-  }, [selectedDate, viewMode, businessTimezone, authLoading, effectiveBusinessId]);
+  }, [selectedDate, viewMode, businessTimezone, authLoading, profile?.business_id]);
 
   useEffect(() => {
     if (authLoading) return;
     fetchBarbers();
-  }, [authLoading, effectiveBusinessId]);
+  }, [authLoading, profile?.business_id]);
 
   // Realtime
   useEffect(() => {
-    if (authLoading || !effectiveBusinessId) return;
+    if (authLoading || !profile?.business_id) return;
 
     const channel = supabase
-      .channel(`appointments-realtime-${effectiveBusinessId}`)
+      .channel(`appointments-realtime-${profile.business_id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'appointments',
-          filter: `business_id=eq.${effectiveBusinessId}`,
+          filter: `business_id=eq.${profile.business_id}`,
         },
         () => {
           fetchAppointments();
@@ -183,7 +181,7 @@ const Agenda = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authLoading, effectiveBusinessId]);
+  }, [authLoading, profile?.business_id]);
 
   const handleExceptionSelect = (value: string) => {
     if (value === 'apertura') {
@@ -277,7 +275,7 @@ const Agenda = () => {
     return d;
   });
 
-  if (!authLoading && !effectiveBusinessId) {
+  if (!authLoading && !profile?.business_id) {
     return (
       <div className="h-full flex items-center justify-center">
         <p className="text-gray-600">
@@ -446,7 +444,7 @@ const Agenda = () => {
         visible={showPaymentPanel}
         prefill={paymentPrefill}
         onClose={() => setShowPaymentPanel(false)}
-        businessId={effectiveBusinessId} {/* ✅ changed */}
+        businessId={profile?.business_id}
         onSuccess={() => {
           setShowPaymentPanel(false);
           fetchAppointments();
@@ -459,7 +457,7 @@ const Agenda = () => {
           onClose={handleExceptionModalClose}
           onSave={handleExceptionModalSave}
           barbers={barbers}
-          businessId={effectiveBusinessId || ''} {/* ✅ changed */}
+          businessId={profile?.business_id || ''}
           businessTimezone={businessTimezone}
           exceptionType={headerExceptionType}
           defaultValues={null}
