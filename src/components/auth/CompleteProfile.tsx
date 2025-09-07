@@ -119,7 +119,7 @@ export default function CompleteProfile() {
     }
 
     // C) Done → proceed to dashboard; MembershipGuard will route to Pending if needed
-    navigate("/dashboard", { replace: true });
+    navigate("/", { replace: true });
   };
 
   if (loading && !existingCompleted) {
