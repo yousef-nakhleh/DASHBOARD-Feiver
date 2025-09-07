@@ -1,32 +1,58 @@
 // src/components/auth/SelectedBusinessProvider.tsx
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useAuth } from './AuthContext';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "./AuthContext";
 
-type SelectedBusinessContextType = {
-  /** Explicitly chosen by the user (via BusinessSelector). May be null. */
-  selectedBusinessId: string | null;
-  /** Set a new selection (persisted per user). Pass null to clear selection. */
-  setSelectedBusinessId: (id: string | null) => void;
-  /**
-   * The business id the rest of the app should actually use:
-   * - selectedBusinessId if set
-   * - otherwise the membership business_id from AuthContext
-   * - otherwise null
-   */
-  effectiveBusinessId: string | null;
+type Membership = {
+  business_id: string;
+  role: string;
+  business?: { id: string; name: string } | null;
 };
 
-const SelectedBusinessContext = createContext<SelectedBusinessContextType | undefined>(undefined);
+type SelectedBusinessContextType = {
+  /** Explicit user choice (persisted per user). */
+  selectedBusinessId: string | null;
+  /** Set/clear explicit selection. */
+  setSelectedBusinessId: (id: string | null) => void;
 
-export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile, loading: authLoading } = useAuth();
+  /** The business id the rest of the app should use. */
+  effectiveBusinessId: string | null;
 
-  // Persist selection per user so super_admins/multi-tenant users keep their choice across reloads
-  const storageKey = profile?.id ? `sb_selected_business_${profile.id}` : null;
+  /** Loaded memberships for current user (optional for UI like BusinessSelector). */
+  memberships: Membership[];
+  membershipsLoading: boolean;
+  membershipsError: string | null;
 
-  const [selectedBusinessId, _setSelectedBusinessId] = useState<string | null>(null);
+  /** Manually refresh memberships. */
+  refreshMemberships: () => Promise<void>;
+};
 
-  // Load any saved selection when user changes
+const SelectedBusinessContext = createContext<
+  SelectedBusinessContextType | undefined
+>(undefined);
+
+export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { user, loading: authLoading } = useAuth();
+
+  const storageKey = user?.id ? `sb_selected_business_${user.id}` : null;
+
+  const [selectedBusinessId, _setSelectedBusinessId] = useState<string | null>(
+    null
+  );
+
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [membershipsLoading, setMembershipsLoading] = useState<boolean>(true);
+  const [membershipsError, setMembershipsError] = useState<string | null>(null);
+
+  // Load saved selection when user changes
   useEffect(() => {
     if (authLoading) return;
     if (!storageKey) {
@@ -34,15 +60,53 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
       return;
     }
     const saved = window.localStorage.getItem(storageKey);
-    _setSelectedBusinessId(saved ? saved : null);
+    _setSelectedBusinessId(saved || null);
   }, [authLoading, storageKey]);
 
-  // If there is no explicit selection, fall back to membership business_id
-  const effectiveBusinessId = useMemo(() => {
-    return selectedBusinessId ?? profile?.business_id ?? null;
-  }, [selectedBusinessId, profile?.business_id]);
+  const fetchMemberships = async () => {
+    if (!user?.id) {
+      setMemberships([]);
+      setMembershipsLoading(false);
+      setMembershipsError(null);
+      return;
+    }
 
-  // Public setter that also persists
+    setMembershipsLoading(true);
+    setMembershipsError(null);
+
+    const { data, error } = await supabase
+      .from("memberships")
+      .select("business_id, role, business:business(id, name)")
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("fetchMemberships error:", error);
+      setMemberships([]);
+      setMembershipsError(error.message ?? "Errore durante il caricamento.");
+      setMembershipsLoading(false);
+      return;
+    }
+
+    const rows = (data as Membership[]) ?? [];
+    setMemberships(rows);
+    setMembershipsLoading(false);
+
+    // Auto-select default when there is only one membership and user hasn't chosen yet
+    if (rows.length === 1 && !selectedBusinessId) {
+      _setSelectedBusinessId(rows[0].business_id);
+      if (storageKey) {
+        window.localStorage.setItem(storageKey, rows[0].business_id);
+      }
+    }
+  };
+
+  // Fetch memberships when auth state changes
+  useEffect(() => {
+    if (authLoading) return;
+    fetchMemberships();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id]);
+
   const setSelectedBusinessId = (id: string | null) => {
     _setSelectedBusinessId(id);
     if (!storageKey) return;
@@ -50,9 +114,28 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     else window.localStorage.removeItem(storageKey);
   };
 
+  // effective = explicit selection OR (if none) null (we don’t rely on AuthContext anymore)
+  const effectiveBusinessId = useMemo(() => {
+    return selectedBusinessId ?? null;
+  }, [selectedBusinessId]);
+
   const value = useMemo<SelectedBusinessContextType>(
-    () => ({ selectedBusinessId, setSelectedBusinessId, effectiveBusinessId }),
-    [selectedBusinessId, effectiveBusinessId]
+    () => ({
+      selectedBusinessId,
+      setSelectedBusinessId,
+      effectiveBusinessId,
+      memberships,
+      membershipsLoading,
+      membershipsError,
+      refreshMemberships: fetchMemberships,
+    }),
+    [
+      selectedBusinessId,
+      effectiveBusinessId,
+      memberships,
+      membershipsLoading,
+      membershipsError,
+    ]
   );
 
   return (
@@ -64,6 +147,9 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
 
 export const useSelectedBusiness = (): SelectedBusinessContextType => {
   const ctx = useContext(SelectedBusinessContext);
-  if (!ctx) throw new Error('useSelectedBusiness must be used within a SelectedBusinessProvider');
+  if (!ctx)
+    throw new Error(
+      "useSelectedBusiness must be used within a SelectedBusinessProvider"
+    );
   return ctx;
 };
