@@ -92,7 +92,7 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* ✅ First-time completion (set password + profile) */}
-          <Route path="/complete-profile" element={<CompleteProfile />} />
+          <Route path="/complete-account" element={<CompleteAccount />} />
 
           {/* ✅ Auth error + pending access */}
           <Route path="/auth/error" element={<AuthError />} />
