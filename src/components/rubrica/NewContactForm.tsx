@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
+import { useSelectedBusiness } from '../auth/SelectedBusinessProvider'; // ✅ NEW
 
 interface NewContact {
   id: string;
@@ -40,6 +41,7 @@ const LOCAL_STORAGE_KEY = 'newContactFormDraft';
 
 const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated, onCancel }) => {
   const { profile } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName]   = useState('');
@@ -105,7 +107,7 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated, onCancel }) 
       setFormError('Inserisci un indirizzo email valido.');
       return;
     }
-    if (!profile?.business_id) {
+    if (!effectiveBusinessId) { // ✅ changed (use effective business id)
       setFormError("Profilo non configurato. Contatta l'amministratore.");
       return;
     }
@@ -117,7 +119,7 @@ const NewContactForm: React.FC<NewContactFormProps> = ({ onCreated, onCancel }) 
     // - phone_number_raw (as typed; DB trigger will normalize/build E.164)
     // - email and birthdate are optional
     const { data, error } = await supabase.from('contacts').insert({
-      business_id: profile.business_id,
+      business_id: effectiveBusinessId, // ✅ changed
       first_name: firstName.trim(),
       last_name: lastName.trim() || null,
       phone_prefix: phonePrefix,
