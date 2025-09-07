@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../components/auth/AuthContext";
+import { useSelectedBusiness } from "../../components/auth/SelectedBusinessProvider";
 
 type TxnRow = {
   id: string;
@@ -60,7 +61,7 @@ export default function TransactionsDetails({
   title = "Dettaglio Transazioni",
 }: Props) {
   const { profile } = useAuth();
-  const businessId = profile?.business_id ?? null;
+  const { effectiveBusinessId } = useSelectedBusiness();
 
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function TransactionsDetails({
     let cancelled = false;
 
     async function load() {
-      if (!businessId) return;
+      if (!effectiveBusinessId) return;
       setLoading(true);
       setError(null);
 
@@ -101,7 +102,7 @@ export default function TransactionsDetails({
         const { data: todayTx, error: todayErr } = await supabase
           .from("transactions")
           .select(txSelect)
-          .eq("business_id", businessId)
+          .eq("business_id", effectiveBusinessId)
           .eq("status", "succeeded")
           .gte("completed_at", startISO)
           .lt("completed_at", endISO)
@@ -116,7 +117,7 @@ export default function TransactionsDetails({
           const { data: lastN, error: lastErr } = await supabase
             .from("transactions")
             .select(txSelect)
-            .eq("business_id", businessId)
+            .eq("business_id", effectiveBusinessId)
             .eq("status", "succeeded")
             .order("completed_at", { ascending: false })
             .limit(limit);
@@ -166,7 +167,7 @@ export default function TransactionsDetails({
 
     load();
     return () => { cancelled = true; };
-  }, [businessId, startISO, endISO, limit]);
+  }, [effectiveBusinessId, startISO, endISO, limit]);
 
   const formatEUR = (n: number) =>
     new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
