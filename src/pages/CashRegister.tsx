@@ -3,6 +3,7 @@ import { cn } from "../lib/utils";
 import { Plus, Search, Check, Trash2, X, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
 import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
 
 // ---------- Types ----------
@@ -66,8 +67,9 @@ function computeLineTotal(li: LineItem): number {
 
 // ---------- Component ----------
 export default function CashRegister() {
-  const { profile, loading: authLoading } = useAuth();
-  const businessId = profile?.business_id;
+  const { loading: authLoading } = useAuth(); // ✅ changed
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
+  const businessId = effectiveBusinessId ?? null; // ✅ changed
   const [businessTimezone, setBusinessTimezone] = useState("Europe/Rome");
 
   const [query, setQuery] = useState("");
@@ -83,7 +85,7 @@ export default function CashRegister() {
   const [allBarbers, setAllBarbers] = useState<BarberRow[]>([]);
 
   // Service picker state
-  const [servicePanelOpen, setServicePanelOpen] = useState(false);
+  the [servicePanelOpen, setServicePanelOpen] = useState(false);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [serviceSearch, setServiceSearch] = useState("");
 
@@ -515,7 +517,7 @@ export default function CashRegister() {
                   placeholder="Cerca cliente o servizio"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text_black"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
@@ -535,7 +537,7 @@ export default function CashRegister() {
                   onClick={() => setActiveTab("confirmed")}
                   className={cn(
                     "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200",
-                    activeTab === "confirmed" ? "bg-white text-black shadow-sm" : "text-gray-600 hover:text-black"
+                    activeTab === "confirmed" ? "bg_white text-black shadow-sm" : "text-gray-600 hover:text-black"
                   )}
                 >
                   Confermati
@@ -589,7 +591,7 @@ export default function CashRegister() {
                   )}
                   {confirmedList.map((a) => (
                     <div key={a.id} className="rounded-xl border px-4 py-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify_between">
                         <div className="font-semibold text-black">{a.client}</div>
                         <div className="text-xs text-gray-500">{a.time}</div>
                       </div>
@@ -637,12 +639,12 @@ export default function CashRegister() {
                         <input
                           value={li.name}
                           onChange={(e) => updateItem(li.id, { name: e.target.value })}
-                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
                         <select
                           value={li.barberId ?? ""}
                           onChange={(e) => updateItem(li.id, { barberId: e.target.value || null })}
-                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                         >
                           {allBarbers.map((barber) => (
                             <option key={barber.id} value={barber.id}>
@@ -657,7 +659,7 @@ export default function CashRegister() {
                         <select
                           value={li.discountType || "none"}
                           onChange={(e) => updateItem(li.id, { discountType: e.target.value as any })}
-                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                         >
                           <option value="none">Senza sconto</option>
                           <option value="fixed">Sconto €</option>
@@ -667,7 +669,7 @@ export default function CashRegister() {
                           type="number"
                           value={li.discountValue ?? 0}
                           onChange={(e) => updateItem(li.id, { discountValue: Number(e.target.value) })}
-                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                          className="border border-gray-200 rounded-lg px-3 py-2 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                         />
                       </div>
 
@@ -715,7 +717,7 @@ export default function CashRegister() {
 
               {/* Service picker panel */}
               {servicePanelOpen && (
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-[88px] w-[85%] max-w-[720px] bg-white border border-gray-200 rounded-2xl shadow-lg">
+                <div className="absolute left-1/2 -translate-x-1/2 bottom_[88px] w-[85%] max-w-[720px] bg-white border border-gray-200 rounded-2xl shadow-lg">
                   <div className="flex items-center justify-between px-4 py-3 border-b">
                     <div className="font-semibold">Seleziona un servizio</div>
                     <button
@@ -732,7 +734,7 @@ export default function CashRegister() {
                         value={serviceSearch}
                         onChange={(e) => setServiceSearch(e.target.value)}
                         placeholder="Cerca servizio..."
-                        className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+                        className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline_none focus:ring-2 focus:ring-black"
                       />
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     </div>
@@ -797,7 +799,7 @@ export default function CashRegister() {
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
                     {["Contanti", "POS", "Satispay", "Altro"].map((m) => (
                       <option key={m} value={m as UiPaymentMethod}>
@@ -813,7 +815,7 @@ export default function CashRegister() {
                     placeholder="Nota facoltativa per la ricevuta"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-black"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black"
                   />
                 </div>
               </div>
