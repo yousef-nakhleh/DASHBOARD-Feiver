@@ -1,3 +1,4 @@
+// src/components/auth/MembershipGuard.tsx
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
@@ -9,7 +10,6 @@ export default function MembershipGuard() {
 
   useEffect(() => {
     const run = async () => {
-      // 1) Require session (RequireAuth should have done this, but be safe)
       const { data: s } = await supabase.auth.getSession();
       const session = s.session;
       if (!session) {
@@ -17,12 +17,12 @@ export default function MembershipGuard() {
         return;
       }
 
-      // 2) Check memberships
-      const { data: membership, error } = await supabase
+      // ✅ array select (no .single / .maybeSingle)
+      const { data, error } = await supabase
         .from("memberships")
         .select("business_id, role")
         .eq("user_id", session.user.id)
-        .maybeSingle();
+        .limit(1);
 
       if (error) {
         console.error("Membership check failed:", error.message);
@@ -30,7 +30,7 @@ export default function MembershipGuard() {
         return;
       }
 
-      if (!membership) {
+      if (!data || data.length === 0) {
         navigate("/pending-access", { replace: true });
         return;
       }
