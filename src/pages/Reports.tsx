@@ -1,7 +1,7 @@
 // src/pages/Reports.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
 
 type BarberRow = {
   name: string | null;
@@ -27,8 +27,7 @@ type TxnRow = {
 };
 
 export default function Reports() {
-  const { profile } = useAuth();
-  const businessId = profile?.business_id ?? null;
+  const { effectiveBusinessId: businessId } = useSelectedBusiness(); // ⬅️ source business_id here
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
