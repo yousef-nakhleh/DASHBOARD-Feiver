@@ -8,7 +8,7 @@ type Profile = {
   account_completed?: boolean | null;
 };
 
-export default function CompleteProfile() {
+export default function CompleteAccount() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
