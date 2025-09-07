@@ -1,20 +1,21 @@
+// src/pages/Contacts.tsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { User, Phone, Calendar, Clock, Search, Plus, Edit, X, Trash2 } from 'lucide-react'; // Added Trash2 back
+import { User, Phone, Calendar, Clock, Search, Plus, Edit, X, Trash2 } from 'lucide-react';
 import NewContactForm from '../components/rubrica/NewContactForm';
 import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ added
 
 /* 🟡 Query + Cache: module-scope cache with TTL */
 const CONTACTS_CACHE_TTL_MS = 60_000; // 60s; adjust as you prefer
-const contactsCache = new Map<
-  string,
-  { data: any[]; ts: number }
->();
+const contactsCache = new Map<string, { data: any[]; ts: number }>();
 
 const Contacts: React.FC = () => {
   const { profile, authLoading } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ added
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showCreateContactForm, setShowCreateContactForm] = useState(false);
@@ -26,15 +27,13 @@ const Contacts: React.FC = () => {
   const fetchClients = useCallback(async (businessId: string) => {
     if (!businessId) return;
 
-    /* 🟡 Serve cached data immediately if fresh */
     const cached = contactsCache.get(businessId);
     const now = Date.now();
     if (cached && now - cached.ts < CONTACTS_CACHE_TTL_MS) {
       setClients(cached.data);
-      // Continue to revalidate in background
+      // revalidate in background
     }
 
-    // Fresh query (revalidation)
     const { data: contacts, error } = await supabase
       .from('contacts')
       .select('id, first_name, last_name, email, phone_number_e164, phone_prefix, phone_number_raw, birthdate, notes')
@@ -58,17 +57,17 @@ const Contacts: React.FC = () => {
             )[0].appointment_date
           : null;
 
-        const nextVisit = appointments?.find(
-          (appt) => new Date(appt.appointment_date) > new Date()
-        )?.appointment_date || null;
+        const nextVisit =
+          appointments?.find((appt) => new Date(appt.appointment_date) > new Date())?.appointment_date || null;
 
         const visitCount = appointments?.length || 0;
 
         return {
           id: contact.id,
-          name: contact.first_name && contact.last_name 
-            ? `${contact.first_name} ${contact.last_name}` 
-            : contact.first_name || contact.last_name || 'Nome non disponibile',
+          name:
+            contact.first_name && contact.last_name
+              ? `${contact.first_name} ${contact.last_name}`
+              : contact.first_name || contact.last_name || 'Nome non disponibile',
           phone: contact.phone_number_e164,
           phone_prefix: contact.phone_prefix,
           phone_number_raw: contact.phone_number_raw,
@@ -83,8 +82,6 @@ const Contacts: React.FC = () => {
     );
 
     setClients(enriched);
-
-    /* 🟡 Update cache after successful revalidation */
     contactsCache.set(businessId, { data: enriched, ts: now });
   }, []);
 
@@ -95,13 +92,13 @@ const Contacts: React.FC = () => {
   }, [fetchClients, profile?.business_id]);
 
   const filteredClients = clients.filter(
-    client =>
+    (client) =>
       client.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.phone?.includes(searchQuery) ||
       client.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const selectedClientData = clients.find(client => client.id === selectedClient);
+  const selectedClientData = clients.find((client) => client.id === selectedClient);
 
   const handleEditContact = () => {
     if (selectedClientData) {
@@ -149,7 +146,10 @@ const Contacts: React.FC = () => {
         <div className="md:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-gray-100">
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
                 placeholder="Cerca cliente"
@@ -175,7 +175,7 @@ const Contacts: React.FC = () => {
                 >
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-12 w-12 rounded-full bg-black text-white flex items-center justify-center font-semibold">
-                      {client.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                      {client.name?.split(' ').map((n) => n[0]).join('') || 'U'}
                     </div>
                     <div className="ml-4">
                       <h3 className="font-semibold text-black">{client.name}</h3>
@@ -205,11 +205,11 @@ const Contacts: React.FC = () => {
                   <X size={18} />
                 </button>
               </div>
-              <NewContactForm 
+              <NewContactForm
                 onCreated={() => {
                   setShowCreateContactForm(false);
-                  fetchClients(profile.business_id);
-                }} 
+                  fetchClients(effectiveBusinessId as string); // ✅ changed (1)
+                }}
                 onCancel={() => setShowCreateContactForm(false)}
               />
             </div>
@@ -218,7 +218,7 @@ const Contacts: React.FC = () => {
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center">
                   <div className="flex-shrink-0 h-20 w-20 rounded-full bg-black text-white flex items-center justify-center text-xl font-bold">
-                    {selectedClientData.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                    {selectedClientData.name?.split(' ').map((n) => n[0]).join('') || 'U'}
                   </div>
                   <div className="ml-6">
                     <h2 className="text-2xl font-bold text-black">{selectedClientData.name}</h2>
@@ -226,7 +226,7 @@ const Contacts: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <button 
+                  <button
                     onClick={handleEditContact}
                     className="p-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
                   >
@@ -264,12 +264,19 @@ const Contacts: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
-                      <span className="text-black">Ultima visita: {selectedClientData.lastVisit ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT') : 'N/D'}</span>
+                      <span className="text-black">
+                        Ultima visita:{' '}
+                        {selectedClientData.lastVisit
+                          ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT')
+                          : 'N/D'}
+                      </span>
                     </div>
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
                       {selectedClientData.nextVisit ? (
-                        <span className="text-black">Prossima visita: {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT')}</span>
+                        <span className="text-black">
+                          Prossima visita: {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT')}
+                        </span>
                       ) : (
                         <button
                           onClick={() => setShowCreateModal(true)}
@@ -300,7 +307,7 @@ const Contacts: React.FC = () => {
       {showCreateModal && (
         <CreateAppointmentModal
           onClose={() => setShowCreateModal(false)}
-          onCreated={() => fetchClients(profile.business_id)}
+          onCreated={() => fetchClients(effectiveBusinessId as string)} // ✅ changed (2)
         />
       )}
 
