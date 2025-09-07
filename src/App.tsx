@@ -47,7 +47,7 @@ import BusinessSelector from './components/auth/BusinessSelector';
 
 // ✅ NEW: Auth flow components (all under components/auth/)
 import AuthCallback from './components/auth/AuthCallback';
-import CompleteProfile from './components/auth/CompleteAccount';
+import CompleteAccount from './components/auth/CompleteAccount';
 import AuthError from './components/auth/AuthError';
 import PendingAccess from './components/auth/PendingAccess';
 import MembershipGuard from './components/auth/MembershipGuard';
