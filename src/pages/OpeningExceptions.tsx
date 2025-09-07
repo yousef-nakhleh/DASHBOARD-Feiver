@@ -12,6 +12,7 @@ import {
 import { supabase } from '../lib/supabase';
 import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
 import { toLocalFromUTC, toUTCFromLocal } from '../lib/timeUtils';
 
 interface AvailabilityException {
@@ -34,7 +35,8 @@ interface Barber {
 
 const OpeningExceptions = () => {
   const { profile, loading: authLoading } = useAuth();
-  const businessId = profile?.business_id || null;
+  const { effectiveBusinessId } = useSelectedBusiness();                // ⬅️ NEW
+  const businessId = effectiveBusinessId || null;                       // ⬅️ CHANGED
   const businessTimezone = 'Europe/Rome'; // TODO: fetch from business table
 
   const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
