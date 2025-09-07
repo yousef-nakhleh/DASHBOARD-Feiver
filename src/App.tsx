@@ -1,58 +1,83 @@
 // src/App.tsx
-import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  Outlet,
-} from "react-router-dom";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 
-// Layout & Pages
-import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import Agenda from "./pages/Agenda";
-import CashRegister from "./pages/CashRegister";
-import Contacts from "./pages/Contacts";
-import Trattamenti from "./pages/Trattamenti";
-import Analytics from "./pages/Analytics";
-import Magazzino from "./pages/Magazzino";
-import StaffAvailability from "./pages/StaffAvailability";
-import PaymentPage from "./components/payment/PaymentPage";
-import Chatbot from "./pages/Chatbot";
-import WaitingList from "./pages/WaitingList";
-import Vapi from "./pages/Vapi";
-import ClosingExceptions from "./pages/ClosingExceptions";
-import OpeningExceptions from "./pages/OpeningExceptions";
-import Reports from "./pages/Reports";
+import Layout from './components/Layout';
+import Dashboard from './pages/Dashboard';
+import Agenda from './pages/Agenda';
+import CashRegister from './pages/CashRegister';
+import Contacts from './pages/Contacts';
+import Trattamenti from './pages/Trattamenti';
+import Analytics from './pages/Analytics';
+import Magazzino from './pages/Magazzino';
+import StaffAvailability from './pages/StaffAvailability';
+import PaymentPage from './components/payment/PaymentPage';
+import Chatbot from './pages/Chatbot';
+import WaitingList from './pages/WaitingList';
+import Vapi from './pages/Vapi';
+import ClosingExceptions from './pages/ClosingExceptions';
+import OpeningExceptions from './pages/OpeningExceptions';
+import Reports from './pages/Reports';
 
 // 🔐 Auth
-import { AuthProvider } from "./components/auth/AuthContext";
-import LoginPage from "./components/auth/LoginPage";
-import RequireAuth from "./components/auth/RequireAuth";
-import AuthCallback from "./components/auth/AuthCallback";
-import CompleteAccount from "./components/auth/CompleteAccount";
-import AuthError from "./components/auth/AuthError";
-import PendingAccess from "./components/auth/PendingAccess";
-import MembershipGuard from "./components/auth/MembershipGuard";
-
-// ✅ Business selection
-import { SelectedBusinessProvider } from "./components/auth/SelectedBusinessProvider";
-import BusinessSelector from "./components/auth/BusinessSelector";
+import { AuthProvider, useAuth } from './components/auth/AuthContext'; // keep your existing context import
+import LoginPage from './components/auth/LoginPage';
 
 // ✅ Features
-import { FeaturesProvider } from "./features/FeaturesProvider";
-import { AgendaGate } from "./gates/AgendaGate";
-import { ChatbotGate } from "./gates/ChatbotGate";
-import { TransactionsGate } from "./gates/TransactionsGate";
-import { AvailabilityGate } from "./gates/AvailabilityGate";
-import { ContactsGate } from "./gates/ContactsGate";
-import { ServicesGate } from "./gates/ServicesGate";
-import { PhoneCallerGate } from "./gates/PhoneCallerGate";
-import { WaitingListGate } from "./gates/WaitingListGate";
-import { OpeningExceptionsGate } from "./gates/OpeningExceptionsGate";
-import { ClosingExceptionsGate } from "./gates/ClosingExceptionsGate";
-import { ReportsGate } from "./gates/ReportsGate";
+import { FeaturesProvider } from './features/FeaturesProvider';
+import { AgendaGate } from './gates/AgendaGate';
+import { ChatbotGate } from './gates/ChatbotGate';
+import { TransactionsGate } from './gates/TransactionsGate';
+import { AvailabilityGate } from './gates/AvailabilityGate';
+import { ContactsGate } from './gates/ContactsGate';
+import { ServicesGate } from './gates/ServicesGate';
+import { PhoneCallerGate } from './gates/PhoneCallerGate';
+import { WaitingListGate } from './gates/WaitingListGate';
+import { OpeningExceptionsGate } from './gates/OpeningExceptionsGate';
+import { ClosingExceptionsGate } from './gates/ClosingExceptionsGate';
+import { ReportsGate } from './gates/ReportsGate';
+
+// ✅ Business selection context & selector
+import { SelectedBusinessProvider } from './components/auth/SelectedBusinessProvider';
+import BusinessSelector from './components/auth/BusinessSelector';
+
+// ❌ REMOVED old trials (do not mount these)
+// import InviteUser from './components/auth/InviteUser';
+// import SetPassword from './components/auth/SetPassword';
+
+// ✅ NEW: Auth flow components (all under components/auth/)
+import AuthCallback from './components/auth/AuthCallback';
+import CompleteAccount from './components/auth/CompleteAccount';
+import AuthError from './components/auth/AuthError';
+import PendingAccess from './components/auth/PendingAccess';
+import MembershipGuard from './components/auth/MembershipGuard';
+
+// ---------- Route guard ----------
+function RequireAuth() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
+  return <Outlet />;
+}
+
+// ✅ Wrap protected routes with FeaturesProvider (needs business_id)
+function WithFeatures() {
+  const { profile, loading } = useAuth();
+  if (loading) return null;
+
+  const businessId = profile?.business_id ?? null;
+  if (!businessId) {
+    return <div className="p-6">Nessun business associato.</div>;
+  }
+
+  return (
+    <FeaturesProvider businessId={businessId}>
+      <Outlet />
+    </FeaturesProvider>
+  );
+}
 
 // ---------- App ----------
 function App() {
@@ -60,30 +85,26 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* ---------- Public routes ---------- */}
+          {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* ✅ Auth callback endpoint (invite link lands here) */}
           <Route path="/auth/callback" element={<AuthCallback />} />
+
+          {/* ✅ First-time completion (set password + profile) */}
           <Route path="/complete-account" element={<CompleteAccount />} />
+
+          {/* ✅ Auth error + pending access */}
           <Route path="/auth/error" element={<AuthError />} />
           <Route path="/pending-access" element={<PendingAccess />} />
 
-          {/* ---------- Protected routes ---------- */}
+          {/* Protected (session required) */}
           <Route element={<RequireAuth />}>
+            {/* ✅ MembershipGuard only wraps the dashboard/private area (NOT onboarding) */}
             <Route element={<MembershipGuard />}>
-              <Route
-                element={
-                  <SelectedBusinessProvider>
-                    <Outlet />
-                  </SelectedBusinessProvider>
-                }
-              >
-                <Route
-                  element={
-                    <WithFeaturesWrapper>
-                      <Outlet />
-                    </WithFeaturesWrapper>
-                  }
-                >
+              {/* ✅ Business context for all protected routes */}
+              <Route element={<SelectedBusinessProvider><Outlet /></SelectedBusinessProvider>}>
+                <Route element={<WithFeatures />}>
                   <Route
                     path="/"
                     element={
@@ -95,7 +116,7 @@ function App() {
                   >
                     <Route index element={<Dashboard />} />
 
-                    {/* Gated routes */}
+                    {/* ✅ Gated routes */}
                     <Route
                       path="agenda"
                       element={
@@ -166,9 +187,7 @@ function App() {
                     <Route
                       path="aperture-eccezionali"
                       element={
-                        <OpeningExceptionsGate
-                          fallback={<Navigate to="/" replace />}
-                        >
+                        <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
                           <OpeningExceptions />
                         </OpeningExceptionsGate>
                       }
@@ -176,9 +195,7 @@ function App() {
                     <Route
                       path="exceptions"
                       element={
-                        <ClosingExceptionsGate
-                          fallback={<Navigate to="/" replace />}
-                        >
+                        <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
                           <ClosingExceptions />
                         </ClosingExceptionsGate>
                       }
@@ -205,13 +222,4 @@ function App() {
   );
 }
 
-// Small wrapper to pass business_id into FeaturesProvider
-function WithFeaturesWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <FeaturesProvider businessId={"from context via SelectedBusinessProvider"}>
-      {children}
-    </FeaturesProvider>
-  );
-}
-
-export default App;
+export default App; 
