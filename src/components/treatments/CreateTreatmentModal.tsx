@@ -2,6 +2,7 @@ import { Dialog } from "@headlessui/react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/AuthContext";
+import { useSelectedBusiness } from "@/components/auth/SelectedBusinessProvider"; // ✅ NEW
 import { X } from "lucide-react";
 
 export default function CreateTreatmentModal({
@@ -12,6 +13,7 @@ export default function CreateTreatmentModal({
   onCreated: () => void;
 }) {
   const { profile } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
 
   const [name, setName] = useState("");
   const [duration, setDuration] = useState(30);
@@ -21,7 +23,7 @@ export default function CreateTreatmentModal({
 
   const handleSubmit = async () => {
     if (!name) return alert("Il nome è obbligatorio");
-    if (!profile?.business_id) {
+    if (!effectiveBusinessId) { // ✅ changed
       alert("Profilo non configurato (manca business_id). Contatta l'amministratore.");
       return;
     }
@@ -33,7 +35,7 @@ export default function CreateTreatmentModal({
         duration_min: duration,
         price,
         category,
-        business_id: profile.business_id, // 👈 dinamico dal profilo
+        business_id: effectiveBusinessId, // ✅ changed
       },
     ]);
 
