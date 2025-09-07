@@ -34,11 +34,12 @@ export default function CompleteAccount() {
       setHasSession(true);
 
       // Fetch profile to detect if already completed (idempotent behavior)
-      const { data: prof, error: profErr } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, account_completed")
-        .eq("user_id", session.user.id)
-        .maybeSingle<Profile>();
+const { data: profs, error: profErr } = await supabase
+  .from("profiles")
+  .select("user_id, full_name, account_completed")
+  .eq("user_id", session.user.id);
+
+const prof = profs && profs.length > 0 ? profs[0] : null;
 
       if (profErr && profErr.code !== "PGRST116") {
         // ignore "No rows" (PGRST116). Any other error: show but still allow form.
