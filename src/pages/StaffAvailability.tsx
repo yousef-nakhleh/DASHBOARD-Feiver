@@ -10,7 +10,8 @@ import {
 import { supabase } from '../lib/supabase';
 import NewStaffModal from '../components/staff/NewStaffModal';
 import EditStaffAvailabilityModal from '../components/staff/EditStaffAvailabilityModal';
-import { useAuth } from '../components/auth/AuthContext'; // ⬅️ use AuthContext
+import { useAuth } from '../components/auth/AuthContext'; // ⬅️ keep AuthContext for loading
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
 
 // Weekday mapping from English (database) to Italian (display)
 const dayMap: Record<string, string> = {
@@ -24,8 +25,8 @@ const dayMap: Record<string, string> = {
 };
 
 const Staff = () => {
-  const { profile, loading: authLoading } = useAuth(); // ⬅️ grab profile (with business_id)
-  const businessId = profile?.business_id || null;
+  const { loading: authLoading } = useAuth(); // ⬅️ only loading from AuthContext
+  const { effectiveBusinessId: businessId } = useSelectedBusiness(); // ⬅️ business id source
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
