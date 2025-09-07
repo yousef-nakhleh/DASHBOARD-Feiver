@@ -6,6 +6,7 @@ import CreateTreatmentModal from "@/components/treatments/CreateTreatmentModal";
 import { Dialog } from "@headlessui/react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
 
 const categories = ["Tutti", "Capelli", "Barba", "Combo", "Colore", "Trattamenti"];
 
@@ -28,8 +29,9 @@ const SERVICES_CACHE: Record<
 const SERVICES_CACHE_TTL_MS = 60_000; // 60s
 
 export default function Trattamenti() {
-  const { user, loading: authLoading, profile } = useAuth();
-  const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
+  const { user, loading: authLoading } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use provider business id
+  const businessId = useMemo(() => effectiveBusinessId ?? null, [effectiveBusinessId]); // ✅ replaces profile?.business_id
 
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
@@ -40,7 +42,7 @@ export default function Trattamenti() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // 1) Fetch services for this business (now driven by AuthContext businessId)
+  // 1) Fetch services for this business (now driven by SelectedBusinessProvider)
   useEffect(() => {
     const fetchServices = async () => {
       if (authLoading) return; // wait for auth to resolve
@@ -365,4 +367,4 @@ export default function Trattamenti() {
       )}
     </div>
   );
-} 
+}
