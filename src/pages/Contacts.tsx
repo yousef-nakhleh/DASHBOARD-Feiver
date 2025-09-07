@@ -5,6 +5,8 @@ import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ added
+
 
 /* 🟡 Query + Cache: module-scope cache with TTL */
 const CONTACTS_CACHE_TTL_MS = 60_000; // 60s; adjust as you prefer
@@ -14,7 +16,7 @@ const contactsCache = new Map<
 >();
 
 const Contacts: React.FC = () => {
-  const { profile, authLoading } = useAuth();
+const { effectiveBusinessId, loading: businessLoading } = useSelectedBusiness();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
   const [showCreateContactForm, setShowCreateContactForm] = useState(false);
@@ -125,9 +127,9 @@ const Contacts: React.FC = () => {
     fetchClients(profile.business_id);
   };
 
-  if (authLoading || !profile?.business_id) {
-    return <div className="p-6 text-gray-500">Caricamento contatti…</div>;
-  }
+  if (businessLoading || !effectiveBusinessId) {
+  return <div className="p-6 text-gray-500">Caricamento contatti…</div>;
+}
 
   return (
     <div className="h-full space-y-6">
