@@ -20,7 +20,7 @@ import OpeningExceptions from './pages/OpeningExceptions';
 import Reports from './pages/Reports';
 
 // 🔐 Auth
-import { AuthProvider, useAuth } from './components/auth/AuthContext'; // keep your existing context import
+import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import LoginPage from './components/auth/LoginPage';
 
 // ✅ Features
@@ -37,15 +37,11 @@ import { OpeningExceptionsGate } from './gates/OpeningExceptionsGate';
 import { ClosingExceptionsGate } from './gates/ClosingExceptionsGate';
 import { ReportsGate } from './gates/ReportsGate';
 
-// ✅ Business selection context & selector
-import { SelectedBusinessProvider } from './components/auth/SelectedBusinessProvider';
+// ✅ Business selection
+import { SelectedBusinessProvider, useSelectedBusiness } from './components/auth/SelectedBusinessProvider';
 import BusinessSelector from './components/auth/BusinessSelector';
 
-// ❌ REMOVED old trials (do not mount these)
-// import InviteUser from './components/auth/InviteUser';
-// import SetPassword from './components/auth/SetPassword';
-
-// ✅ NEW: Auth flow components (all under components/auth/)
+// ✅ Auth flow components
 import AuthCallback from './components/auth/AuthCallback';
 import CompleteAccount from './components/auth/CompleteAccount';
 import AuthError from './components/auth/AuthError';
@@ -62,18 +58,14 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-// ✅ Wrap protected routes with FeaturesProvider (needs business_id)
+// ✅ Wrap protected routes with FeaturesProvider (needs effective business id)
 function WithFeatures() {
-  const { profile, loading } = useAuth();
-  if (loading) return null;
-
-  const businessId = profile?.business_id ?? null;
-  if (!businessId) {
+  const { effectiveBusinessId } = useSelectedBusiness();
+  if (!effectiveBusinessId) {
     return <div className="p-6">Nessun business associato.</div>;
   }
-
   return (
-    <FeaturesProvider businessId={businessId}>
+    <FeaturesProvider businessId={effectiveBusinessId}>
       <Outlet />
     </FeaturesProvider>
   );
@@ -87,22 +79,14 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
-
-          {/* ✅ Auth callback endpoint (invite link lands here) */}
           <Route path="/auth/callback" element={<AuthCallback />} />
-
-          {/* ✅ First-time completion (set password + profile) */}
           <Route path="/complete-account" element={<CompleteAccount />} />
-
-          {/* ✅ Auth error + pending access */}
           <Route path="/auth/error" element={<AuthError />} />
           <Route path="/pending-access" element={<PendingAccess />} />
 
-          {/* Protected (session required) */}
+          {/* Protected */}
           <Route element={<RequireAuth />}>
-            {/* ✅ MembershipGuard only wraps the dashboard/private area (NOT onboarding) */}
             <Route element={<MembershipGuard />}>
-              {/* ✅ Business context for all protected routes */}
               <Route element={<SelectedBusinessProvider><Outlet /></SelectedBusinessProvider>}>
                 <Route element={<WithFeatures />}>
                   <Route
@@ -116,98 +100,21 @@ function App() {
                   >
                     <Route index element={<Dashboard />} />
 
-                    {/* ✅ Gated routes */}
-                    <Route
-                      path="agenda"
-                      element={
-                        <AgendaGate fallback={<Navigate to="/" replace />}>
-                          <Agenda />
-                        </AgendaGate>
-                      }
-                    />
-                    <Route
-                      path="cassa"
-                      element={
-                        <TransactionsGate fallback={<Navigate to="/" replace />}>
-                          <CashRegister />
-                        </TransactionsGate>
-                      }
-                    />
+                    {/* Gated routes */}
+                    <Route path="agenda" element={<AgendaGate fallback={<Navigate to="/" replace />}><Agenda /></AgendaGate>} />
+                    <Route path="cassa" element={<TransactionsGate fallback={<Navigate to="/" replace />}><CashRegister /></TransactionsGate>} />
                     <Route path="cassa/pagamento" element={<PaymentPage />} />
-                    <Route
-                      path="rubrica"
-                      element={
-                        <ContactsGate fallback={<Navigate to="/" replace />}>
-                          <Contacts />
-                        </ContactsGate>
-                      }
-                    />
-                    <Route
-                      path="trattamenti"
-                      element={
-                        <ServicesGate fallback={<Navigate to="/" replace />}>
-                          <Trattamenti />
-                        </ServicesGate>
-                      }
-                    />
+                    <Route path="rubrica" element={<ContactsGate fallback={<Navigate to="/" replace />}><Contacts /></ContactsGate>} />
+                    <Route path="trattamenti" element={<ServicesGate fallback={<Navigate to="/" replace />}><Trattamenti /></ServicesGate>} />
                     <Route path="analytics" element={<Analytics />} />
                     <Route path="magazzino" element={<Magazzino />} />
-                    <Route
-                      path="staff"
-                      element={
-                        <AvailabilityGate fallback={<Navigate to="/" replace />}>
-                          <StaffAvailability />
-                        </AvailabilityGate>
-                      }
-                    />
-                    <Route
-                      path="chatbot"
-                      element={
-                        <ChatbotGate fallback={<Navigate to="/" replace />}>
-                          <Chatbot />
-                        </ChatbotGate>
-                      }
-                    />
-                    <Route
-                      path="waiting-list"
-                      element={
-                        <WaitingListGate fallback={<Navigate to="/" replace />}>
-                          <WaitingList />
-                        </WaitingListGate>
-                      }
-                    />
-                    <Route
-                      path="vapi"
-                      element={
-                        <PhoneCallerGate fallback={<Navigate to="/" replace />}>
-                          <Vapi />
-                        </PhoneCallerGate>
-                      }
-                    />
-                    <Route
-                      path="aperture-eccezionali"
-                      element={
-                        <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
-                          <OpeningExceptions />
-                        </OpeningExceptionsGate>
-                      }
-                    />
-                    <Route
-                      path="exceptions"
-                      element={
-                        <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
-                          <ClosingExceptions />
-                        </ClosingExceptionsGate>
-                      }
-                    />
-                    <Route
-                      path="reports"
-                      element={
-                        <ReportsGate fallback={<Navigate to="/" replace />}>
-                          <Reports />
-                        </ReportsGate>
-                      }
-                    />
+                    <Route path="staff" element={<AvailabilityGate fallback={<Navigate to="/" replace />}><StaffAvailability /></AvailabilityGate>} />
+                    <Route path="chatbot" element={<ChatbotGate fallback={<Navigate to="/" replace />}><Chatbot /></ChatbotGate>} />
+                    <Route path="waiting-list" element={<WaitingListGate fallback={<Navigate to="/" replace />}><WaitingList /></WaitingListGate>} />
+                    <Route path="vapi" element={<PhoneCallerGate fallback={<Navigate to="/" replace />}><Vapi /></PhoneCallerGate>} />
+                    <Route path="aperture-eccezionali" element={<OpeningExceptionsGate fallback={<Navigate to="/" replace />}><OpeningExceptions /></OpeningExceptionsGate>} />
+                    <Route path="exceptions" element={<ClosingExceptionsGate fallback={<Navigate to="/" replace />}><ClosingExceptions /></ClosingExceptionsGate>} />
+                    <Route path="reports" element={<ReportsGate fallback={<Navigate to="/" replace />}><Reports /></ReportsGate>} />
 
                     {/* Default */}
                     <Route path="*" element={<Navigate to="/" replace />} />
@@ -222,4 +129,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;
