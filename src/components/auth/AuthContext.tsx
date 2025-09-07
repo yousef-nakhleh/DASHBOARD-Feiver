@@ -1,20 +1,21 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+// src/components/auth/AuthContext.tsx
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
-
-type Profile = {
-  id: string; 
-  business_id: string | null;
-  role: string | null;
-};
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,89 +23,35 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string) {
-  try {
-    const { data, error } = await supabase
-      .from("memberships")
-      .select("user_id, business_id, role")
-      .eq("user_id", userId)
-      .single(); // OK because you currently have exactly one row per user
-
-    if (error) {
-      console.error("memberships fetch error:", error.message, error);
-      setProfile(null);
-      return null;
-    }
-
-    // Adapt membership row to your Profile shape
-    const prof: Profile = {
-      id: userId,
-      business_id: data?.business_id ?? null,
-      role: (data?.role as string) ?? null,
-    };
-
-    console.log("Membership fetched successfully:", data);
-    setProfile(prof);
-    console.log("Profile set in AuthContext (from memberships):", prof);
-    return prof;
-  } catch (e) {
-    console.error("memberships fetch exception:", e);
-    setProfile(null);
-    return null;
-  }
-}
-
-  const refreshProfile = async () => {
-    if (user?.id) await fetchProfile(user.id);
-  };
-
+  // 🔑 Load session on mount
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    const init = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data } = await supabase.auth.getSession();
         if (!mounted) return;
-        if (error) {
-          console.error("getSession error:", error.message, error);
-        }
 
         const sess = data?.session ?? null;
-        console.log("Initial session:", sess ? "Found session" : "No session");
         setSession(sess);
-        const u = sess?.user ?? null;
-        console.log("Initial user:", u ? `User ID: ${u.id}` : "No user");
-        setUser(u);
-
-        if (u?.id) {
-          // don’t block UI on profile
-          console.log("Fetching profile for user:", u.id);
-          await fetchProfile(u.id);
-        } else {
-          setProfile(null);
-        }
+        setUser(sess?.user ?? null);
       } catch (e) {
-        console.error("getSession exception:", e);
-        setProfile(null);
+        console.error("getSession failed:", e);
+        setSession(null);
+        setUser(null);
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
 
+    init();
+
+    // 🔄 Listen for login/logout/refresh
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log("Auth state change:", _event, newSession ? "Session exists" : "No session");
       setSession(newSession ?? null);
-      const nextUser = newSession?.user ?? null;
-      setUser(nextUser);
-      // fire-and-forget profile load; UI doesn’t hang
-      if (nextUser?.id) {
-        console.log("Auth change: fetching profile for user:", nextUser.id);
-        fetchProfile(nextUser.id);
-      }
-      else setProfile(null);
+      setUser(newSession?.user ?? null);
       setLoading(false);
     });
 
@@ -114,20 +61,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // 🔄 Force refresh from Supabase
+  const refresh = async () => {
+    setLoading(true);
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session ?? null);
+    setUser(data.session?.user ?? null);
+    setLoading(false);
+  };
+
   const signOut = async () => {
     setUser(null);
     setSession(null);
-    setProfile(null);
     await supabase.auth.signOut().catch(() => {});
   };
 
-  return (
-    <AuthContext.Provider
-      value={{ user, session, profile, loading, signOut, refreshProfile }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      session,
+      loading,
+      signOut,
+      refresh,
+    }),
+    [user, session, loading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {
