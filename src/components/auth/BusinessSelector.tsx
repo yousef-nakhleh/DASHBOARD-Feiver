@@ -1,43 +1,54 @@
 // src/components/auth/BusinessSelector.tsx
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from './AuthContext';
-import { useSelectedBusiness } from './SelectedBusinessProvider';
+import React, { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "./AuthContext";
+import { useSelectedBusiness } from "./SelectedBusinessProvider";
 
-interface Membership {
+type Membership = {
   business_id: string;
   role: string;
   business: {
     id: string;
     name: string;
-  };
-}
+  } | null;
+};
 
 const BusinessSelector: React.FC = () => {
-  const { profile } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { selectedBusinessId, setSelectedBusinessId } = useSelectedBusiness();
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchMemberships = async () => {
-      if (!profile) return;
+      if (authLoading) return;
+      if (!user?.id) {
+        setMemberships([]);
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       const { data, error } = await supabase
-        .from('memberships')
-        .select('business_id, role, business:business(id, name)')
-        .eq('user_id', profile.id);
+        .from("memberships")
+        .select("business_id, role, business:business(id, name)")
+        .eq("user_id", user.id);
+
+      if (cancelled) return;
 
       if (error) {
-        console.error('Error fetching memberships:', error);
+        console.error("Error fetching memberships:", error);
         setMemberships([]);
       } else {
-        setMemberships(data || []);
-        // Auto-select if only 1 membership
-        if (data && data.length === 1) {
-          setSelectedBusinessId(data[0].business_id);
+        const rows = (data as Membership[]) || [];
+        setMemberships(rows);
+
+        // Auto-select if only one membership and nothing chosen yet
+        if (rows.length === 1 && !selectedBusinessId) {
+          setSelectedBusinessId(rows[0].business_id);
         }
       }
 
@@ -45,18 +56,16 @@ const BusinessSelector: React.FC = () => {
     };
 
     fetchMemberships();
-  }, [profile, setSelectedBusinessId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id, selectedBusinessId, setSelectedBusinessId]);
 
-  // Don’t render if still loading or no memberships
+  // Don’t render selector while loading or if user has no memberships
   if (loading || memberships.length === 0) return null;
 
-  // Show selector if:
-  // - super_admin (sees all memberships)
-  // - OR user has >1 businesses
-  if (
-    memberships.length === 1 &&
-    memberships[0].role !== 'super_admin'
-  ) {
+  // Hide selector if user has exactly 1 membership and is not super_admin
+  if (memberships.length === 1 && memberships[0].role !== "super_admin") {
     return null;
   }
 
@@ -70,7 +79,7 @@ const BusinessSelector: React.FC = () => {
       </label>
       <select
         id="business-selector"
-        value={selectedBusinessId || ''}
+        value={selectedBusinessId || ""}
         onChange={(e) => setSelectedBusinessId(e.target.value)}
         className="border border-gray-300 rounded-lg px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-black"
       >
@@ -79,7 +88,7 @@ const BusinessSelector: React.FC = () => {
         </option>
         {memberships.map((m) => (
           <option key={m.business_id} value={m.business_id}>
-            {m.business?.name || m.business_id} ({m.role})
+            {(m.business?.name ?? m.business_id) + ` (${m.role})`}
           </option>
         ))}
       </select>
