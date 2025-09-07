@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toLocalFromUTC } from "../lib/timeUtils";
 import { useAuth } from "../components/auth/AuthContext";
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
 
 interface ChatbotData {
   id: string;
@@ -15,8 +16,9 @@ interface ChatbotData {
 }
 
 const Chatbot: React.FC = () => {
-  const { user, loading: authLoading, profile } = useAuth();
-  const businessId = useMemo(() => profile?.business_id ?? null, [profile?.business_id]);
+  const { user, loading: authLoading } = useAuth();                           // ✅ unchanged usage
+  const { effectiveBusinessId } = useSelectedBusiness();                      // ✅ NEW
+  const businessId = effectiveBusinessId ?? null;                             // ✅ use provider
 
   const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,4 +242,4 @@ const Chatbot: React.FC = () => {
   );
 };
 
-export default Chatbot; 
+export default Chatbot;
