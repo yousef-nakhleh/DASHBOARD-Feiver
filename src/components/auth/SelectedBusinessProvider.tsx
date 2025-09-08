@@ -88,16 +88,55 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     }
 
     const rows = (data as Membership[]) ?? [];
-    setMemberships(rows);
-    setMembershipsLoading(false);
+    const isSuper = rows.some((r) => r.role === "super_admin");
 
-    // Auto-select default when there is only one membership and user hasn't chosen yet
+    // If super_admin, expose ALL businesses as selectable targets
+    if (isSuper) {
+      const { data: allBiz, error: allBizErr } = await supabase
+        .from("business")
+        .select("id,name")
+        .order("name", { ascending: true });
+
+      if (allBizErr) {
+        console.error("fetch all business error:", allBizErr);
+        setMemberships([]);
+        setMembershipsError(allBizErr.message ?? "Errore durante il caricamento.");
+        setMembershipsLoading(false);
+        return;
+      }
+
+      const synthesized: Membership[] =
+        (allBiz ?? []).map((b: any) => ({
+          business_id: b.id,
+          role: "super_admin",
+          business: { id: b.id, name: b.name },
+        })) ?? [];
+
+      setMemberships(synthesized);
+
+      // Auto-select default when there is only one business and user hasn't chosen yet
+      if (synthesized.length === 1 && !selectedBusinessId) {
+        _setSelectedBusinessId(synthesized[0].business_id);
+        if (storageKey) {
+          window.localStorage.setItem(storageKey, synthesized[0].business_id);
+        }
+      }
+
+      setMembershipsLoading(false);
+      return;
+    }
+
+    // Normal (non-super) path: use user-specific memberships
+    setMemberships(rows);
+
     if (rows.length === 1 && !selectedBusinessId) {
       _setSelectedBusinessId(rows[0].business_id);
       if (storageKey) {
         window.localStorage.setItem(storageKey, rows[0].business_id);
       }
     }
+
+    setMembershipsLoading(false);
   };
 
   // Fetch memberships when auth state changes
@@ -114,7 +153,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     else window.localStorage.removeItem(storageKey);
   };
 
-  // effective = explicit selection OR (if none) null (we don’t rely on AuthContext anymore)
+  // effective = explicit selection OR (if none) null
   const effectiveBusinessId = useMemo(() => {
     return selectedBusinessId ?? null;
   }, [selectedBusinessId]);
