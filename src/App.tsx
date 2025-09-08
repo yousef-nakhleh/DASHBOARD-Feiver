@@ -30,7 +30,7 @@ import Reports from "./pages/Reports";
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
 
-// ✅ Features
+// ✅ Features gates
 import { FeaturesProvider } from "./features/FeaturesProvider";
 import { AgendaGate } from "./gates/AgendaGate";
 import { ChatbotGate } from "./gates/ChatbotGate";
@@ -43,36 +43,83 @@ import { WaitingListGate } from "./gates/WaitingListGate";
 import { OpeningExceptionsGate } from "./gates/OpeningExceptionsGate";
 import { ClosingExceptionsGate } from "./gates/ClosingExceptionsGate";
 import { ReportsGate } from "./gates/ReportsGate";
-// ✅ NEW: protect Analytics
 import { AnalyticsGate } from "./gates/AnalyticsGate";
 
 // ✅ Business selection
-import { SelectedBusinessProvider, useSelectedBusiness } from "./components/auth/SelectedBusinessProvider";
+import {
+  SelectedBusinessProvider,
+  useSelectedBusiness,
+} from "./components/auth/SelectedBusinessProvider";
 import BusinessSelector from "./components/auth/BusinessSelector";
 
-// ✅ Auth flow
-import AuthCallback from "./components/auth/AuthCallback";
-import CompleteAccount from "./components/auth/CompleteAccount";
-import AuthError from "./components/auth/AuthError";
-import PendingAccess from "./components/auth/PendingAccess";
-import MembershipGuard from "./components/auth/MembershipGuard";
-
-// ---------- Route guard ----------
+/* -------- Auth guard (kept minimal) -------- */
 function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
-
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   return <Outlet />;
 }
 
-// ✅ Needs business_id to mount FeaturesProvider
-function WithFeatures() {
-  const { effectiveBusinessId } = useSelectedBusiness();
-  if (!effectiveBusinessId) {
-    return <div className="p-6">Nessun business associato.</div>;
+/* -------- Gate that blocks until a business is chosen -------- */
+function BusinessGate() {
+  const {
+    effectiveBusinessId,
+    memberships,
+    membershipsLoading,
+    membershipsError,
+    selectedBusinessId,
+  } = useSelectedBusiness();
+
+  if (membershipsLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-gray-50">
+        <div className="w-full max-w-sm bg-white p-6 rounded-xl shadow text-center">
+          <div className="animate-pulse text-gray-700 mb-2">Caricamento…</div>
+          <div className="text-sm text-gray-500">Recupero aziende disponibili.</div>
+        </div>
+      </div>
+    );
   }
+
+  if (membershipsError) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Errore: {membershipsError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No memberships at all
+  if (!memberships || memberships.length === 0) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="text-center">
+          <p className="text-gray-700 font-semibold">Nessun business associato.</p>
+          <p className="text-gray-500 text-sm">Contatta l'amministratore.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If nothing selected yet, render a full-screen selector
+  if (!effectiveBusinessId || !selectedBusinessId) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-gray-50 p-4">
+        <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow">
+          <h1 className="text-xl font-bold text-black mb-2">Seleziona Business</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            Scegli l’azienda con cui lavorare.
+          </p>
+          <BusinessSelector />
+        </div>
+      </div>
+    );
+  }
+
+  // We have an effective business → mount features & app layout
   return (
     <FeaturesProvider businessId={effectiveBusinessId}>
       <Outlet />
@@ -80,145 +127,135 @@ function WithFeatures() {
   );
 }
 
-// ---------- App ----------
+/* -------- App -------- */
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* ---------- PUBLIC FLOW ---------- */}
+          {/* Public */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/complete-account" element={<CompleteAccount />} />
-          <Route path="/auth/error" element={<AuthError />} />
-          <Route path="/pending-access" element={<PendingAccess />} />
 
-          {/* ---------- PRIVATE FLOW ---------- */}
+          {/* Private */}
           <Route element={<RequireAuth />}>
-            {/* Membership/authorization check happens ONLY here */}
-            <Route element={<MembershipGuard />}>
+            <Route
+              element={
+                <SelectedBusinessProvider>
+                  <BusinessGate />
+                </SelectedBusinessProvider>
+              }
+            >
               <Route
+                path="/"
                 element={
-                  <SelectedBusinessProvider>
-                    <WithFeatures />
-                  </SelectedBusinessProvider>
+                  // You can also keep a small switcher in the header if you want
+                  <Layout />
                 }
               >
+                <Route index element={<Dashboard />} />
+
+                {/* Gated routes */}
                 <Route
-                  path="/"
+                  path="agenda"
                   element={
-                    <>
-                      <BusinessSelector />
-                      <Layout />
-                    </>
+                    <AgendaGate fallback={<Navigate to="/" replace />}>
+                      <Agenda />
+                    </AgendaGate>
                   }
-                >
-                  <Route index element={<Dashboard />} />
+                />
+                <Route
+                  path="cassa"
+                  element={
+                    <TransactionsGate fallback={<Navigate to="/" replace />}>
+                      <CashRegister />
+                    </TransactionsGate>
+                  }
+                />
+                <Route path="cassa/pagamento" element={<PaymentPage />} />
+                <Route
+                  path="rubrica"
+                  element={
+                    <ContactsGate fallback={<Navigate to="/" replace />}>
+                      <Contacts />
+                    </ContactsGate>
+                  }
+                />
+                <Route
+                  path="trattamenti"
+                  element={
+                    <ServicesGate fallback={<Navigate to="/" replace />}>
+                      <Trattamenti />
+                    </ServicesGate>
+                  }
+                />
+                <Route
+                  path="analytics"
+                  element={
+                    <AnalyticsGate fallback={<Navigate to="/" replace />}>
+                      <Analytics />
+                    </AnalyticsGate>
+                  }
+                />
+                <Route path="magazzino" element={<Magazzino />} />
+                <Route
+                  path="staff"
+                  element={
+                    <AvailabilityGate fallback={<Navigate to="/" replace />}>
+                      <StaffAvailability />
+                    </AvailabilityGate>
+                  }
+                />
+                <Route
+                  path="chatbot"
+                  element={
+                    <ChatbotGate fallback={<Navigate to="/" replace />}>
+                      <Chatbot />
+                    </ChatbotGate>
+                  }
+                />
+                <Route
+                  path="waiting-list"
+                  element={
+                    <WaitingListGate fallback={<Navigate to="/" replace />}>
+                      <WaitingList />
+                    </WaitingListGate>
+                  }
+                />
+                <Route
+                  path="vapi"
+                  element={
+                    <PhoneCallerGate fallback={<Navigate to="/" replace />}>
+                      <Vapi />
+                    </PhoneCallerGate>
+                  }
+                />
+                <Route
+                  path="aperture-eccezionali"
+                  element={
+                    <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <OpeningExceptions />
+                    </OpeningExceptionsGate>
+                  }
+                />
+                <Route
+                  path="exceptions"
+                  element={
+                    <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <ClosingExceptions />
+                    </ClosingExceptionsGate>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <ReportsGate fallback={<Navigate to="/" replace />}>
+                      <Reports />
+                    </ReportsGate>
+                  }
+                />
 
-                  {/* ✅ Gated routes */}
-                  <Route
-                    path="agenda"
-                    element={
-                      <AgendaGate fallback={<Navigate to="/" replace />}>
-                        <Agenda />
-                      </AgendaGate>
-                    }
-                  />
-                  <Route
-                    path="cassa"
-                    element={
-                      <TransactionsGate fallback={<Navigate to="/" replace />}>
-                        <CashRegister />
-                      </TransactionsGate>
-                    }
-                  />
-                  <Route path="cassa/pagamento" element={<PaymentPage />} />
-                  <Route
-                    path="rubrica"
-                    element={
-                      <ContactsGate fallback={<Navigate to="/" replace />}>
-                        <Contacts />
-                      </ContactsGate>
-                    }
-                  />
-                  <Route
-                    path="trattamenti"
-                    element={
-                      <ServicesGate fallback={<Navigate to="/" replace />}>
-                        <Trattamenti />
-                      </ServicesGate>
-                    }
-                  />
-                  {/* 🔒 Analytics now behind a gate */}
-                  <Route
-                    path="analytics"
-                    element={
-                      <AnalyticsGate fallback={<Navigate to="/" replace />}>
-                        <Analytics />
-                      </AnalyticsGate>
-                    }
-                  />
-                  <Route path="magazzino" element={<Magazzino />} />
-                  <Route
-                    path="staff"
-                    element={
-                      <AvailabilityGate fallback={<Navigate to="/" replace />}>
-                        <StaffAvailability />
-                      </AvailabilityGate>
-                    }
-                  />
-                  <Route
-                    path="chatbot"
-                    element={
-                      <ChatbotGate fallback={<Navigate to="/" replace />}>
-                        <Chatbot />
-                      </ChatbotGate>
-                    }
-                  />
-                  <Route
-                    path="waiting-list"
-                    element={
-                      <WaitingListGate fallback={<Navigate to="/" replace />}>
-                        <WaitingList />
-                      </WaitingListGate>
-                    }
-                  />
-                  <Route
-                    path="vapi"
-                    element={
-                      <PhoneCallerGate fallback={<Navigate to="/" replace />}>
-                        <Vapi />
-                      </PhoneCallerGate>
-                    }
-                  />
-                  <Route
-                    path="aperture-eccezionali"
-                    element={
-                      <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
-                        <OpeningExceptions />
-                      </OpeningExceptionsGate>
-                    }
-                  />
-                  <Route
-                    path="exceptions"
-                    element={
-                      <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
-                        <ClosingExceptions />
-                      </ClosingExceptionsGate>
-                    }
-                  />
-                  <Route
-                    path="reports"
-                    element={
-                      <ReportsGate fallback={<Navigate to="/" replace />}>
-                        <Reports />
-                      </ReportsGate>
-                    }
-                  />
-
-                  {/* Default */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
+                {/* Default */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Route>
           </Route>
@@ -228,4 +265,4 @@ function App() {
   );
 }
 
-export default App;  
+export default App;
