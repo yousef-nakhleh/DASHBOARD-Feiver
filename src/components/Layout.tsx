@@ -100,8 +100,10 @@ const Layout = () => {
       items.push({ path: '/trattamenti', name: 'Trattamenti', icon: <Scissors size={20} /> });
     }
 
-    // Statistiche (Analytics) — left open by your request (no gate)
-    items.push({ path: '/analytics', name: 'Statistiche', icon: <BarChart2 size={20} /> });
+    // 🔒 Statistiche (Analytics) — now gated like others
+    if (ready && has(FEATURE.ANALYTICS)) {
+      items.push({ path: '/analytics', name: 'Statistiche', icon: <BarChart2 size={20} /> });
+    }
 
     // Magazzino — left open
     items.push({ path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> });
