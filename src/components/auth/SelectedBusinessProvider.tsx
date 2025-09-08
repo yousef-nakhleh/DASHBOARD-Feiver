@@ -120,15 +120,8 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
 
       setMemberships(synthesized);
 
-      // Auto-select if exactly one choice
-      if (synthesized.length === 1 && !selectedBusinessId) {
-        _setSelectedBusinessId(synthesized[0].business_id);
-        if (storageKey) {
-          window.localStorage.setItem(storageKey, synthesized[0].business_id);
-        }
-      }
-
-      // If there is a saved selection that no longer exists, clear it
+      // ❗️Do NOT auto-select for super admins — force the selector step
+      // If saved selection no longer valid, clear it
       if (
         selectedBusinessId &&
         !synthesized.some((m) => m.business_id === selectedBusinessId)
@@ -144,6 +137,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     // Normal (non-super) path: use user-specific memberships
     setMemberships(rows);
 
+    // Auto-select only when the user has exactly one membership (non-super case)
     if (rows.length === 1 && !selectedBusinessId) {
       _setSelectedBusinessId(rows[0].business_id);
       if (storageKey) {
@@ -151,7 +145,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
       }
     }
 
-    // If there is a saved selection that no longer exists, clear it
+    // If saved selection no longer valid, clear it
     if (
       selectedBusinessId &&
       !rows.some((m) => m.business_id === selectedBusinessId)
