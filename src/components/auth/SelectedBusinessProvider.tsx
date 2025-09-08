@@ -97,11 +97,15 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     setIsSuperAdmin(isSuper);
 
     // If super_admin, synthesize memberships from ALL businesses
-    if (isSuper) {
-      const { data: allBiz, error: allBizErr } = await supabase
-        .from("business")
-        .select("id,name")
-        .order("name", { ascending: true });
+if (isSuper) {
+  // 🔒 Force selector for super_admins every login
+  _setSelectedBusinessId(null);
+  if (storageKey) window.localStorage.removeItem(storageKey);
+
+  const { data: allBiz, error: allBizErr } = await supabase
+    .from("business")
+    .select("id,name")
+    .order("name", { ascending: true });
 
       if (allBizErr) {
         console.error("fetch all business error:", allBizErr);
