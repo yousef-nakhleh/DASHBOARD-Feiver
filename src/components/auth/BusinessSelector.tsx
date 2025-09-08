@@ -9,25 +9,16 @@ const BusinessSelector: React.FC = () => {
     memberships,
     membershipsLoading,
     membershipsError,
+    isSuperAdmin,                    // ← use this
   } = useSelectedBusiness();
 
-  // Don’t render while loading or on error
   if (membershipsLoading || membershipsError) return null;
-
-  // No memberships → nothing to select
   if (!memberships || memberships.length === 0) return null;
-
-  const isSuperAdmin = memberships.some((m) => m.role === "super_admin");
-
-  // Hide selector if user has exactly 1 membership and is NOT super_admin
   if (!isSuperAdmin && memberships.length === 1) return null;
 
   return (
     <div className="mb-4">
-      <label
-        htmlFor="business-selector"
-        className="block text-sm font-medium text-gray-700 mb-1"
-      >
+      <label htmlFor="business-selector" className="block text-sm font-medium text-gray-700 mb-1">
         Seleziona Business
       </label>
       <select
@@ -36,14 +27,16 @@ const BusinessSelector: React.FC = () => {
         onChange={(e) => setSelectedBusinessId(e.target.value)}
         className="border border-gray-300 rounded-lg px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-black"
       >
-        <option value="" disabled>
-          -- Scegli un business --
-        </option>
-        {memberships.map((m) => (
-          <option key={m.business_id} value={m.business_id}>
-            {(m.business?.name ?? m.business_id) + ` (${m.role})`}
-          </option>
-        ))}
+        <option value="" disabled>-- Scegli un business --</option>
+        {memberships.map((m) => {
+          const name = m.business?.name ?? m.business_id;
+          const label = isSuperAdmin ? name : `${name} (${m.role})`; // ← change
+          return (
+            <option key={m.business_id} value={m.business_id}>
+              {label}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
