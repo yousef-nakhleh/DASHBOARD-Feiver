@@ -43,6 +43,8 @@ import { WaitingListGate } from "./gates/WaitingListGate";
 import { OpeningExceptionsGate } from "./gates/OpeningExceptionsGate";
 import { ClosingExceptionsGate } from "./gates/ClosingExceptionsGate";
 import { ReportsGate } from "./gates/ReportsGate";
+// ✅ NEW: protect Analytics
+import { AnalyticsGate } from "./gates/AnalyticsGate";
 
 // ✅ Business selection
 import { SelectedBusinessProvider, useSelectedBusiness } from "./components/auth/SelectedBusinessProvider";
@@ -147,7 +149,15 @@ function App() {
                       </ServicesGate>
                     }
                   />
-                  <Route path="analytics" element={<Analytics />} />
+                  {/* 🔒 Analytics now behind a gate */}
+                  <Route
+                    path="analytics"
+                    element={
+                      <AnalyticsGate fallback={<Navigate to="/" replace />}>
+                        <Analytics />
+                      </AnalyticsGate>
+                    }
+                  />
                   <Route path="magazzino" element={<Magazzino />} />
                   <Route
                     path="staff"
