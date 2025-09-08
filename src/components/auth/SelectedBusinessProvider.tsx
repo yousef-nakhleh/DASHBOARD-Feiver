@@ -24,10 +24,13 @@ type SelectedBusinessContextType = {
   /** The business id the rest of the app should use. */
   effectiveBusinessId: string | null;
 
-  /** Loaded memberships for current user (optional for UI like BusinessSelector). */
+  /** Loaded memberships or (for super admin) all businesses as synthetic memberships. */
   memberships: Membership[];
   membershipsLoading: boolean;
   membershipsError: string | null;
+
+  /** True if current user has a super_admin membership. */
+  isSuperAdmin: boolean;
 
   /** Manually refresh memberships. */
   refreshMemberships: () => Promise<void>;
@@ -44,13 +47,12 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
 
   const storageKey = user?.id ? `sb_selected_business_${user.id}` : null;
 
-  const [selectedBusinessId, _setSelectedBusinessId] = useState<string | null>(
-    null
-  );
+  const [selectedBusinessId, _setSelectedBusinessId] = useState<string | null>(null);
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [membershipsLoading, setMembershipsLoading] = useState<boolean>(true);
   const [membershipsError, setMembershipsError] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Load saved selection when user changes
   useEffect(() => {
@@ -66,6 +68,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
   const fetchMemberships = async () => {
     if (!user?.id) {
       setMemberships([]);
+      setIsSuperAdmin(false);
       setMembershipsLoading(false);
       setMembershipsError(null);
       return;
@@ -74,6 +77,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     setMembershipsLoading(true);
     setMembershipsError(null);
 
+    // Fetch user memberships
     const { data, error } = await supabase
       .from("memberships")
       .select("business_id, role, business:business(id, name)")
@@ -82,6 +86,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     if (error) {
       console.error("fetchMemberships error:", error);
       setMemberships([]);
+      setIsSuperAdmin(false);
       setMembershipsError(error.message ?? "Errore durante il caricamento.");
       setMembershipsLoading(false);
       return;
@@ -89,8 +94,9 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
 
     const rows = (data as Membership[]) ?? [];
     const isSuper = rows.some((r) => r.role === "super_admin");
+    setIsSuperAdmin(isSuper);
 
-    // If super_admin, expose ALL businesses as selectable targets
+    // If super_admin, synthesize memberships from ALL businesses
     if (isSuper) {
       const { data: allBiz, error: allBizErr } = await supabase
         .from("business")
@@ -114,12 +120,21 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
 
       setMemberships(synthesized);
 
-      // Auto-select default when there is only one business and user hasn't chosen yet
+      // Auto-select if exactly one choice
       if (synthesized.length === 1 && !selectedBusinessId) {
         _setSelectedBusinessId(synthesized[0].business_id);
         if (storageKey) {
           window.localStorage.setItem(storageKey, synthesized[0].business_id);
         }
+      }
+
+      // If there is a saved selection that no longer exists, clear it
+      if (
+        selectedBusinessId &&
+        !synthesized.some((m) => m.business_id === selectedBusinessId)
+      ) {
+        _setSelectedBusinessId(null);
+        if (storageKey) window.localStorage.removeItem(storageKey);
       }
 
       setMembershipsLoading(false);
@@ -134,6 +149,15 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
       if (storageKey) {
         window.localStorage.setItem(storageKey, rows[0].business_id);
       }
+    }
+
+    // If there is a saved selection that no longer exists, clear it
+    if (
+      selectedBusinessId &&
+      !rows.some((m) => m.business_id === selectedBusinessId)
+    ) {
+      _setSelectedBusinessId(null);
+      if (storageKey) window.localStorage.removeItem(storageKey);
     }
 
     setMembershipsLoading(false);
@@ -166,6 +190,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
       memberships,
       membershipsLoading,
       membershipsError,
+      isSuperAdmin,
       refreshMemberships: fetchMemberships,
     }),
     [
@@ -174,6 +199,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
       memberships,
       membershipsLoading,
       membershipsError,
+      isSuperAdmin,
     ]
   );
 
