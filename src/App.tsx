@@ -30,7 +30,7 @@ import Reports from "./pages/Reports";
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
 
-// ✅ Features gates
+// ✅ Feature gates
 import { FeaturesProvider } from "./features/FeaturesProvider";
 import { AgendaGate } from "./gates/AgendaGate";
 import { ChatbotGate } from "./gates/ChatbotGate";
@@ -59,10 +59,8 @@ import SuperAdmin from "./superadmin/SuperAdmin";
 function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
-
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-
   return <Outlet />;
 }
 
@@ -73,7 +71,6 @@ function BusinessGate() {
     memberships,
     membershipsLoading,
     membershipsError,
-    selectedBusinessId,
     isSuperAdmin,
   } = useSelectedBusiness();
 
@@ -82,9 +79,7 @@ function BusinessGate() {
       <div className="min-h-screen grid place-items-center bg-gray-50">
         <div className="w-full max-w-sm bg-white p-6 rounded-xl shadow text-center">
           <div className="animate-pulse text-gray-700 mb-2">Caricamento…</div>
-          <div className="text-sm text-gray-500">
-            Recupero aziende disponibili.
-          </div>
+          <div className="text-sm text-gray-500">Recupero aziende disponibili.</div>
         </div>
       </div>
     );
@@ -94,48 +89,19 @@ function BusinessGate() {
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="text-center">
-          <p className="text-red-600 font-medium">
-            Errore: {membershipsError}
-          </p>
+          <p className="text-red-600 font-medium">Errore: {membershipsError}</p>
         </div>
       </div>
     );
   }
 
-  if (isSuperAdmin) {
-    // 🔑 Super admin: land on SuperAdmin panel
+  // ✅ FIX: Super admin lands on panel ONLY when no business is selected yet
+  if (isSuperAdmin && !effectiveBusinessId) {
     return <SuperAdmin />;
   }
 
-  // Non-super admin: if only one business, auto-select → dashboard
-  if (memberships.length === 1 && effectiveBusinessId) {
-    return (
-      <FeaturesProvider businessId={effectiveBusinessId}>
-        <Layout>
-          <Outlet />
-        </Layout>
-      </FeaturesProvider>
-    );
-  }
-
-  // Non-super admin: if multiple businesses, force selection
-  if (memberships.length > 1 && !effectiveBusinessId) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-gray-50 p-4">
-        <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow">
-          <h1 className="text-xl font-bold text-black mb-2">
-            Seleziona Business
-          </h1>
-          <p className="text-sm text-gray-600 mb-4">
-            Scegli l’azienda con cui lavorare.
-          </p>
-          <BusinessSelector />
-        </div>
-      </div>
-    );
-  }
-
-  // Non-super admin: has a valid selection
+  // Non-super admin (or super admin AFTER selecting a business):
+  // If a business is selected, mount the app with that tenant.
   if (effectiveBusinessId) {
     return (
       <FeaturesProvider businessId={effectiveBusinessId}>
@@ -146,13 +112,24 @@ function BusinessGate() {
     );
   }
 
+  // Non-super admin with multiple memberships and no selection yet → show selector
+  if (!isSuperAdmin && memberships.length > 1) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-gray-50 p-4">
+        <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow">
+          <h1 className="text-xl font-bold text-black mb-2">Seleziona Business</h1>
+          <p className="text-sm text-gray-600 mb-4">Scegli l’azienda con cui lavorare.</p>
+          <BusinessSelector />
+        </div>
+      </div>
+    );
+  }
+
   // No memberships at all
   return (
     <div className="min-h-screen grid place-items-center">
       <div className="text-center">
-        <p className="text-gray-700 font-semibold">
-          Nessun business associato.
-        </p>
+        <p className="text-gray-700 font-semibold">Nessun business associato.</p>
       </div>
     </div>
   );
@@ -169,8 +146,14 @@ function App() {
 
           {/* Private */}
           <Route element={<RequireAuth />}>
-            <Route element={<SelectedBusinessProvider><BusinessGate /></SelectedBusinessProvider>}>
-              {/* Normal business dashboard (only when a business is selected) */}
+            <Route
+              element={
+                <SelectedBusinessProvider>
+                  <BusinessGate />
+                </SelectedBusinessProvider>
+              }
+            >
+              {/* Tenant dashboard routes (rendered when a business is selected) */}
               <Route path="/" element={<Dashboard />} />
               <Route
                 path="agenda"
@@ -272,7 +255,7 @@ function App() {
               />
             </Route>
 
-            {/* Super Admin entry point */}
+            {/* Optional: direct URL to the panel */}
             <Route path="/superadmin" element={<SuperAdmin />} />
 
             {/* Default */}
