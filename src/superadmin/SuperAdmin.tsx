@@ -113,13 +113,16 @@ const SuperAdmin: React.FC = () => {
       {/* Logout modal (reused) */}
       {showLogout && (
         <ConfirmLogoutModal
-          isOpen={showLogout}
-          onCancel={() => setShowLogout(false)}
-          onConfirm={() => {
-            setShowLogout(false);
-            // The modal component should call supabase.auth.signOut() internally or here.
-            // If it doesn't, you can do it here and then navigate("/login").
-          }}
+  isOpen={showLogout}
+  onCancel={() => setShowLogout(false)}
+  onConfirm={async () => {
+    setShowLogout(false);
+    await supabase.auth.signOut();
+    // clear any selected tenant too (optional)
+    setSelectedBusinessId(null);
+    navigate("/login", { replace: true });
+  }}
+/>
         />
       )}
     </div>
