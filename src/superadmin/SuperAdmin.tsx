@@ -1,33 +1,126 @@
 // src/superadmin/SuperAdmin.tsx
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import BusinessSelector from "@/components/auth/BusinessSelector";
+import { useSelectedBusiness } from "@/components/auth/SelectedBusinessProvider";
+import ConfirmLogoutModal from "@/components/auth/ConfirmLogoutModal"; // <-- same modal you use elsewhere
 
 const SuperAdmin: React.FC = () => {
+  const navigate = useNavigate();
+
+  const {
+    selectedBusinessId,
+    setSelectedBusinessId,
+    memberships,
+    membershipsLoading,
+    membershipsError,
+  } = useSelectedBusiness();
+
+  const [showLogout, setShowLogout] = useState(false);
+
+  const handleEnter = () => {
+    if (!selectedBusinessId) return;
+    // We already set it via BusinessSelector; just go to the app shell
+    navigate("/");
+  };
+
+  const handleExit = () => {
+    // Clear tenant context and remain in Super Admin space
+    setSelectedBusinessId(null);
+    // Ensure we are in super admin home
+    navigate("/superadmin");
+  };
+
+  const disabledEnter =
+    !selectedBusinessId || membershipsLoading || !!membershipsError;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-lg bg-white shadow rounded-2xl p-8 text-center">
-        <h1 className="text-2xl font-bold text-black mb-2">Super Admin Panel</h1>
-        <p className="text-gray-600 mb-6">
-          Benvenuto nel pannello Super Admin.  
-          Da qui potrai gestire tutti i business e le funzionalità globali.
-        </p>
-
-        <div className="border-t pt-4">
-          <p className="text-gray-700 font-medium mb-2">Business Selector</p>
-          {/* ⬇️ Qui useremo BusinessSelector più avanti */}
-          <div className="border border-dashed border-gray-300 p-4 rounded-lg text-gray-500">
-            [Placeholder: qui comparirà il Business Selector]
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-black">Super Admin Panel</h1>
+            <p className="text-sm text-gray-500">
+              Gestisci globalmente i business. Seleziona e “entra” per operare
+              come amministratore di quel business.
+            </p>
           </div>
-        </div>
-
-        <div className="border-t mt-6 pt-4">
-          <p className="text-gray-700 font-medium mb-2">
-            Funzionalità Super Admin
-          </p>
-          <div className="border border-dashed border-gray-300 p-4 rounded-lg text-gray-500">
-            [Placeholder: qui andranno le funzionalità globali (es. inviti, gestione business)]
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowLogout(true)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-100"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Body */}
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* Selector card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-black mb-1">Business Selector</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Scegli il business e poi clicca “Entra nel dashboard”.
+          </p>
+
+          <div className="max-w-md">
+            <BusinessSelector />
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={handleEnter}
+              disabled={disabledEnter}
+              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
+            >
+              Entra nel dashboard
+            </button>
+            <button
+              onClick={handleExit}
+              className="px-4 py-2 rounded-xl bg-gray-100 text-gray-800 hover:bg-gray-200"
+            >
+              Torna al Super Admin (clear)
+            </button>
+          </div>
+
+          {/* Status */}
+          <div className="mt-4 text-sm text-gray-500">
+            {membershipsLoading && "Caricamento businesses…"}
+            {membershipsError && (
+              <span className="text-red-600">Errore: {membershipsError}</span>
+            )}
+            {!membershipsLoading && !membershipsError && memberships.length === 0 && (
+              <span>Nessun business disponibile.</span>
+            )}
+          </div>
+        </div>
+
+        {/* Placeholders for future features */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-black mb-2">
+            Funzionalità Super Admin
+          </h2>
+          <div className="border border-dashed border-gray-300 p-4 rounded-lg text-gray-500">
+            [Inviti, gestione business, feature flags — in arrivo]
+          </div>
+        </div>
+      </div>
+
+      {/* Logout modal (reused) */}
+      {showLogout && (
+        <ConfirmLogoutModal
+          isOpen={showLogout}
+          onCancel={() => setShowLogout(false)}
+          onConfirm={() => {
+            setShowLogout(false);
+            // The modal component should call supabase.auth.signOut() internally or here.
+            // If it doesn't, you can do it here and then navigate("/login").
+          }}
+        />
+      )}
     </div>
   );
 };
