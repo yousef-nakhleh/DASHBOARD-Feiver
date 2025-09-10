@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import BusinessSelector from "@/components/auth/BusinessSelector";
 import { useSelectedBusiness } from "@/components/auth/SelectedBusinessProvider";
 import ConfirmLogoutModal from "@/components/auth/ConfirmLogoutModal"; // <-- same modal you use elsewhere
+import { supabase } from '../lib/supabase';
 
 const SuperAdmin: React.FC = () => {
   const navigate = useNavigate();
