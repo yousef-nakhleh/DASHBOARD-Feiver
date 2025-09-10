@@ -122,7 +122,6 @@ const SuperAdmin: React.FC = () => {
     setSelectedBusinessId(null);
     navigate("/login", { replace: true });
   }}
-/>
         />
       )}
     </div>
