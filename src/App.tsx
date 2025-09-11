@@ -95,7 +95,7 @@ function BusinessGate() {
     );
   }
 
-  // ✅ FIX: Super admin lands on panel ONLY when no business is selected yet
+  // ✅ Super admin: land on panel ONLY when no business is selected yet
   if (isSuperAdmin && !effectiveBusinessId) {
     return <SuperAdmin />;
   }
@@ -146,117 +146,114 @@ function App() {
 
           {/* Private */}
           <Route element={<RequireAuth />}>
-            <Route
-              element={
-                <SelectedBusinessProvider>
-                  <BusinessGate />
-                </SelectedBusinessProvider>
-              }
-            >
-              {/* Tenant dashboard routes (rendered when a business is selected) */}
-              <Route path="/" element={<Dashboard />} />
-              <Route
-                path="agenda"
-                element={
-                  <AgendaGate fallback={<Navigate to="/" replace />}>
-                    <Agenda />
-                  </AgendaGate>
-                }
-              />
-              <Route
-                path="cassa"
-                element={
-                  <TransactionsGate fallback={<Navigate to="/" replace />}>
-                    <CashRegister />
-                  </TransactionsGate>
-                }
-              />
-              <Route path="cassa/pagamento" element={<PaymentPage />} />
-              <Route
-                path="rubrica"
-                element={
-                  <ContactsGate fallback={<Navigate to="/" replace />}>
-                    <Contacts />
-                  </ContactsGate>
-                }
-              />
-              <Route
-                path="trattamenti"
-                element={
-                  <ServicesGate fallback={<Navigate to="/" replace />}>
-                    <Trattamenti />
-                  </ServicesGate>
-                }
-              />
-              <Route
-                path="analytics"
-                element={
-                  <AnalyticsGate fallback={<Navigate to="/" replace />}>
-                    <Analytics />
-                  </AnalyticsGate>
-                }
-              />
-              <Route path="magazzino" element={<Magazzino />} />
-              <Route
-                path="staff"
-                element={
-                  <AvailabilityGate fallback={<Navigate to="/" replace />}>
-                    <StaffAvailability />
-                  </AvailabilityGate>
-                }
-              />
-              <Route
-                path="chatbot"
-                element={
-                  <ChatbotGate fallback={<Navigate to="/" replace />}>
-                    <Chatbot />
-                  </ChatbotGate>
-                }
-              />
-              <Route
-                path="waiting-list"
-                element={
-                  <WaitingListGate fallback={<Navigate to="/" replace />}>
-                    <WaitingList />
-                  </WaitingListGate>
-                }
-              />
-              <Route
-                path="vapi"
-                element={
-                  <PhoneCallerGate fallback={<Navigate to="/" replace />}>
-                    <Vapi />
-                  </PhoneCallerGate>
-                }
-              />
-              <Route
-                path="aperture-eccezionali"
-                element={
-                  <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
-                    <OpeningExceptions />
-                  </OpeningExceptionsGate>
-                }
-              />
-              <Route
-                path="exceptions"
-                element={
-                  <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
-                    <ClosingExceptions />
-                  </ClosingExceptionsGate>
-                }
-              />
-              <Route
-                path="reports"
-                element={
-                  <ReportsGate fallback={<Navigate to="/" replace />}>
-                    <Reports />
-                  </ReportsGate>
-                }
-              />
-            </Route>
+            {/* 🔁 Provider wraps BOTH the BusinessGate branch and /superadmin */}
+            <Route element={<SelectedBusinessProvider><Outlet /></SelectedBusinessProvider>}>
+              <Route element={<BusinessGate />}>
+                {/* Tenant dashboard routes (rendered when a business is selected) */}
+                <Route path="/" element={<Dashboard />} />
+                <Route
+                  path="agenda"
+                  element={
+                    <AgendaGate fallback={<Navigate to="/" replace />}>
+                      <Agenda />
+                    </AgendaGate>
+                  }
+                />
+                <Route
+                  path="cassa"
+                  element={
+                    <TransactionsGate fallback={<Navigate to="/" replace />}>
+                      <CashRegister />
+                    </TransactionsGate>
+                  }
+                />
+                <Route path="cassa/pagamento" element={<PaymentPage />} />
+                <Route
+                  path="rubrica"
+                  element={
+                    <ContactsGate fallback={<Navigate to="/" replace />}>
+                      <Contacts />
+                    </ContactsGate>
+                  }
+                />
+                <Route
+                  path="trattamenti"
+                  element={
+                    <ServicesGate fallback={<Navigate to="/" replace />}>
+                      <Trattamenti />
+                    </ServicesGate>
+                  }
+                />
+                <Route
+                  path="analytics"
+                  element={
+                    <AnalyticsGate fallback={<Navigate to="/" replace />}>
+                      <Analytics />
+                    </AnalyticsGate>
+                  }
+                />
+                <Route path="magazzino" element={<Magazzino />} />
+                <Route
+                  path="staff"
+                  element={
+                    <AvailabilityGate fallback={<Navigate to="/" replace />}>
+                      <StaffAvailability />
+                    </AvailabilityGate>
+                  }
+                />
+                <Route
+                  path="chatbot"
+                  element={
+                    <ChatbotGate fallback={<Navigate to="/" replace />}>
+                      <Chatbot />
+                    </ChatbotGate>
+                  }
+                />
+                <Route
+                  path="waiting-list"
+                  element={
+                    <WaitingListGate fallback={<Navigate to="/" replace />}>
+                      <WaitingList />
+                    </WaitingListGate>
+                  }
+                />
+                <Route
+                  path="vapi"
+                  element={
+                    <PhoneCallerGate fallback={<Navigate to="/" replace />}>
+                      <Vapi />
+                    </PhoneCallerGate>
+                  }
+                />
+                <Route
+                  path="aperture-eccezionali"
+                  element={
+                    <OpeningExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <OpeningExceptions />
+                    </OpeningExceptionsGate>
+                  }
+                />
+                <Route
+                  path="exceptions"
+                  element={
+                    <ClosingExceptionsGate fallback={<Navigate to="/" replace />}>
+                      <ClosingExceptions />
+                    </ClosingExceptionsGate>
+                  }
+                />
+                <Route
+                  path="reports"
+                  element={
+                    <ReportsGate fallback={<Navigate to="/" replace />}>
+                      <Reports />
+                    </ReportsGate>
+                  }
+                />
+              </Route>
 
-            {/* Optional: direct URL to the panel */}
-            <Route path="/superadmin" element={<SuperAdmin />} />
+              {/* Super Admin entry point (shares the SAME provider) */}
+              <Route path="/superadmin" element={<SuperAdmin />} />
+            </Route>
 
             {/* Default */}
             <Route path="*" element={<Navigate to="/" replace />} />
