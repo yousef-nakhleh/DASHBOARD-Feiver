@@ -26,11 +26,11 @@ import ClosingExceptions from "./pages/ClosingExceptions";
 import OpeningExceptions from "./pages/OpeningExceptions";
 import Reports from "./pages/Reports";
 
-// 🔐 Auth
+// Auth
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
 
-// ✅ Feature gates
+// Feature gates
 import { FeaturesProvider } from "./features/FeaturesProvider";
 import { AgendaGate } from "./gates/AgendaGate";
 import { ChatbotGate } from "./gates/ChatbotGate";
@@ -45,14 +45,14 @@ import { ClosingExceptionsGate } from "./gates/ClosingExceptionsGate";
 import { ReportsGate } from "./gates/ReportsGate";
 import { AnalyticsGate } from "./gates/AnalyticsGate";
 
-// ✅ Business selection provider
+// Business selection
 import {
   SelectedBusinessProvider,
   useSelectedBusiness,
 } from "./components/auth/SelectedBusinessProvider";
 import BusinessSelector from "./components/auth/BusinessSelector";
 
-// ✅ Super admin panel
+// Super admin panel
 import SuperAdmin from "./superadmin/SuperAdmin";
 
 /* -------- Auth guard -------- */
@@ -95,13 +95,12 @@ function BusinessGate() {
     );
   }
 
-  // ✅ Super admin: land on panel ONLY when no business is selected yet
+  // Super admin: show panel until a business is selected
   if (isSuperAdmin && !effectiveBusinessId) {
     return <SuperAdmin />;
   }
 
-  // Non-super admin (or super admin AFTER selecting a business):
-  // If a business is selected, mount the app with that tenant.
+  // Any user with a selected business → mount tenant app
   if (effectiveBusinessId) {
     return (
       <FeaturesProvider businessId={effectiveBusinessId}>
@@ -112,7 +111,7 @@ function BusinessGate() {
     );
   }
 
-  // Non-super admin with multiple memberships and no selection yet → show selector
+  // Non-super with multiple memberships and no selection → selector page
   if (!isSuperAdmin && memberships.length > 1) {
     return (
       <div className="min-h-screen grid place-items-center bg-gray-50 p-4">
@@ -146,10 +145,11 @@ function App() {
 
           {/* Private */}
           <Route element={<RequireAuth />}>
-            {/* 🔁 Provider wraps BOTH the BusinessGate branch and /superadmin */}
+            {/* Provider wraps BusinessGate and /superadmin so selection is shared */}
             <Route element={<SelectedBusinessProvider><Outlet /></SelectedBusinessProvider>}>
+              {/* Branch handled by BusinessGate */}
               <Route element={<BusinessGate />}>
-                {/* Tenant dashboard routes (rendered when a business is selected) */}
+                {/* Tenant dashboard routes (rendered only when a business is selected) */}
                 <Route path="/" element={<Dashboard />} />
                 <Route
                   path="agenda"
@@ -251,7 +251,7 @@ function App() {
                 />
               </Route>
 
-              {/* Super Admin entry point (shares the SAME provider) */}
+              {/* Direct access to super admin panel (shares same provider) */}
               <Route path="/superadmin" element={<SuperAdmin />} />
             </Route>
 
