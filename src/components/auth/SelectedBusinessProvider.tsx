@@ -4,7 +4,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { supabase } from "../../lib/supabase";
@@ -55,10 +54,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
   const [membershipsError, setMembershipsError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  // One-time per-app-mount clear for super_admins so they land in the panel first
-  const clearedThisSessionRef = useRef(false);
-
-  // Load saved selection when user changes (only once per auth change)
+  // Load saved selection when user changes
   useEffect(() => {
     if (authLoading) return;
     if (!storageKey) {
@@ -100,19 +96,16 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     const isSuper = rows.some((r) => r.role === "super_admin");
     setIsSuperAdmin(isSuper);
 
-    if (isSuper) {
-      // 🔑 Super admin sees ALL businesses
-      // Clear any previously saved selection ONLY once per app session
-      if (!clearedThisSessionRef.current) {
-        _setSelectedBusinessId(null);
-        if (storageKey) window.localStorage.removeItem(storageKey);
-        clearedThisSessionRef.current = true;
-      }
+    // If super_admin, synthesize memberships from ALL businesses
+if (isSuper) {
+  // 🔒 Force selector for super_admins every login
+  _setSelectedBusinessId(null);
+  if (storageKey) window.localStorage.removeItem(storageKey);
 
-      const { data: allBiz, error: allBizErr } = await supabase
-        .from("business")
-        .select("id,name")
-        .order("name", { ascending: true });
+  const { data: allBiz, error: allBizErr } = await supabase
+    .from("business")
+    .select("id,name")
+    .order("name", { ascending: true });
 
       if (allBizErr) {
         console.error("fetch all business error:", allBizErr);
@@ -130,8 +123,19 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
         })) ?? [];
 
       setMemberships(synthesized);
+
+      // ❗️Do NOT auto-select for super admins — force the selector step
+      // If saved selection no longer valid, clear it
+      if (
+        selectedBusinessId &&
+        !synthesized.some((m) => m.business_id === selectedBusinessId)
+      ) {
+        _setSelectedBusinessId(null);
+        if (storageKey) window.localStorage.removeItem(storageKey);
+      }
+
       setMembershipsLoading(false);
-      return; // do NOT auto-select
+      return;
     }
 
     // Normal (non-super) path: use user-specific memberships
@@ -140,7 +144,9 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     // Auto-select only when the user has exactly one membership (non-super case)
     if (rows.length === 1 && !selectedBusinessId) {
       _setSelectedBusinessId(rows[0].business_id);
-      if (storageKey) window.localStorage.setItem(storageKey, rows[0].business_id);
+      if (storageKey) {
+        window.localStorage.setItem(storageKey, rows[0].business_id);
+      }
     }
 
     // If saved selection no longer valid, clear it
@@ -209,4 +215,4 @@ export const useSelectedBusiness = (): SelectedBusinessContextType => {
       "useSelectedBusiness must be used within a SelectedBusinessProvider"
     );
   return ctx;
-};
+};  
