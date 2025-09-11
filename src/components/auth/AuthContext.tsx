@@ -33,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         if (!mounted) return;
-
         const sess = data?.session ?? null;
         setSession(sess);
         setUser(sess?.user ?? null);
@@ -71,6 +70,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // 🚿 Clear tenant selection for this user BEFORE session is cleared
+    try {
+      const currentUserId = user?.id;
+      if (currentUserId) {
+        const key = `sb_selected_business_${currentUserId}`;
+        localStorage.removeItem(key);
+      }
+      // (Optional) also nuke any stray keys from older sessions
+      // Object.keys(localStorage)
+      //   .filter(k => k.startsWith("sb_selected_business_"))
+      //   .forEach(k => localStorage.removeItem(k));
+    } catch {
+      // ignore storage errors
+    }
+
     setUser(null);
     setSession(null);
     await supabase.auth.signOut().catch(() => {});
