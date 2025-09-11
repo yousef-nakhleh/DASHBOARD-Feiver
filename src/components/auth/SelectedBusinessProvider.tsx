@@ -54,7 +54,7 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
   const [membershipsError, setMembershipsError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  // Load saved selection when user changes
+  // Load saved selection when user changes (only once per auth change)
   useEffect(() => {
     if (authLoading) return;
     if (!storageKey) {
@@ -96,16 +96,12 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     const isSuper = rows.some((r) => r.role === "super_admin");
     setIsSuperAdmin(isSuper);
 
-    // If super_admin, synthesize memberships from ALL businesses
-if (isSuper) {
-  // 🔒 Force selector for super_admins every login
-  _setSelectedBusinessId(null);
-  if (storageKey) window.localStorage.removeItem(storageKey);
-
-  const { data: allBiz, error: allBizErr } = await supabase
-    .from("business")
-    .select("id,name")
-    .order("name", { ascending: true });
+    if (isSuper) {
+      // Super admin: expose ALL businesses as selectable targets
+      const { data: allBiz, error: allBizErr } = await supabase
+        .from("business")
+        .select("id,name")
+        .order("name", { ascending: true });
 
       if (allBizErr) {
         console.error("fetch all business error:", allBizErr);
@@ -124,8 +120,8 @@ if (isSuper) {
 
       setMemberships(synthesized);
 
-      // ❗️Do NOT auto-select for super admins — force the selector step
-      // If saved selection no longer valid, clear it
+      // ❗ Do NOT auto-select or force-clear for super admins.
+      // Only clear if a previously saved selection is no longer valid.
       if (
         selectedBusinessId &&
         !synthesized.some((m) => m.business_id === selectedBusinessId)
@@ -141,15 +137,13 @@ if (isSuper) {
     // Normal (non-super) path: use user-specific memberships
     setMemberships(rows);
 
-    // Auto-select only when the user has exactly one membership (non-super case)
+    // Auto-select exactly-one case (non-super only)
     if (rows.length === 1 && !selectedBusinessId) {
       _setSelectedBusinessId(rows[0].business_id);
-      if (storageKey) {
-        window.localStorage.setItem(storageKey, rows[0].business_id);
-      }
+      if (storageKey) window.localStorage.setItem(storageKey, rows[0].business_id);
     }
 
-    // If saved selection no longer valid, clear it
+    // Clear saved selection if it no longer exists
     if (
       selectedBusinessId &&
       !rows.some((m) => m.business_id === selectedBusinessId)
