@@ -33,56 +33,43 @@ const SelectedBusinessContext = createContext<
   SelectedBusinessContextType | undefined
 >(undefined);
 
-export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading: authLoading } = useAuth();
+
   const storageKey = user?.id ? `sb_selected_business_${user.id}` : null;
 
   const [selectedBusinessId, _setSelectedBusinessId] = useState<string | null>(null);
-
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [membershipsLoading, setMembershipsLoading] = useState<boolean>(true);
   const [membershipsError, setMembershipsError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-  // Load saved selection when auth becomes ready (once per auth change)
+  // 🔁 When the authenticated user changes (including logout) → clear in-memory selection.
   useEffect(() => {
     if (authLoading) return;
-    const uid = user?.id || "NO-USER";
-    if (!storageKey) {
-      console.log("[SBP] load-saved → no storageKey (uid=%s). Clear selection.", uid);
-      _setSelectedBusinessId(null);
-      return;
-    }
-    const saved = window.localStorage.getItem(storageKey);
-    console.log("[SBP] load-saved → uid=%s key=%s saved=%s", uid, storageKey, saved);
-    _setSelectedBusinessId(saved || null);
-  }, [authLoading, storageKey, user?.id]);
+    _setSelectedBusinessId(null);
+  }, [authLoading, user?.id]);
 
   const fetchMemberships = async () => {
-    const uid = user?.id || "NO-USER";
-    console.log("[SBP] fetchMemberships: START (uid=%s)", uid);
-
     if (!user?.id) {
       setMemberships([]);
       setIsSuperAdmin(false);
       setMembershipsLoading(false);
       setMembershipsError(null);
-      console.log("[SBP] fetchMemberships: no user → memberships=[]");
       return;
     }
 
     setMembershipsLoading(true);
     setMembershipsError(null);
 
+    // Load all memberships for this user
     const { data, error } = await supabase
       .from("memberships")
       .select("business_id, role, business:business(id, name)")
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("[SBP] fetchMemberships ERROR:", error);
+      console.error("[SelectedBusiness] memberships error:", error);
       setMemberships([]);
       setIsSuperAdmin(false);
       setMembershipsError(error.message ?? "Errore durante il caricamento.");
@@ -93,22 +80,16 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
     const rows = (data as Membership[]) ?? [];
     const superFlag = rows.some((r) => r.role === "super_admin");
     setIsSuperAdmin(superFlag);
-    console.log(
-      "[SBP] fetchMemberships: rows=%d isSuper=%s selectedBusinessId=%s",
-      rows.length,
-      superFlag,
-      selectedBusinessId
-    );
 
     if (superFlag) {
-      // Super admin → list ALL businesses as selectable
+      // Super admin → offer ALL businesses; do NOT preload any saved selection.
       const { data: allBiz, error: allBizErr } = await supabase
         .from("business")
         .select("id,name")
         .order("name", { ascending: true });
 
       if (allBizErr) {
-        console.error("[SBP] fetchMemberships allBiz ERROR:", allBizErr);
+        console.error("[SelectedBusiness] fetch business error:", allBizErr);
         setMemberships([]);
         setMembershipsError(allBizErr.message ?? "Errore durante il caricamento.");
         setMembershipsLoading(false);
@@ -123,80 +104,58 @@ export const SelectedBusinessProvider: React.FC<{ children: React.ReactNode }> =
         })) ?? [];
 
       setMemberships(synthesized);
-      console.log("[SBP] fetchMemberships: synthesized=%d (super_admin)", synthesized.length);
 
-      // Do NOT auto-clear for super admin. Only clear if saved selection is invalid.
+      // If an old selection is hanging around (rare), clear it.
       if (
         selectedBusinessId &&
         !synthesized.some((m) => m.business_id === selectedBusinessId)
       ) {
-        console.log(
-          "[SBP] fetchMemberships: saved selection %s not in list → clearing",
-          selectedBusinessId
-        );
         _setSelectedBusinessId(null);
         if (storageKey) window.localStorage.removeItem(storageKey);
       }
 
       setMembershipsLoading(false);
-      console.log("[SBP] fetchMemberships: END (super_admin) selectedBusinessId=%s", selectedBusinessId);
       return;
     }
 
-    // Normal users → use their own memberships
+    // Normal user path → use their memberships
     setMemberships(rows);
 
-    if (rows.length === 1 && !selectedBusinessId) {
-      console.log(
-        "[SBP] fetchMemberships: one membership → auto-select %s",
-        rows[0].business_id
-      );
-      _setSelectedBusinessId(rows[0].business_id);
-      if (storageKey) window.localStorage.setItem(storageKey, rows[0].business_id);
+    // Try restore saved selection (only for non-super users)
+    const saved = storageKey ? window.localStorage.getItem(storageKey) : null;
+    if (saved && rows.some((m) => m.business_id === saved)) {
+      _setSelectedBusinessId(saved);
+      setMembershipsLoading(false);
+      return;
     }
 
-    if (selectedBusinessId && !rows.some((m) => m.business_id === selectedBusinessId)) {
-      console.log(
-        "[SBP] fetchMemberships: saved selection %s invalid for user → clearing",
-        selectedBusinessId
-      );
+    // If exactly one membership → auto-select it
+    if (rows.length === 1) {
+      _setSelectedBusinessId(rows[0].business_id);
+      if (storageKey) window.localStorage.setItem(storageKey, rows[0].business_id);
+    } else {
+      // Multiple memberships → leave null, UI will ask
       _setSelectedBusinessId(null);
-      if (storageKey) window.localStorage.removeItem(storageKey);
     }
 
     setMembershipsLoading(false);
-    console.log("[SBP] fetchMemberships: END (normal) selectedBusinessId=%s", selectedBusinessId);
   };
 
-  // Fetch memberships when auth ready / user changes
+  // Fetch memberships whenever auth is ready or user changes
   useEffect(() => {
     if (authLoading) return;
-    console.log("[SBP] effect → auth ready. fetchMemberships()");
     fetchMemberships();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user?.id]);
 
   const setSelectedBusinessId = (id: string | null) => {
-    console.log("[SBP] setSelectedBusinessId(%s) prev=%s", id, selectedBusinessId);
     _setSelectedBusinessId(id);
-    if (!storageKey) {
-      console.log("[SBP] setSelectedBusinessId → no storageKey. Skip localStorage write.");
-      return;
-    }
-    if (id) {
-      window.localStorage.setItem(storageKey, id);
-      console.log("[SBP] localStorage.setItem(%s, %s)", storageKey, id);
-    } else {
-      window.localStorage.removeItem(storageKey);
-      console.log("[SBP] localStorage.removeItem(%s)", storageKey);
-    }
+    if (!storageKey) return;
+    if (id) window.localStorage.setItem(storageKey, id);
+    else window.localStorage.removeItem(storageKey);
   };
 
-  const effectiveBusinessId = useMemo(() => {
-    const v = selectedBusinessId ?? null;
-    console.log("[SBP] effectiveBusinessId →", v);
-    return v;
-  }, [selectedBusinessId]);
+  const effectiveBusinessId = useMemo(() => selectedBusinessId ?? null, [selectedBusinessId]);
 
   const value = useMemo<SelectedBusinessContextType>(
     () => ({
