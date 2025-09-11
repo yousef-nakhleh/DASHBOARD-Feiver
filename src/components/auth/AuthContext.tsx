@@ -70,24 +70,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    // 🚿 Clear tenant selection for this user BEFORE session is cleared
+    // 🚿 Clear tenant selection BEFORE ending the session
     try {
+      // Clear key bound to current user id (most precise)
       const currentUserId = user?.id;
       if (currentUserId) {
         const key = `sb_selected_business_${currentUserId}`;
         localStorage.removeItem(key);
       }
-      // (Optional) also nuke any stray keys from older sessions
-      // Object.keys(localStorage)
-      //   .filter(k => k.startsWith("sb_selected_business_"))
-      //   .forEach(k => localStorage.removeItem(k));
+      // 🧹 Safety: also clear any stray keys from previous sessions/browsers
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("sb_selected_business_"))
+        .forEach((k) => localStorage.removeItem(k));
     } catch {
-      // ignore storage errors
+      /* ignore localStorage errors */
     }
 
-    setUser(null);
-    setSession(null);
-    await supabase.auth.signOut().catch(() => {});
+    // Let onAuthStateChange drive state; avoid racing by not mutating user/session here
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      // onAuthStateChange will set loading=false when it fires
+    }
   };
 
   const value = useMemo<AuthContextType>(
