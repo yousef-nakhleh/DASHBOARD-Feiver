@@ -85,7 +85,7 @@ export default function CashRegister() {
   const [allBarbers, setAllBarbers] = useState<BarberRow[]>([]);
 
   // Service picker state
-  [servicePanelOpen, setServicePanelOpen] = useState(false);
+  const [servicePanelOpen, setServicePanelOpen] = useState(false);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [serviceSearch, setServiceSearch] = useState("");
 
