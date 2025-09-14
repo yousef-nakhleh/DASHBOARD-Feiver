@@ -25,7 +25,8 @@ export default function LoginPage() {
   // signup-only fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName]   = useState("");
-  const [phone, setPhone]         = useState("");
+  const [phonePrefix, setPhonePrefix] = useState("+39"); // ← default prefix
+  const [phoneNumberRaw, setPhoneNumberRaw] = useState(""); // ← raw number only
   const [confirm, setConfirm]     = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -71,11 +72,13 @@ export default function LoginPage() {
         email,
         password,
         options: {
-          // store a bit of profile info as user metadata (totally optional)
+          // store profile info as user metadata
           data: {
             first_name: firstName || null,
             last_name: lastName || null,
-            phone: phone || null,
+            // 🔽 as requested: store prefix and raw number separately
+            phone_prefix: phonePrefix || null,
+            phone_number_raw: phoneNumberRaw || null,
           },
           // where Supabase sends the user after clicking the confirm link
           emailRedirectTo: `${window.location.origin}/login`,
@@ -188,14 +191,32 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Numero di telefono (opz.)</label>
-                <input
-                  type="tel"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-black"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+39 333 1234567"
-                  autoComplete="tel"
-                />
+                <div className="grid grid-cols-[110px_1fr] gap-3">
+                  <select
+                    aria-label="Prefisso"
+                    value={phonePrefix}
+                    onChange={(e) => setPhonePrefix(e.target.value)}
+                    className="h-11 rounded-lg border border-gray-300 bg-white px-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
+                  >
+                    {/* keep it simple with a few common options; default is +39 */}
+                    <option value="+39">+39</option>
+                    <option value="+34">+34</option>
+                    <option value="+33">+33</option>
+                    <option value="+49">+49</option>
+                    <option value="+41">+41</option>
+                    <option value="+44">+44</option>
+                    <option value="+1">+1</option>
+                  </select>
+
+                  <input
+                    type="tel"
+                    className="h-11 w-full rounded-lg border border-gray-300 px-3 text-black focus:outline-none focus:ring-2 focus:ring-black"
+                    value={phoneNumberRaw}
+                    onChange={(e) => setPhoneNumberRaw(e.target.value)}
+                    placeholder="333 1234567"
+                    autoComplete="tel"
+                  />
+                </div>
               </div>
             </>
           )}
