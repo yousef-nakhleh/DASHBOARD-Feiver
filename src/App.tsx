@@ -29,6 +29,7 @@ import Reports from "./pages/Reports";
 // Auth
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
+import ResetPassword from "./components/auth/ResetPassword"; // ← added
 
 // Feature gates
 import { FeaturesProvider } from "./features/FeaturesProvider";
@@ -142,6 +143,7 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} /> {/* ← added public route */}
 
           {/* Private */}
           <Route element={<RequireAuth />}>
