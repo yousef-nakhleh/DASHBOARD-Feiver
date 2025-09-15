@@ -7,12 +7,10 @@ import {
   Book,
   Scissors,
   BarChart2,
-  Package,
   Users,
   Menu,
   X,
   LogOut,
-  Home,
   ChevronRight,
   ChevronLeft,
   MessageSquare,
@@ -62,8 +60,7 @@ const Layout = () => {
   const sidebarItems = useMemo(() => {
     const items: any[] = [];
 
-    // Always visible
-    items.push({ path: '/', name: 'Dashboard', icon: <Home size={20} /> });
+    // (Dashboard removed)
 
     // Agenda
     if (ready && has(FEATURE.AGENDA)) {
@@ -100,13 +97,12 @@ const Layout = () => {
       items.push({ path: '/trattamenti', name: 'Trattamenti', icon: <Scissors size={20} /> });
     }
 
-    // 🔒 Statistiche (Analytics) — now gated like others
+    // 🔒 Statistiche (Analytics)
     if (ready && has(FEATURE.ANALYTICS)) {
       items.push({ path: '/analytics', name: 'Statistiche', icon: <BarChart2 size={20} /> });
     }
 
-    // Magazzino — left open
-    items.push({ path: '/magazzino', name: 'Magazzino', icon: <Package size={20} /> });
+    // (Magazzino removed)
 
     // Chatbot
     if (ready && has(FEATURE.CHATBOT)) {
