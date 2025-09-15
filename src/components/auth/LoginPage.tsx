@@ -33,10 +33,23 @@ export default function LoginPage() {
   const [error, setError]     = useState<string | null>(null);
   const [info, setInfo]       = useState<string | null>(null);
 
+  // ← Forgot-password inline UI state
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
+
   const switchMode = (m: Mode) => {
     setMode(m);
     setError(null);
     setInfo(null);
+    // hide reset box if moving away from login
+    if (m !== "login") {
+      setShowReset(false);
+      setResetError(null);
+      setResetInfo(null);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -94,6 +107,31 @@ export default function LoginPage() {
       setError(err?.message ?? "Errore durante la registrazione.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ← Handle sending the password reset email (inline on Login page)
+  const handleResetRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetInfo(null);
+
+    if (!resetEmail) {
+      setResetError("Inserisci la tua email.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetInfo("Email inviata. Controlla la posta e segui il link per impostare una nuova password.");
+    } catch (err: any) {
+      setResetError(err?.message ?? "Errore durante l'invio dell'email di reset.");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -229,6 +267,60 @@ export default function LoginPage() {
             {loading ? "Attendere…" : mode === "login" ? "Accedi" : "Registrati"}
           </button>
         </form>
+
+        {/* Forgot password link & inline email request (LOGIN mode only) */}
+        {mode === "login" && (
+          <div className="mt-3 text-center text-sm">
+            <button
+              className="text-gray-600 underline underline-offset-2"
+              onClick={() => {
+                setShowReset((v) => !v);
+                setResetError(null);
+                setResetInfo(null);
+                if (!resetEmail && email) setResetEmail(email); // prefill from login email
+              }}
+            >
+              Password dimenticata?
+            </button>
+          </div>
+        )}
+
+        {mode === "login" && showReset && (
+          <div className="mt-4 rounded-lg border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-black mb-2">Reimposta password</h3>
+            {resetError && (
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {resetError}
+              </div>
+            )}
+            {resetInfo && (
+              <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {resetInfo}
+              </div>
+            )}
+            <form onSubmit={handleResetRequest} className="flex items-center gap-2">
+              <input
+                type="email"
+                required
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-black focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="La tua email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="rounded-lg bg-black px-3 py-2 text-white disabled:opacity-50"
+              >
+                {resetLoading ? "Invio…" : "Invia email"}
+              </button>
+            </form>
+            <p className="mt-2 text-xs text-gray-500">
+              Riceverai un link per impostare una nuova password. Il link ti porterà alla pagina
+              “Reset Password” dell’app.
+            </p>
+          </div>
+        )}
 
         <div className="mt-4 text-center text-sm text-gray-600">
           {mode === "login" ? (
