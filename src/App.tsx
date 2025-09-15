@@ -10,11 +10,13 @@ import {
 } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import Dashboard from "./pages/Dashboard";
 import Agenda from "./pages/Agenda";
 import CashRegister from "./pages/CashRegister";
 import Contacts from "./pages/Contacts";
 import Trattamenti from "./pages/Trattamenti";
 import Analytics from "./pages/Analytics";
+import Magazzino from "./pages/Magazzino";
 import StaffAvailability from "./pages/StaffAvailability";
 import PaymentPage from "./components/payment/PaymentPage";
 import Chatbot from "./pages/Chatbot";
@@ -27,6 +29,7 @@ import Reports from "./pages/Reports";
 // Auth
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
 import LoginPage from "./components/auth/LoginPage";
+import ResetPassword from "./components/auth/ResetPassword"; // ← added
 
 // Feature gates
 import { FeaturesProvider } from "./features/FeaturesProvider";
@@ -140,6 +143,7 @@ function App() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} /> {/* ← added public route */}
 
           {/* Private */}
           <Route element={<RequireAuth />}>
@@ -148,6 +152,7 @@ function App() {
               {/* Branch handled by BusinessGate */}
               <Route element={<BusinessGate />}>
                 {/* Tenant dashboard routes (rendered only when a business is selected) */}
+                <Route path="/" element={<Dashboard />} />
                 <Route
                   path="agenda"
                   element={
@@ -189,6 +194,7 @@ function App() {
                     </AnalyticsGate>
                   }
                 />
+                <Route path="magazzino" element={<Magazzino />} />
                 <Route
                   path="staff"
                   element={
@@ -260,4 +266,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
