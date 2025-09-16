@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
+import { useNavigate } from 'react-router-dom'; // ⬅️ NEW
 
 type BarberRow = {
   name: string | null;
@@ -16,9 +17,9 @@ type TxnRow = {
   payment_method: string | null;
   status: string | null;
   completed_at: string | null;
+  created_at: string | null; // ⬅️ NEW (for preview time)
   barbers: { name: string | null } | null;
   services: { name: string | null } | null;
-  // Enriched via separate appointments fetch
   appointments: {
     appointment_date: string | null;
     duration_min: number | null;
@@ -27,7 +28,8 @@ type TxnRow = {
 };
 
 export default function Reports() {
-  const { effectiveBusinessId: businessId } = useSelectedBusiness(); // ⬅️ source business_id here
+  const { effectiveBusinessId: businessId } = useSelectedBusiness();
+  const navigate = useNavigate(); // ⬅️ NEW
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +38,12 @@ export default function Reports() {
   const [incassoTotale, setIncassoTotale] = useState(0);
   const [mediaScontrino, setMediaScontrino] = useState(0);
   const [numeroAppuntamenti, setNumeroAppuntamenti] = useState(0);
-  const [nuoviClienti] = useState(0); // wire later
+  const [nuoviClienti] = useState(0);
 
   // Tables
   const [barbers, setBarbers] = useState<BarberRow[]>([]);
   const [ledger, setLedger] = useState<TxnRow[]>([]);
-  const [showAllLedger, setShowAllLedger] = useState(false);
+  const [showAllLedger, setShowAllLedger] = useState(false); // kept for now; not used by "Mostra tutto"
 
   // Business day (Europe/Rome), cutoff 24:00
   const timeZone = 'Europe/Rome';
@@ -78,9 +80,9 @@ export default function Reports() {
       try {
         // 1) Primary fetch: transactions + direct FKs (barber, service)
         const txSelect =
-          `id,appointment_id,total,payment_method,status,completed_at,
-           barbers(name),
-           services(name)`;
+          `id,appointment_id,total,payment_method,status,completed_at,created_at,` + // ⬅️ added created_at
+          `barbers(name),` +
+          `services(name)`;
 
         const { data: txnsToday, error: txTodayErr } = await supabase
           .from('transactions')
@@ -117,7 +119,7 @@ export default function Reports() {
         const countTxToday = (txnsToday || []).length;
         const avgToday = countTxToday > 0 ? totalToday / countTxToday : 0;
 
-        // 2) Appointments enrich (only for rows that have an appointment_id)
+        // 2) Appointments enrich (only for rows that have an appointment_id) → to get client name
         const apptIds = Array.from(
           new Set(txns.map(t => t.appointment_id).filter((v): v is string => !!v))
         );
@@ -152,6 +154,7 @@ export default function Reports() {
           payment_method: t.payment_method,
           status: t.status,
           completed_at: t.completed_at,
+          created_at: (t as any).created_at ?? null, // ⬅️ capture created_at for preview
           barbers: (t as any).barbers ?? null,
           services: (t as any).services ?? null,
           appointments: t.appointment_id ? apptMap.get(t.appointment_id) ?? null : null,
@@ -207,34 +210,32 @@ export default function Reports() {
   const formatEUR = (n: number) =>
     new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n);
 
+  // ⬇️ Preview renderer — now shows 5 fields and forces black text
   const renderLedgerRows = (rows: TxnRow[]) => {
-    const slice = showAllLedger ? rows : rows.slice(0, 5);
+    const slice = rows.slice(0, 5);
     return slice.map((t) => {
-      const time =
-        t.completed_at &&
-        new Date(t.completed_at).toLocaleString('it-IT', { hour: '2-digit', minute: '2-digit' });
-      const date =
-        t.completed_at &&
-        new Date(t.completed_at).toLocaleDateString('it-IT', {
+      const when =
+        t.created_at &&
+        `${new Date(t.created_at).toLocaleDateString('it-IT', {
           weekday: 'short',
           day: '2-digit',
           month: '2-digit',
-        });
+        })} ${new Date(t.created_at).toLocaleTimeString('it-IT', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+
       const first = t.appointments?.contacts?.first_name ?? '';
       const last = t.appointments?.contacts?.last_name ?? '';
       const fullName = `${first} ${last}`.trim() || '—';
-      const servizio = t.services?.name ?? '—';
-      const durata = t.appointments?.duration_min ?? null;
       const barbiere = t.barbers?.name ?? '—';
       const metodo = t.payment_method ?? '—';
       const totale = formatEUR(Number(t.total || 0));
 
       return (
-        <tr key={t.id}>
-          <td className="py-2">{date} {time}</td>
+        <tr key={t.id} className="text-black">
+          <td className="py-2">{when || '—'}</td>
           <td className="py-2">{fullName}</td>
-          <td className="py-2">{servizio}</td>
-          <td className="py-2">{durata !== null ? `${durata}′` : '—'}</td>
           <td className="py-2">{barbiere}</td>
           <td className="py-2">{metodo}</td>
           <td className="py-2">{totale}</td>
@@ -270,7 +271,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* KPI row */}
+      {/* KPI row (unchanged) */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -299,7 +300,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Incasso per Barbiere */}
+      {/* Incasso per Barbiere (unchanged) */}
       {!loading && !error && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
@@ -345,7 +346,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Dettaglio Transazioni */}
+      {/* Dettaglio Transazioni — updated */}
       {!loading && !error && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
@@ -353,32 +354,31 @@ export default function Reports() {
             <div className="flex items-center gap-2">
               <button
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setShowAllLedger((v) => !v)}
+                onClick={() => navigate('/transactions')} // ⬅️ open full list page
               >
-                {showAllLedger ? 'Mostra meno' : 'Mostra tutto'}
+                Mostra tutto
               </button>
               <button
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                 onClick={() => {
-                  const header = ['Data/Ora', 'Cliente', 'Servizio', 'Durata', 'Barbiere', 'Metodo', 'Totale'];
-                  const rows = ledger.map((t) => {
+                  const header = ['Data/Ora', 'Cliente', 'Barbiere', 'Metodo', 'Totale'];
+                  const rows = ledger.slice(0, 5).map((t) => {
+                    const when = t.created_at
+                      ? `${new Date(t.created_at).toLocaleDateString('it-IT', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: '2-digit',
+                        })} ${new Date(t.created_at).toLocaleTimeString('it-IT', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}`
+                      : '';
                     const first = t.appointments?.contacts?.first_name ?? '';
                     const last = t.appointments?.contacts?.last_name ?? '';
                     const fullName = `${first} ${last}`.trim();
                     return [
-                      t.completed_at
-                        ? `${new Date(t.completed_at).toLocaleDateString('it-IT', {
-                            weekday: 'short',
-                            day: '2-digit',
-                            month: '2-digit',
-                          })} ${new Date(t.completed_at).toLocaleTimeString('it-IT', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}`
-                        : '',
+                      when,
                       fullName,
-                      t.services?.name ?? '',
-                      t.appointments?.duration_min != null ? `${t.appointments.duration_min}′` : '',
                       t.barbers?.name ?? '',
                       t.payment_method ?? '',
                       String(t.total ?? ''),
@@ -406,19 +406,17 @@ export default function Reports() {
               <tr className="border-b border-gray-200 text-gray-500 text-sm">
                 <th className="py-2 text-left">Data/Ora</th>
                 <th className="py-2 text-left">Cliente</th>
-                <th className="py-2 text-left">Servizio</th>
-                <th className="py-2 text-left">Durata</th>
                 <th className="py-2 text-left">Barbiere</th>
                 <th className="py-2 text-left">Metodo</th>
                 <th className="py-2 text-left">Totale</th>
               </tr>
-            </thead> 
-            <tbody className="divide-y divide-gray-100">
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-black">
               {ledger.length > 0 ? (
                 renderLedgerRows(ledger)
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-gray-500">
+                  <td colSpan={5} className="py-6 text-center text-gray-500">
                     Nessuna transazione.
                   </td>
                 </tr>
