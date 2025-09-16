@@ -23,6 +23,7 @@ import Vapi from "./pages/Vapi";
 import ClosingExceptions from "./pages/ClosingExceptions";
 import OpeningExceptions from "./pages/OpeningExceptions";
 import Reports from "./pages/Reports";
+import TransactionsList from "./pages/TransactionsList"; // ✅ NEW
 
 // Auth
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
@@ -253,6 +254,7 @@ function App() {
                     </ReportsGate>
                   }
                 />
+                <Route path="transactions" element={<TransactionsList />} /> {/* ✅ NEW */}
               </Route>
 
               {/* Direct access to super admin panel (shares same provider) */}
