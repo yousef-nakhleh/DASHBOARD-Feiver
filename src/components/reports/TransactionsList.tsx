@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider';
+import { supabase } from "../../lib/supabase";
+import { useSelectedBusiness } from "../auth/SelectedBusinessProvider";
 
 type TxnRow = {
   id: string;
