@@ -23,7 +23,7 @@ import Vapi from "./pages/Vapi";
 import ClosingExceptions from "./pages/ClosingExceptions";
 import OpeningExceptions from "./pages/OpeningExceptions";
 import Reports from "./pages/Reports";
-import TransactionsList from "./pages/TransactionsList"; // ✅ NEW
+import TransactionsList from "./components/reports/TransactionsList";
 
 // Auth
 import { AuthProvider, useAuth } from "./components/auth/AuthContext";
