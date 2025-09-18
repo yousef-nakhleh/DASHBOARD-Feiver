@@ -114,9 +114,9 @@ const Layout = () => {
       items.push({ path: '/waiting-list', name: "Lista d'Attesa", icon: <Clock size={20} /> });
     }
 
-    // Phone Caller (Vapi)
+    // Phone Caller 
     if (ready && has(FEATURE.PHONECALLER)) {
-      items.push({ path: '/vapi', name: 'AI Phone Caller', icon: <Phone size={20} /> });
+      items.push({ path: '/phone-caller', name: 'AI Phone Caller', icon: <Phone size={20} /> });
     }
 
     return items;
