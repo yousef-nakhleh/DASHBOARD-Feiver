@@ -1,3 +1,4 @@
+// src/pages/Staff.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Users,
@@ -12,6 +13,7 @@ import NewStaffModal from '../components/staff/NewStaffModal';
 import EditStaffAvailabilityModal from '../components/staff/EditStaffAvailabilityModal';
 import { useAuth } from '../components/auth/AuthContext'; // ⬅️ keep AuthContext for loading
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ⬅️ NEW
 
 // Weekday mapping from English (database) to Italian (display)
 const dayMap: Record<string, string> = {
@@ -27,6 +29,7 @@ const dayMap: Record<string, string> = {
 const Staff = () => {
   const { loading: authLoading } = useAuth(); // ⬅️ only loading from AuthContext
   const { effectiveBusinessId: businessId } = useSelectedBusiness(); // ⬅️ business id source
+  const businessTimezone = useBusinessTimezone(businessId); // ⬅️ NEW (injected, no other changes)
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
