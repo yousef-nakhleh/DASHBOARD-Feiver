@@ -3,6 +3,7 @@ import { Clock, User, Phone, Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toLocalFromUTC } from '../lib/timeUtils';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ added
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ✅ NEW
 
 interface WaitingListItem {
   id: string;
@@ -20,21 +21,8 @@ const WaitingList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ business timezone (fallback to Europe/Rome)
-  const [businessTimezone, setBusinessTimezone] = useState<string>('Europe/Rome');
-
-  // Fetch business timezone when business_id is available
-  useEffect(() => {
-    (async () => {
-      if (!effectiveBusinessId) return;
-      const { data, error } = await supabase
-        .from('business')
-        .select('timezone')
-        .eq('id', effectiveBusinessId)
-        .single();
-      if (!error && data?.timezone) setBusinessTimezone(data.timezone);
-    })();
-  }, [effectiveBusinessId]);
+  // ✅ business timezone via hook (replaces manual fetch)
+  const { timezone: businessTimezone } = useBusinessTimezone(); // ✅ NEW
 
   const fetchWaitingList = async () => {
     if (!effectiveBusinessId) {
