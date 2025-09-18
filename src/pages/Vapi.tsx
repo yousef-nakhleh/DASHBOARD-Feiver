@@ -1,8 +1,9 @@
-// src/pages/Vapi.tsx
+// src/pages/PhoneCaller.tsx
 import React, { useEffect, useState } from 'react';
 import { Phone, Clock, CheckCircle, XCircle, FileText, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../components/auth/AuthContext'; // 👈 use profile from context
+import { useAuth } from '../components/auth/AuthContext';
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW
 
 interface VapiCall {
   id: string;
@@ -14,8 +15,11 @@ interface VapiCall {
   created_at: string;
 }
 
-const Vapi: React.FC = () => {
-  const { loading: authLoading, profile } = useAuth(); // 👈 get profile (has business_id)
+const PhoneCaller: React.FC = () => {
+  const { user, loading: authLoading } = useAuth(); // ✅ changed
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ new
+  const businessId = effectiveBusinessId ?? null; // ✅ scoped
+
   const [calls, setCalls] = useState<VapiCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,15 +27,14 @@ const Vapi: React.FC = () => {
   const [selectedCall, setSelectedCall] = useState<VapiCall | null>(null);
 
   useEffect(() => {
-    // wait until auth finished loading AND we know the business_id
     if (authLoading) return;
-    if (!profile?.business_id) {
+    if (!businessId) {
       setCalls([]);
       setLoading(false);
       return;
     }
-    fetchVapiCalls(profile.business_id);
-  }, [authLoading, profile?.business_id]);
+    fetchVapiCalls(businessId);
+  }, [authLoading, businessId]);
 
   const fetchVapiCalls = async (businessId: string) => {
     setLoading(true);
@@ -39,7 +42,7 @@ const Vapi: React.FC = () => {
       const { data, error } = await supabase
         .from('vapi')
         .select('*')
-        .eq('business_id', businessId) // 👈 dynamic business scope
+        .eq('business_id', businessId) // ✅ scoped
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -55,35 +58,6 @@ const Vapi: React.FC = () => {
       setLoading(false);
     }
   };
-
-  /* 🔴 REAL-TIME SUBSCRIPTION (ADD-ON ONLY)
-     - Listens to INSERT/UPDATE/DELETE on `vapi`
-     - Scoped by business_id
-     - Refreshes the calls list live
-  */
-  useEffect(() => {
-    if (!profile?.business_id) return;
-
-    const channel = supabase
-      .channel(`vapi-realtime-${profile.business_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'vapi',
-          filter: `business_id=eq.${profile.business_id}`,
-        },
-        () => {
-          fetchVapiCalls(profile.business_id!);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [profile?.business_id]);
 
   const formatDuration = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
@@ -121,7 +95,7 @@ const Vapi: React.FC = () => {
     ? Math.round(calls.reduce((sum, call) => sum + call.duration_sec, 0) / totalCalls)
     : 0;
 
-  // ---- Auth / profile guard UIs ----
+  // ---- Auth / business guards ----
   if (authLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -130,17 +104,20 @@ const Vapi: React.FC = () => {
     );
   }
 
-  if (!profile?.business_id) {
+  if (!user) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-gray-600">Non autenticato.</p>
+      </div>
+    );
+  }
+
+  if (!businessId) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <Phone size={48} className="mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-600">
-            Profilo non configurato oppure nessun <code>business_id</code> associato.
-          </p>
-          <p className="text-gray-500 text-sm mt-1">
-            Contatta l’amministratore per associare il tuo account a un business.
-          </p>
+          <p className="text-gray-700">Profilo senza business associato.</p>
         </div>
       </div>
     );
@@ -168,10 +145,8 @@ const Vapi: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-600 rounded-xl">
-              <CheckCircle className="text-white" size={24} />
-            </div>
+          <div className="p-3 bg-green-600 rounded-xl">
+            <CheckCircle className="text-white" size={24} />
           </div>
           <h3 className="text-gray-600 text-sm font-medium mb-1">Prenotazioni Riuscite</h3>
           <p className="text-3xl font-bold text-black">{successfulBookings}</p>
@@ -181,20 +156,16 @@ const Vapi: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-600 rounded-xl">
-              <XCircle className="text-white" size={24} />
-            </div>
+          <div className="p-3 bg-red-600 rounded-xl">
+            <XCircle className="text-white" size={24} />
           </div>
           <h3 className="text-gray-600 text-sm font-medium mb-1">Prenotazioni Fallite</h3>
           <p className="text-3xl font-bold text-black">{totalCalls - successfulBookings}</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-600 rounded-xl">
-              <Clock className="text-white" size={24} />
-            </div>
+          <div className="p-3 bg-blue-600 rounded-xl">
+            <Clock className="text-white" size={24} />
           </div>
           <h3 className="text-gray-600 text-sm font-medium mb-1">Durata Media</h3>
           <p className="text-3xl font-bold text-black">{formatDuration(averageDuration)}</p>
@@ -376,8 +347,8 @@ const Vapi: React.FC = () => {
           </div>
         </div>
       )}
-    </div> 
+    </div>
   );
 };
 
-export default Vapi;
+export default PhoneCaller;
