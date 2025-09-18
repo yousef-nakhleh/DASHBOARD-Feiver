@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '../components/auth/AuthContext';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-// If you don't have Recharts yet, install it and keep these imports as-is.
 import {
   ResponsiveContainer,
   LineChart,
@@ -76,8 +74,25 @@ const RANGE_TABS: { key: keyof typeof SERIES; label: string }[] = [
 ];
 
 export default function CassaOverviewStatic() {
-  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ CHANGED (was: const { profile } = useAuth();)
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ CHANGED
   const [range, setRange] = useState<keyof typeof SERIES>('month');
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome'); // ✅ NEW
+
+  // -------- Fetch business timezone --------
+  useEffect(() => {
+    const fetchBusinessTimezone = async () => {
+      if (!effectiveBusinessId) return;
+      const { data, error } = await supabase
+        .from('business')
+        .select('timezone')
+        .eq('id', effectiveBusinessId)
+        .single();
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    fetchBusinessTimezone();
+  }, [effectiveBusinessId]);
 
   // Static KPIs (can be wired later)
   const KPIS = {
@@ -94,6 +109,9 @@ export default function CassaOverviewStatic() {
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">Cassa</h1>
           <p className="text-gray-600">Panoramica giornaliera e trend</p>
+        </div>
+        <div className="text-gray-500 text-sm">
+          Fuso orario: {businessTimezone} {/* ✅ shows business-level timezone */}
         </div>
       </div>
 
