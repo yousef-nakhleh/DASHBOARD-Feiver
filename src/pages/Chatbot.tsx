@@ -3,7 +3,8 @@ import { MessageSquare, Search, Phone, Mail, User, FileText, XCircle } from "luc
 import { supabase } from "../lib/supabase";
 import { toLocalFromUTC } from "../lib/timeUtils";
 import { useAuth } from "../components/auth/AuthContext";
-import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider";
+import useBusinessTimezone from "../hooks/useBusinessTimezone"; // ✅ NEW
 
 interface ChatbotData {
   id: string;
@@ -16,15 +17,15 @@ interface ChatbotData {
 }
 
 const Chatbot: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();                           // ✅ unchanged usage
-  const { effectiveBusinessId } = useSelectedBusiness();                      // ✅ NEW
-  const businessId = effectiveBusinessId ?? null;                             // ✅ use provider
+  const { user, loading: authLoading } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness();
+  const businessId = effectiveBusinessId ?? null;
+
+  const { timezone: businessTimezone } = useBusinessTimezone(); // ✅ replaces hardcoded "Europe/Rome"
 
   const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const businessTimezone = "Europe/Rome";
 
   // Fetch Chatbot rows for this business
   useEffect(() => {
@@ -63,7 +64,7 @@ const Chatbot: React.FC = () => {
     };
 
     fetchChatbotData();
-  }, [user, businessId, authLoading]);
+  }, [user, businessId, authLoading, businessTimezone]); // ✅ dependency updated
 
   // 🔴 Real-time subscription for inserts
   useEffect(() => {
@@ -95,14 +96,14 @@ const Chatbot: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [businessId]);
+  }, [businessId, businessTimezone]); // ✅ dependency updated
 
   const filteredData = data.filter(
     (item) =>
       item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.phone?.includes(searchQuery) ||
-      item.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.request?.toLowerCase().includes(searchQuery.toLowerCase())
+      item.email?.toLowerCase().includes(searchQuery) ||
+      item.request?.toLowerCase().includes(searchQuery)
   );
 
   // Guard states
