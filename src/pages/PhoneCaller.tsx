@@ -4,6 +4,7 @@ import { Phone, Clock, CheckCircle, XCircle, FileText, Search, Filter } from 'lu
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ✅ NEW
 
 interface PhoneCallerCall {
   id: string;
@@ -19,6 +20,7 @@ const PhoneCaller: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { effectiveBusinessId } = useSelectedBusiness();
   const businessId = effectiveBusinessId ?? null;
+  const businessTimezone = useBusinessTimezone(businessId); // ✅ NEW
 
   const [calls, setCalls] = useState<PhoneCallerCall[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,8 @@ const PhoneCaller: React.FC = () => {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: businessTimezone, // ✅ use business timezone
     });
   };
 
