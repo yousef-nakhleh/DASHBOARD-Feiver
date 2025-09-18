@@ -40,7 +40,7 @@ const PhoneCaller: React.FC = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('vapi')
+        .from('phone_caller')
         .select('*')
         .eq('business_id', businessId) // ✅ scoped
         .order('created_at', { ascending: false });
