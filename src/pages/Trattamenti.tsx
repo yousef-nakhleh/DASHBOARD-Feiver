@@ -6,7 +6,8 @@ import CreateTreatmentModal from "@/components/treatments/CreateTreatmentModal";
 import { Dialog } from "@headlessui/react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
-import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider";
+import { useBusinessTimezone } from "../hooks/useBusinessTimezone"; // ✅ NEW
 
 const categories = ["Tutti", "Capelli", "Barba", "Combo", "Colore", "Trattamenti"];
 
@@ -30,8 +31,10 @@ const SERVICES_CACHE_TTL_MS = 60_000; // 60s
 
 export default function Trattamenti() {
   const { user, loading: authLoading } = useAuth();
-  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use provider business id
-  const businessId = useMemo(() => effectiveBusinessId ?? null, [effectiveBusinessId]); // ✅ replaces profile?.business_id
+  const { effectiveBusinessId } = useSelectedBusiness(); 
+  const businessId = useMemo(() => effectiveBusinessId ?? null, [effectiveBusinessId]);
+
+  const businessTimezone = useBusinessTimezone(businessId); // ✅ NEW
 
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
@@ -45,20 +48,19 @@ export default function Trattamenti() {
   // 1) Fetch services for this business (now driven by SelectedBusinessProvider)
   useEffect(() => {
     const fetchServices = async () => {
-      if (authLoading) return; // wait for auth to resolve
+      if (authLoading) return;
       if (!businessId) {
         setServices([]);
         setLoading(false);
         return;
       }
 
-      // 🔵 QUERY + CACHE: serve cached data immediately if fresh
       const cached = SERVICES_CACHE[businessId];
       const now = Date.now();
       if (cached && now - cached.ts < SERVICES_CACHE_TTL_MS) {
         setServices(cached.data);
         setLoading(false);
-        return; // skip network call
+        return;
       }
 
       setLoading(true);
@@ -74,7 +76,6 @@ export default function Trattamenti() {
       } else {
         const list = (data || []) as Service[];
         setServices(list);
-        // 🔵 QUERY + CACHE: write-through
         SERVICES_CACHE[businessId] = { data: list, ts: now };
       }
       setLoading(false);
@@ -113,7 +114,6 @@ export default function Trattamenti() {
     if (!error && data) {
       const list = data as Service[];
       setServices(list);
-      // 🔵 QUERY + CACHE: refresh cache after mutations
       SERVICES_CACHE[businessId] = { data: list, ts: Date.now() };
     }
   }
@@ -122,7 +122,6 @@ export default function Trattamenti() {
     const { error } = await supabase.from("services").delete().eq("id", id);
     if (!error) {
       setServices((prev) => prev.filter((s) => s.id !== id));
-      // 🔵 QUERY + CACHE: keep cache coherent quickly
       if (businessId && SERVICES_CACHE[businessId]) {
         SERVICES_CACHE[businessId] = {
           data: SERVICES_CACHE[businessId].data.filter((s) => s.id !== id),
@@ -136,7 +135,7 @@ export default function Trattamenti() {
 
   const formatDuration = (minutes: number): string => `${minutes} min`;
 
-  const successfulBookings = 0; // not applicable here; kept UI structure intact
+  const successfulBookings = 0;
   const totalCalls = services.length;
   const averageDuration =
     totalCalls > 0
@@ -145,7 +144,6 @@ export default function Trattamenti() {
         )
       : 0;
 
-  // Guard UI states
   if (authLoading) {
     return (
       <div className="h-full flex items-center justify-center">
