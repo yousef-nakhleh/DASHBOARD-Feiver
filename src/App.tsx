@@ -19,7 +19,7 @@ import StaffAvailability from "./pages/StaffAvailability";
 import PaymentPage from "./components/payment/PaymentPage";
 import Chatbot from "./pages/Chatbot";
 import WaitingList from "./pages/WaitingList";
-import Vapi from "./pages/Vapi";
+import PhoneCaller from "./pages/PhoneCaller";
 import ClosingExceptions from "./pages/ClosingExceptions";
 import OpeningExceptions from "./pages/OpeningExceptions";
 import Reports from "./pages/Reports";
@@ -223,10 +223,10 @@ function App() {
                   }
                 />
                 <Route
-                  path="vapi"
+                  path="phone-caller"
                   element={
                     <PhoneCallerGate fallback={<Navigate to="/" replace />}>
-                      <Vapi />
+                      <PhoneCaller />
                     </PhoneCallerGate>
                   }
                 />
