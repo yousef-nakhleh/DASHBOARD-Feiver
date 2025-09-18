@@ -14,6 +14,7 @@ import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExce
 import { useAuth } from '../components/auth/AuthContext';
 import { toLocalFromUTC } from '../lib/timeUtils';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW
+import useBusinessTimezone from '../hooks/useBusinessTimezone'; // ✅ NEW
 
 interface AvailabilityException {
   id: string;
@@ -38,7 +39,7 @@ const ClosingExceptions = () => {
   const { loading: authLoading } = useAuth();
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use provider
   const businessId = effectiveBusinessId || null;        // ✅ derive businessId
-  const businessTimezone = 'Europe/Rome'; // TODO: fetch from business table
+  const { timezone: businessTimezone } = useBusinessTimezone(); // ✅ REPLACED
 
   const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
