@@ -3,9 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { Phone, Clock, CheckCircle, XCircle, FileText, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
-import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅
 
-interface VapiCall {
+interface PhoneCallerCall {
   id: string;
   phone_number: string;
   source: string;
@@ -16,15 +16,15 @@ interface VapiCall {
 }
 
 const PhoneCaller: React.FC = () => {
-  const { user, loading: authLoading } = useAuth(); // ✅ changed
-  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ new
-  const businessId = effectiveBusinessId ?? null; // ✅ scoped
+  const { user, loading: authLoading } = useAuth();
+  const { effectiveBusinessId } = useSelectedBusiness();
+  const businessId = effectiveBusinessId ?? null;
 
-  const [calls, setCalls] = useState<VapiCall[]>([]);
+  const [calls, setCalls] = useState<PhoneCallerCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBookingSuccess, setFilterBookingSuccess] = useState<'all' | 'success' | 'failed'>('all');
-  const [selectedCall, setSelectedCall] = useState<VapiCall | null>(null);
+  const [selectedCall, setSelectedCall] = useState<PhoneCallerCall | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -33,20 +33,20 @@ const PhoneCaller: React.FC = () => {
       setLoading(false);
       return;
     }
-    fetchVapiCalls(businessId);
+    fetchPhoneCallerCalls(businessId);
   }, [authLoading, businessId]);
 
-  const fetchVapiCalls = async (businessId: string) => {
+  const fetchPhoneCallerCalls = async (businessId: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('phone_caller')
         .select('*')
-        .eq('business_id', businessId) // ✅ scoped
+        .eq('business_id', businessId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Errore nel caricamento delle chiamate Vapi:', error);
+        console.error('Errore nel caricamento delle chiamate Phone Caller:', error);
         setCalls([]);
       } else {
         setCalls(data || []);
