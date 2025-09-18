@@ -5,7 +5,8 @@ import EditContactModal from '../components/rubrica/EditContactModal';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth/AuthContext';
-import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ✅
 
 /* 🟡 Query + Cache: module-scope cache with TTL */
 const CONTACTS_CACHE_TTL_MS = 60_000; // 60s; adjust as you prefer
@@ -17,6 +18,7 @@ const contactsCache = new Map<
 const Contacts: React.FC = () => {
   const { loading: authLoading } = useAuth(); // ✅ use only loading from Auth
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use business from provider
+  const businessTimezone = useBusinessTimezone(effectiveBusinessId); // ✅ NEW
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
@@ -269,12 +271,20 @@ const Contacts: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
-                      <span className="text-black">Ultima visita: {selectedClientData.lastVisit ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT') : 'N/D'}</span>
+                      <span className="text-black">
+                        Ultima visita:{' '}
+                        {selectedClientData.lastVisit
+                          ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT', { timeZone: businessTimezone }) // ✅ use business TZ
+                          : 'N/D'}
+                      </span>
                     </div>
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
                       {selectedClientData.nextVisit ? (
-                        <span className="text-black">Prossima visita: {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT')}</span>
+                        <span className="text-black">
+                          Prossima visita:{' '}
+                          {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT', { timeZone: businessTimezone })} {/* ✅ use business TZ */}
+                        </span>
                       ) : (
                         <button
                           onClick={() => setShowCreateModal(true)}
