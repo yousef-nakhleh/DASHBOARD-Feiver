@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ⬅️ NEW
 import { useNavigate } from 'react-router-dom'; // ⬅️ NEW
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ⬅️ NEW
 
 type BarberRow = {
   name: string | null;
@@ -30,6 +31,7 @@ type TxnRow = {
 export default function Reports() {
   const { effectiveBusinessId: businessId } = useSelectedBusiness();
   const navigate = useNavigate(); // ⬅️ NEW
+  const { timezone: timeZone } = useBusinessTimezone(); // ⬅️ NEW
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +47,7 @@ export default function Reports() {
   const [ledger, setLedger] = useState<TxnRow[]>([]);
   const [showAllLedger, setShowAllLedger] = useState(false); // kept for now; not used by "Mostra tutto"
 
-  // Business day (Europe/Rome), cutoff 24:00
-  const timeZone = 'Europe/Rome';
+  // Business day (business tz), cutoff 24:00
   const { startISO, endISO, label } = useMemo(() => {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone,
@@ -67,7 +68,7 @@ export default function Reports() {
       month: 'long',
     }).format(new Date());
     return { startISO: start.toISOString(), endISO: end.toISOString(), label };
-  }, []);
+  }, [timeZone]);
 
   useEffect(() => {
     let cancelled = false;
