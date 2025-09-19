@@ -3,9 +3,8 @@ import { cn } from "../lib/utils";
 import { Plus, Search, Check, Trash2, X, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
-import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅
+import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
 import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
-import { useBusinessTimezone } from "../hooks/useBusinessTimezone"; // ✅ NEW
 
 // ---------- Types ----------
 type DbPaymentMethod = "Cash" | "POS" | "Satispay" | "Other";
@@ -71,7 +70,7 @@ export default function CashRegister() {
   const { loading: authLoading } = useAuth(); // ✅ changed
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
   const businessId = effectiveBusinessId ?? null; // ✅ changed
-  const businessTimezone = useBusinessTimezone(businessId || undefined); // ✅ NEW (replaces manual fetch)
+  const [businessTimezone, setBusinessTimezone] = useState("Europe/Rome");
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -92,6 +91,24 @@ export default function CashRegister() {
 
   // Confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // -------- Fetch business timezone --------
+  useEffect(() => {
+    const fetchBusinessTimezone = async () => {
+      if (authLoading || !businessId) return;
+
+      const { data, error } = await supabase
+        .from("business")
+        .select("timezone")
+        .eq("id", businessId)
+        .single();
+
+      if (!error && data?.timezone) {
+        setBusinessTimezone(data.timezone);
+      }
+    };
+    fetchBusinessTimezone();
+  }, [authLoading, businessId]);
 
   // -------- Fetch all barbers for the dropdown --------
   useEffect(() => {
@@ -455,7 +472,7 @@ export default function CashRegister() {
 
   if (!businessId) {
     return (
-      <div className="h-full flex items_center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">
             Profilo non configurato oppure nessun <code>business_id</code> associato.
@@ -700,7 +717,7 @@ export default function CashRegister() {
 
               {/* Service picker panel */}
               {servicePanelOpen && (
-                <div className="absolute left-1/2 -translate-x-1/2 bottom_[88px] w_[85%] max-w_[720px] bg-white border border-gray-200 rounded-2xl shadow-lg">
+                <div className="absolute left-1/2 -translate-x-1/2 bottom_[88px] w-[85%] max-w-[720px] bg-white border border-gray-200 rounded-2xl shadow-lg">
                   <div className="flex items-center justify-between px-4 py-3 border-b">
                     <div className="font-semibold">Seleziona un servizio</div>
                     <button
@@ -778,7 +795,7 @@ export default function CashRegister() {
                 <div className="border-t border-gray-200 pt-4" />
 
                 <div className="space-y-3">
-                  <label className="block text-sm font-semibold text_black">Metodo di pagamento</label>
+                  <label className="block text-sm font-semibold text-black">Metodo di pagamento</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
@@ -793,7 +810,7 @@ export default function CashRegister() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="block text-sm font-semibold text_black">Note</label>
+                  <label className="block text-sm font-semibold text-black">Note</label>
                   <input
                     placeholder="Nota facoltativa per la ricevuta"
                     value={notes}
@@ -861,4 +878,4 @@ export default function CashRegister() {
       )}
     </div>
   );
-} 
+}
