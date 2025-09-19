@@ -121,7 +121,7 @@ const Agenda = () => {
       .select(`
         id,
         appointment_date,
-        contact:contact_id ( first_name, last_name, phone_number_e164 ),  
+        contact:contact_id ( first_name, last_name, phone_number_e164, phone_number_raw, phone_prefix ),  
         barber_id,
         service_id,
         appointment_status,
