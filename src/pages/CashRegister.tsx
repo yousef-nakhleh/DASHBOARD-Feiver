@@ -861,4 +861,4 @@ export default function CashRegister() {
       )}
     </div>
   );
-} 
+}  
