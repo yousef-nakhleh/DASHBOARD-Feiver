@@ -4,25 +4,19 @@ import { supabase } from "../lib/supabase";
 import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider";
 
 /**
- * Use the business timezone for the currently selected business.
- * Falls back to "Europe/Rome" until loaded (or if missing).
+ * Returns the business timezone string for the selected business.
+ * Always resolves to a valid IANA timezone string (e.g. "Europe/Rome").
  */
-export function useBusinessTimezone(defaultTz: string = "Europe/Rome") {
+export function useBusinessTimezone(defaultTz: string = "Europe/Rome"): string {
   const { effectiveBusinessId } = useSelectedBusiness();
   const [timezone, setTimezone] = useState<string>(defaultTz);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
-      setError(null);
-
       if (!effectiveBusinessId) {
-        // No business selected yet — keep default and stop loading
-        setLoading(false);
+        setTimezone(defaultTz);
         return;
       }
 
@@ -36,12 +30,10 @@ export function useBusinessTimezone(defaultTz: string = "Europe/Rome") {
 
       if (error) {
         console.error("Failed to load business timezone:", error.message);
-        setError(error.message);
-        setTimezone(defaultTz); // keep fallback
+        setTimezone(defaultTz);
       } else {
         setTimezone((data?.timezone as string) || defaultTz);
       }
-      setLoading(false);
     }
 
     load();
@@ -51,7 +43,7 @@ export function useBusinessTimezone(defaultTz: string = "Europe/Rome") {
     };
   }, [effectiveBusinessId, defaultTz]);
 
-  return { timezone, loading, error };
+  return timezone; // ✅ Always a string
 }
 
 export default useBusinessTimezone;
