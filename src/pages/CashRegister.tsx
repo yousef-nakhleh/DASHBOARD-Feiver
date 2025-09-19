@@ -18,6 +18,14 @@ const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
   Altro: "Other",
 };
 
+// NEW (mapping for fetched values)
+const DB_TO_UI_PAYMENT: Record<DbPaymentMethod, UiPaymentMethod> = {
+  Cash: "Contanti",
+  POS: "POS",
+  Satispay: "Satispay",
+  Other: "Altro",
+};
+
 type AppointmentRow = {
   id: string;
   appointment_date: string; // timestamptz in DB (UTC)
@@ -71,7 +79,9 @@ export default function CashRegister() {
   const { loading: authLoading } = useAuth(); // ✅ changed
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
   const businessId = effectiveBusinessId ?? null; // ✅ changed
-  const businessTimezone = useBusinessTimezone(businessId || undefined); // ✅ NEW (replaces manual fetch)
+
+  // ✅ TIMEZONE FIX: correctly get the string timezone from the hook
+  const { timezone: businessTimezone } = useBusinessTimezone(); // ← only change here
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -84,6 +94,14 @@ export default function CashRegister() {
   const [appointments, setAppointments] = useState<UiAppointment[]>([]);
   const [items, setItems] = useState<LineItem[]>([]);
   const [allBarbers, setAllBarbers] = useState<BarberRow[]>([]);
+
+  // NEW: dynamic payment methods (fallback to current hardcoded list)
+  const [paymentMethodsUi, setPaymentMethodsUi] = useState<UiPaymentMethod[]>([
+    "Contanti",
+    "POS",
+    "Satispay",
+    "Altro",
+  ]);
 
   // Service picker state
   const [servicePanelOpen, setServicePanelOpen] = useState(false);
@@ -442,7 +460,44 @@ export default function CashRegister() {
   }
 
   // ---------- UI ----------
-  const PAYMENT_METHODS_UI: UiPaymentMethod[] = ["Contanti", "POS", "Satispay", "Altro"];
+  // REPLACED hardcoded list with dynamic state (same rendering below)
+  // const PAYMENT_METHODS_UI: UiPaymentMethod[] = ["Contanti", "POS", "Satispay", "Altro"];
+
+  // Fetch distinct payment methods used in transactions (mapped to UI labels)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!businessId) return;
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("payment_method")
+        .eq("business_id", businessId);
+
+      if (error) {
+        console.error("Error fetching payment methods:", error);
+        return;
+      }
+
+      const unique = Array.from(
+        new Set(
+          (data || [])
+            .map((r: { payment_method: DbPaymentMethod | null }) =>
+              r.payment_method ? DB_TO_UI_PAYMENT[r.payment_method] : null
+            )
+            .filter((x): x is UiPaymentMethod => Boolean(x))
+        )
+      );
+
+      if (!cancelled && unique.length > 0) {
+        setPaymentMethodsUi(unique);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
 
   // Guard for missing business configuration
   if (authLoading) {
@@ -598,7 +653,7 @@ export default function CashRegister() {
         <div className="col-span-8">
           <div className="grid grid-cols-12 gap-6">
             {/* Items card */}
-            <div className="relative col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex-col">
+            <div className="relative col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex_col">
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-black">
@@ -784,7 +839,7 @@ export default function CashRegister() {
                     onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
-                    {["Contanti", "POS", "Satispay", "Altro"].map((m) => (
+                    {paymentMethodsUi.map((m) => (
                       <option key={m} value={m as UiPaymentMethod}>
                         {m}
                       </option>
