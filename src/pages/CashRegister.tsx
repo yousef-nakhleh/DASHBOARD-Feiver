@@ -18,14 +18,6 @@ const UI_TO_DB_PAYMENT: Record<UiPaymentMethod, DbPaymentMethod> = {
   Altro: "Other",
 };
 
-// ✅ NEW: map DB → UI for rendering distinct methods from transactions
-const DB_TO_UI_PAYMENT: Record<DbPaymentMethod, UiPaymentMethod> = {
-  Cash: "Contanti",
-  POS: "POS",
-  Satispay: "Satispay",
-  Other: "Altro",
-};
-
 type AppointmentRow = {
   id: string;
   appointment_date: string; // timestamptz in DB (UTC)
@@ -79,23 +71,12 @@ export default function CashRegister() {
   const { loading: authLoading } = useAuth(); // ✅ changed
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
   const businessId = effectiveBusinessId ?? null; // ✅ changed
-
-  // ✅ FIXED: use the hook correctly (string + loading), not as an object
-  const { timezone: businessTimezone, loading: tzLoading } = useBusinessTimezone();
+  const businessTimezone = useBusinessTimezone(businessId || undefined); // ✅ NEW (replaces manual fetch)
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedApptId, setSelectedApptId] = useState<string | null>(null);
-
-  // ✅ payment methods: default fallback; will be replaced by distinct values from transactions
-  const [paymentOptions, setPaymentOptions] = useState<UiPaymentMethod[]>([
-    "Contanti",
-    "POS",
-    "Satispay",
-    "Altro",
-  ]);
   const [paymentMethod, setPaymentMethod] = useState<UiPaymentMethod>("Contanti");
-
   const [activeTab, setActiveTab] = useState<"toPay" | "confirmed">("toPay");
   const [notes, setNotes] = useState("");
 
@@ -137,39 +118,9 @@ export default function CashRegister() {
     fetchAllBarbers();
   }, [businessId]);
 
-  // ✅ NEW: fetch distinct payment methods from transactions (fallback to defaults if none)
-  useEffect(() => {
-    const fetchPaymentMethods = async () => {
-      if (!businessId) return;
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("payment_method")
-        .eq("business_id", businessId);
-
-      if (!error && data) {
-        const methods = Array.from(
-          new Set(
-            (data as { payment_method: DbPaymentMethod | null }[])
-              .map((r) => r.payment_method)
-              .filter((m): m is DbPaymentMethod => !!m)
-              .map((m) => DB_TO_UI_PAYMENT[m])
-          )
-        ) as UiPaymentMethod[];
-
-        if (methods.length) {
-          setPaymentOptions(methods);
-          if (!methods.includes(paymentMethod)) {
-            setPaymentMethod(methods[0]);
-          }
-        }
-      }
-    };
-    fetchPaymentMethods();
-  }, [businessId]); // keep scope tight
-
   // -------- Fetch appointments for the business local day (using appointment_date timestamptz) --------
   useEffect(() => {
-    if (!businessId || !date || tzLoading) return; // ✅ guard on timezone readiness
+    if (!businessId || !date || !businessTimezone) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -214,7 +165,7 @@ export default function CashRegister() {
         // Create a lookup map for transaction barber_ids by appointment_id
         const transactionBarberMap = new Map<string, string>();
         if (transactionsData) {
-          transactionsData.forEach((tx: any) => {
+          transactionsData.forEach((tx) => {
             if (tx.appointment_id && tx.barber_id) {
               transactionBarberMap.set(tx.appointment_id, tx.barber_id);
             }
@@ -231,7 +182,7 @@ export default function CashRegister() {
             let barberName = a.barber?.name || "—";
             if (a.paid && transactionBarberMap.has(a.id)) {
               const transactionBarberId = transactionBarberMap.get(a.id);
-              const transactionBarber = allBarbers.find((b) => b.id === transactionBarberId);
+              const transactionBarber = allBarbers.find(b => b.id === transactionBarberId);
               if (transactionBarber) {
                 barberName = transactionBarber.name || "—";
               }
@@ -239,7 +190,7 @@ export default function CashRegister() {
             return {
               id: a.id,
               time,
-              client: `${a.contact?.first_name || ""} ${a.contact?.last_name || ""}`.trim() || "—",
+              client: `${a.contact?.first_name || ''} ${a.contact?.last_name || ''}`.trim() || "—",
               barber: barberName,
               service: a.service?.name || "—",
               price: Number(a.service?.price ?? 0),
@@ -265,7 +216,7 @@ export default function CashRegister() {
     return () => {
       cancelled = true;
     };
-  }, [businessId, date, businessTimezone, tzLoading, allBarbers]);
+  }, [businessId, date, businessTimezone, allBarbers]);
 
   // Handle appointment selection
   const handleAppointmentSelect = (appointment: UiAppointment) => {
@@ -340,14 +291,14 @@ export default function CashRegister() {
 
   function updateItem(id: string, patch: Partial<LineItem>) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-
+    
     // 🐛 DEBUG: Log the item update
-    console.log("🔧 updateItem called:", { id, patch });
+    console.log('🔧 updateItem called:', { id, patch });
     setItems((prev) => {
       const updated = prev.map((i) => (i.id === id ? { ...i, ...patch } : i));
-      console.log("🔧 Updated items array:", updated);
+      console.log('🔧 Updated items array:', updated);
       if (updated[0]) {
-        console.log("🔧 First item barberId after update:", updated[0].barberId);
+        console.log('🔧 First item barberId after update:', updated[0].barberId);
       }
       return updated;
     });
@@ -370,15 +321,15 @@ export default function CashRegister() {
   // -------- Save transaction + items --------
   async function completePayment() {
     // 🐛 DEBUG: Log the state at the start of completePayment
-    console.log("💰 completePayment called");
-    console.log("💰 Current items array:", items);
-    console.log("💰 items[0]:", items[0]);
-    console.log("💰 items[0].barberId:", items[0]?.barberId);
-    console.log("💰 Selected appointment:", selectedApptId);
+    console.log('💰 completePayment called');
+    console.log('💰 Current items array:', items);
+    console.log('💰 items[0]:', items[0]);
+    console.log('💰 items[0].barberId:', items[0]?.barberId);
+    console.log('💰 Selected appointment:', selectedApptId);
     const appt = appointments.find((a) => a.id === selectedApptId);
-    console.log("💰 Appointment details:", appt);
-    console.log("💰 Appointment barber_id:", appt?.raw.barber?.id);
-
+    console.log('💰 Appointment details:', appt);
+    console.log('💰 Appointment barber_id:', appt?.raw.barber?.id);
+    
     if (!businessId || !selectedApptId || items.length === 0) return;
 
     const dbMethod: DbPaymentMethod = UI_TO_DB_PAYMENT[paymentMethod];
@@ -386,11 +337,11 @@ export default function CashRegister() {
 
     // 🐛 DEBUG: Log the barber_id that will be sent to the database
     const finalBarberId = items[0].barberId || appt.raw.barber?.id || null;
-    console.log("💰 Final barber_id for transaction:", finalBarberId);
-    console.log("💰 Logic breakdown:");
-    console.log("  - items[0].barberId:", items[0].barberId);
-    console.log("  - appt.raw.barber?.id:", appt.raw.barber?.id);
-    console.log("  - final result:", finalBarberId);
+    console.log('💰 Final barber_id for transaction:', finalBarberId);
+    console.log('💰 Logic breakdown:');
+    console.log('  - items[0].barberId:', items[0].barberId);
+    console.log('  - appt.raw.barber?.id:', appt.raw.barber?.id);
+    console.log('  - final result:', finalBarberId);
 
     // Insert transaction
     const { data: tx, error: txErr } = await supabase
@@ -408,7 +359,7 @@ export default function CashRegister() {
       .single();
 
     // 🐛 DEBUG: Log the transaction result
-    console.log("💰 Transaction insert result:", { data: tx, error: txErr });
+    console.log('💰 Transaction insert result:', { data: tx, error: txErr });
 
     if (txErr || !tx) {
       console.error(txErr);
@@ -489,6 +440,9 @@ export default function CashRegister() {
       console.error(e);
     }
   }
+
+  // ---------- UI ----------
+  const PAYMENT_METHODS_UI: UiPaymentMethod[] = ["Contanti", "POS", "Satispay", "Altro"];
 
   // Guard for missing business configuration
   if (authLoading) {
@@ -624,7 +578,7 @@ export default function CashRegister() {
                         <div className="font-semibold text-black">{a.client}</div>
                         <div className="text-xs text-gray-500">{a.time}</div>
                       </div>
-                      <div className="text-sm text-gray-600 flex items_center gap-2 mt-1">
+                      <div className="text-sm text-gray-600 flex items-center gap-2 mt-1">
                         <span>{a.service}</span>
                         <span>•</span>
                         <span>{a.barber}</span>
@@ -647,7 +601,9 @@ export default function CashRegister() {
             <div className="relative col-span-7 bg-white rounded-2xl border border-gray-100 shadow-sm h-[700px] flex flex-col">
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-black">Trattamenti</h2>
+                  <h2 className="text-xl font-bold text-black">
+                    Trattamenti
+                  </h2>
                   <button
                     onClick={() => setItems([])}
                     className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -828,8 +784,8 @@ export default function CashRegister() {
                     onChange={(e) => setPaymentMethod(e.target.value as UiPaymentMethod)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline_none focus:ring-2 focus:ring-black focus:border-transparent text-black bg-white"
                   >
-                    {paymentOptions.map((m) => (
-                      <option key={m} value={m}>
+                    {["Contanti", "POS", "Satispay", "Altro"].map((m) => (
+                      <option key={m} value={m as UiPaymentMethod}>
                         {m}
                       </option>
                     ))}
@@ -905,4 +861,4 @@ export default function CashRegister() {
       )}
     </div>
   );
-}
+}   
