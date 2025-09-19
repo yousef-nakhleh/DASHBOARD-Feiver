@@ -21,7 +21,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 // 🔐 Auth
 import { useAuth } from '../components/auth/AuthContext';
-import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
+import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -50,12 +50,12 @@ const formatShort = (d: Date) =>
 
 const Agenda = () => {
   const { profile, loading: authLoading } = useAuth();
-  const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use business from provider
+  const { effectiveBusinessId } = useSelectedBusiness(); // ✅
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
-  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome');
+  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome'); // ✅ NEW
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
@@ -76,7 +76,7 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  // Fetch business timezone
+  // ✅ Fetch business timezone
   useEffect(() => {
     const fetchBusinessTimezone = async () => {
       if (authLoading) return;
@@ -104,7 +104,7 @@ const Agenda = () => {
 
     const dates = getDatesInView(selectedDate, viewMode);
 
-    // UTC range
+    // UTC range using businessTimezone
     const startOfFirstDay = toUTCFromLocal({
       date: formatDateToYYYYMMDDLocal(dates[0]),
       time: '00:00',
@@ -225,7 +225,7 @@ const Agenda = () => {
     fetchAppointments();
   };
 
-  // 🔹 NEW: persist duration change (called by Calendar on resize commit)
+  // 🔹 Persist duration change
   const updateAppointmentDuration = async (id: string, newDurationMin: number) => {
     await supabase
       .from('appointments')
@@ -262,7 +262,8 @@ const Agenda = () => {
       ? appointments.filter(
           (app) =>
             `${app.contact?.first_name || ''} ${app.contact?.last_name || ''}`.trim().toLowerCase().includes(searchQuery.toLowerCase()) ||
-            app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+            app.services?.name?.toLowerCase().includes(searchQuery.toLowerCase()
+            )
         )
       : appointments.filter(
           (app) =>
@@ -317,7 +318,7 @@ const Agenda = () => {
               </button>
               {showDatePicker && (
                 <div className="absolute z-50 top-10">
-                  < DatePicker
+                  <DatePicker
                     selected={selectedDate}
                     onChange={(date) => {
                       setSelectedDate(date as Date);
@@ -408,7 +409,6 @@ const Agenda = () => {
               setSlotPrefill({ barberId, date, time });
               setShowCreateModal(true);
             }}
-            // 🔹 pass duration persistence for resize
             onResizeDuration={updateAppointmentDuration}
           />
         </div>
