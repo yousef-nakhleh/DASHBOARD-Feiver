@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../components/auth/AuthContext";
 import { useSelectedBusiness } from "../components/auth/SelectedBusinessProvider"; // ✅ NEW
 import { toUTCFromLocal, toLocalFromUTC } from "../lib/timeUtils";
+import { useBusinessTimezone } from "../hooks/useBusinessTimezone"; // ✅ NEW
 
 // ---------- Types ----------
 type DbPaymentMethod = "Cash" | "POS" | "Satispay" | "Other";
@@ -70,7 +71,7 @@ export default function CashRegister() {
   const { loading: authLoading } = useAuth(); // ✅ changed
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ NEW
   const businessId = effectiveBusinessId ?? null; // ✅ changed
-  const [businessTimezone, setBusinessTimezone] = useState("Europe/Rome");
+  const businessTimezone = useBusinessTimezone(); // ✅ use hook (string)
 
   const [query, setQuery] = useState("");
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -91,24 +92,6 @@ export default function CashRegister() {
 
   // Confirm modal
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  // -------- Fetch business timezone --------
-  useEffect(() => {
-    const fetchBusinessTimezone = async () => {
-      if (authLoading || !businessId) return;
-
-      const { data, error } = await supabase
-        .from("business")
-        .select("timezone")
-        .eq("id", businessId)
-        .single();
-
-      if (!error && data?.timezone) {
-        setBusinessTimezone(data.timezone);
-      }
-    };
-    fetchBusinessTimezone();
-  }, [authLoading, businessId]);
 
   // -------- Fetch all barbers for the dropdown --------
   useEffect(() => {
@@ -843,7 +826,7 @@ export default function CashRegister() {
       {/* Confirm modal */}
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-2xl shadow-xl w-[95%] max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl w_[95%] max-w-md">
             <div className="p-5 border-b">
               <div className="flex justify-between items-center">
                 <div className="text-lg font-semibold text-black">Conferma pagamento</div>
