@@ -22,6 +22,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 // 🔐 Auth
 import { useAuth } from '../components/auth/AuthContext';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ✅ NEW
 
 const generateTimeSlots = () => {
   const slots = [];
@@ -55,7 +56,7 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<any[]>([]);
   const [barbers, setBarbers] = useState<any[]>([]);
-  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome'); // ✅ NEW
+  const businessTimezone = useBusinessTimezone(); // ✅ use hook (string)
   const [selectedBarber, setSelectedBarber] = useState<string>('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null);
@@ -76,24 +77,7 @@ const Agenda = () => {
 
   const timeSlots = generateTimeSlots();
 
-  // ✅ Fetch business timezone
-  useEffect(() => {
-    const fetchBusinessTimezone = async () => {
-      if (authLoading) return;
-      if (!effectiveBusinessId) return;
-
-      const { data, error } = await supabase
-        .from('business')
-        .select('timezone')
-        .eq('id', effectiveBusinessId)
-        .single();
-
-      if (!error && data?.timezone) {
-        setBusinessTimezone(data.timezone);
-      }
-    };
-    fetchBusinessTimezone();
-  }, [authLoading, effectiveBusinessId]);
+  // ⛔️ removed manual timezone fetch — we now rely on useBusinessTimezone()
 
   const fetchAppointments = async () => {
     if (typeof effectiveBusinessId !== 'string' || !effectiveBusinessId) {
@@ -104,15 +88,20 @@ const Agenda = () => {
 
     const dates = getDatesInView(selectedDate, viewMode);
 
-    // UTC range using businessTimezone
+    // ✅ UTC range using businessTimezone: start inclusive, next-day start exclusive
     const startOfFirstDay = toUTCFromLocal({
       date: formatDateToYYYYMMDDLocal(dates[0]),
       time: '00:00',
       timezone: businessTimezone,
     });
-    const endOfLastDay = toUTCFromLocal({
-      date: formatDateToYYYYMMDDLocal(dates[dates.length - 1]),
-      time: '23:59',
+
+    const lastDay = dates[dates.length - 1];
+    const nextDay = new Date(lastDay);
+    nextDay.setDate(lastDay.getDate() + 1);
+
+    const nextDayStartUTC = toUTCFromLocal({
+      date: formatDateToYYYYMMDDLocal(nextDay),
+      time: '00:00',
       timezone: businessTimezone,
     });
 
@@ -131,7 +120,7 @@ const Agenda = () => {
       `)
       .eq('business_id', effectiveBusinessId)
       .gte('appointment_date', startOfFirstDay)
-      .lte('appointment_date', endOfLastDay)
+      .lt('appointment_date', nextDayStartUTC) // ✅ changed from <= 23:59 to < next day 00:00
       .in('appointment_status', ['pending', 'confirmed']);
 
     if (error) console.error('Errore fetch appointments:', error.message);
