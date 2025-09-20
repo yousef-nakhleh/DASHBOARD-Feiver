@@ -31,7 +31,7 @@ type TxnRow = {
 export default function Reports() {
   const { effectiveBusinessId: businessId } = useSelectedBusiness();
   const navigate = useNavigate(); // ⬅️ NEW
-  const { timezone: timeZone } = useBusinessTimezone(); // ⬅️ NEW
+  const businessTimezone = useBusinessTimezone(); // ⬅️ FIXED: hook returns a string
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function Reports() {
   // Business day (business tz), cutoff 24:00
   const { startISO, endISO, label } = useMemo(() => {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
+      timeZone: businessTimezone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -62,13 +62,13 @@ export default function Reports() {
     const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
     const end = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0));
     const label = new Intl.DateTimeFormat('it-IT', {
-      timeZone,
+      timeZone: businessTimezone,
       weekday: 'long',
       day: 'numeric',
       month: 'long',
     }).format(new Date());
     return { startISO: start.toISOString(), endISO: end.toISOString(), label };
-  }, [timeZone]);
+  }, [businessTimezone]);
 
   useEffect(() => {
     let cancelled = false;
@@ -352,7 +352,7 @@ export default function Reports() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-black">Dettaglio Transazioni</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items_center gap-2">
               <button
                 className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
                 onClick={() => navigate('/transactions')} // ⬅️ open full list page
