@@ -29,7 +29,7 @@ const dayMap: Record<string, string> = {
 const Staff = () => {
   const { loading: authLoading } = useAuth(); // ⬅️ only loading from AuthContext
   const { effectiveBusinessId: businessId } = useSelectedBusiness(); // ⬅️ business id source
-  const businessTimezone = useBusinessTimezone(businessId); // ⬅️ NEW (injected, no other changes)
+  const businessTimezone = useBusinessTimezone(); // ⬅️ FIX: do not pass businessId; hook returns a string
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
