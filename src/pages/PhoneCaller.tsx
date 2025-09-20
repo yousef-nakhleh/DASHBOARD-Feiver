@@ -20,7 +20,7 @@ const PhoneCaller: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { effectiveBusinessId } = useSelectedBusiness();
   const businessId = effectiveBusinessId ?? null;
-  const businessTimezone = useBusinessTimezone(businessId); // ✅ NEW
+  const businessTimezone = useBusinessTimezone(); // ✅ use hook correctly (returns a string)
 
   const [calls, setCalls] = useState<PhoneCallerCall[]>([]);
   const [loading, setLoading] = useState(true);
