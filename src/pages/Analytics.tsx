@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -10,6 +9,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { useSelectedBusiness } from '../components/auth/SelectedBusinessProvider'; // ✅ NEW import
+import { useBusinessTimezone } from '../hooks/useBusinessTimezone'; // ✅ NEW
 
 // Utility: simple currency formatter (EUR)
 const formatEUR = (n: number) =>
@@ -76,23 +76,7 @@ const RANGE_TABS: { key: keyof typeof SERIES; label: string }[] = [
 export default function CassaOverviewStatic() {
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ CHANGED
   const [range, setRange] = useState<keyof typeof SERIES>('month');
-  const [businessTimezone, setBusinessTimezone] = useState('Europe/Rome'); // ✅ NEW
-
-  // -------- Fetch business timezone --------
-  useEffect(() => {
-    const fetchBusinessTimezone = async () => {
-      if (!effectiveBusinessId) return;
-      const { data, error } = await supabase
-        .from('business')
-        .select('timezone')
-        .eq('id', effectiveBusinessId)
-        .single();
-      if (!error && data?.timezone) {
-        setBusinessTimezone(data.timezone);
-      }
-    };
-    fetchBusinessTimezone();
-  }, [effectiveBusinessId]);
+  const businessTimezone = useBusinessTimezone(); // ✅ use hook (string)
 
   // Static KPIs (can be wired later)
   const KPIS = {
