@@ -16,7 +16,6 @@ import Contacts from "./pages/Contacts";
 import Trattamenti from "./pages/Trattamenti";
 import Analytics from "./pages/Analytics";
 import StaffAvailability from "./pages/StaffAvailability";
-import PaymentPage from "./components/payment/PaymentPage";
 import Chatbot from "./pages/Chatbot";
 import WaitingList from "./pages/WaitingList";
 import PhoneCaller from "./pages/PhoneCaller";
@@ -173,7 +172,6 @@ function App() {
                     </TransactionsGate>
                   }
                 />
-                <Route path="cassa/pagamento" element={<PaymentPage />} />
                 <Route
                   path="rubrica"
                   element={
