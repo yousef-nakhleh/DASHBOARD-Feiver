@@ -34,7 +34,7 @@ export default function Trattamenti() {
   const { effectiveBusinessId } = useSelectedBusiness(); 
   const businessId = useMemo(() => effectiveBusinessId ?? null, [effectiveBusinessId]);
 
-  const businessTimezone = useBusinessTimezone(businessId); // ✅ NEW
+  const businessTimezone = useBusinessTimezone(); // ✅ FIX: use as plain string, don't pass businessId
 
   const [services, setServices] = useState<Service[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Tutti");
