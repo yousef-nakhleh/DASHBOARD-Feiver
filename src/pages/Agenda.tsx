@@ -12,7 +12,6 @@ import { toUTCFromLocal } from '../lib/timeUtils';
 import { Calendar } from '../components/agenda/Calendar';
 import CreateAppointmentModal from '../components/agenda/CreateAppointmentModal';
 import AppointmentSummaryBanner from '../components/agenda/AppointmentSummaryBanner';
-import SlidingPanelPayment from '../components/payment/SlidingPanelPayment';
 import Dropdown from '../components/ui/Dropdown';
 import AvailabilityExceptionFormModal from '../components/staff/AvailabilityExceptionFormModal';
 
