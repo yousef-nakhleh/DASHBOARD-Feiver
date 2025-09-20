@@ -430,16 +430,7 @@ const Agenda = () => {
         />
       )}
 
-      <SlidingPanelPayment
-        visible={showPaymentPanel}
-        prefill={paymentPrefill}
-        onClose={() => setShowPaymentPanel(false)}
-        businessId={effectiveBusinessId}
-        onSuccess={() => {
-          setShowPaymentPanel(false);
-          fetchAppointments();
-        }}
-      />
+      
 
       {showHeaderExceptionModal && (
         <AvailabilityExceptionFormModal 
