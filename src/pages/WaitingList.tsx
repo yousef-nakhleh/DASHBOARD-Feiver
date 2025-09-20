@@ -22,7 +22,8 @@ const WaitingList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // ✅ business timezone via hook (replaces manual fetch)
-const businessTimezone = useBusinessTimezone(); // just a string
+  const businessTimezone = useBusinessTimezone(); // just a string
+
   const fetchWaitingList = async () => {
     if (!effectiveBusinessId) {
       setWaitingList([]);
