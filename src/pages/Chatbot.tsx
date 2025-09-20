@@ -21,7 +21,7 @@ const Chatbot: React.FC = () => {
   const { effectiveBusinessId } = useSelectedBusiness();
   const businessId = effectiveBusinessId ?? null;
 
-  const { timezone: businessTimezone } = useBusinessTimezone(); // ✅ replaces hardcoded "Europe/Rome"
+const businessTimezone = useBusinessTimezone(); // just a string replaces hardcoded "Europe/Rome"
 
   const [data, setData] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
