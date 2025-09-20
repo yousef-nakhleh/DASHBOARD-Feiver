@@ -38,8 +38,7 @@ const OpeningExceptions = () => {
   const { profile, loading: authLoading } = useAuth();
   const { effectiveBusinessId } = useSelectedBusiness();                // ⬅️ NEW
   const businessId = effectiveBusinessId || null;                       // ⬅️ CHANGED
-  const { timezone: businessTimezone } = useBusinessTimezone(); // ⬅️ REPLACED
-
+const businessTimezone = useBusinessTimezone(); // just a string
   const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [selectedException, setSelectedException] = useState<AvailabilityException | null>(null);
