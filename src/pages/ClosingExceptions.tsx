@@ -39,7 +39,8 @@ const ClosingExceptions = () => {
   const { loading: authLoading } = useAuth();
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use provider
   const businessId = effectiveBusinessId || null;        // ✅ derive businessId
-const businessTimezone = useBusinessTimezone(); // just a string
+  const businessTimezone = useBusinessTimezone(); // ✅ just a string
+
   const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [selectedException, setSelectedException] = useState<AvailabilityException | null>(null);
