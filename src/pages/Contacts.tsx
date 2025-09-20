@@ -18,7 +18,7 @@ const contactsCache = new Map<
 const Contacts: React.FC = () => {
   const { loading: authLoading } = useAuth(); // ✅ use only loading from Auth
   const { effectiveBusinessId } = useSelectedBusiness(); // ✅ use business from provider
-  const businessTimezone = useBusinessTimezone(effectiveBusinessId); // ✅ NEW
+  const businessTimezone = useBusinessTimezone(); // ✅ FIX: hook returns a string; don't pass businessId
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<null | string>(null);
@@ -272,7 +272,7 @@ const Contacts: React.FC = () => {
                     <div className="flex items-center">
                       <Calendar size={16} className="text-gray-400 mr-3" />
                       <span className="text-black">
-                        Ultima visita:{' '}
+                        Ultima visita{' '}
                         {selectedClientData.lastVisit
                           ? new Date(selectedClientData.lastVisit).toLocaleDateString('it-IT', { timeZone: businessTimezone }) // ✅ use business TZ
                           : 'N/D'}
@@ -282,7 +282,7 @@ const Contacts: React.FC = () => {
                       <Calendar size={16} className="text-gray-400 mr-3" />
                       {selectedClientData.nextVisit ? (
                         <span className="text-black">
-                          Prossima visita:{' '}
+                          Prossima visita{' '}
                           {new Date(selectedClientData.nextVisit).toLocaleDateString('it-IT', { timeZone: businessTimezone })} {/* ✅ use business TZ */}
                         </span>
                       ) : (
